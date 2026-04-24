@@ -1,0 +1,13 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["."]
+markers = [
+    "slow: тесты, требующие LLM вызова (пропускаются по умолчанию)",
+    "integration: интеграционные тесты (требуют базу данных)",
+    "unit: изолированные unit-тесты",
+]
+
+[tool.coverage.run]
+source = ["agents", "database", "emotional_core.py", "brain_unified.py", "mobile_api.py"]
+omit = ["*/venv_local/*", "*/venv/*"]

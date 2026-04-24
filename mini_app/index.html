@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kristina AI</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #6D5BD0 0%, #B0C4DE 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container { max-width: 480px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 40px 0; }
+        .logo {
+            width: 80px; height: 80px; background: white; border-radius: 50%;
+            margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;
+            font-size: 32px; color: #6D5BD0; font-weight: bold;
+        }
+        .chat-container {
+            background: rgba(255,255,255,0.95); border-radius: 20px;
+            padding: 20px; min-height: 400px; color: #333;
+        }
+        .message {
+            margin-bottom: 15px; padding: 12px 16px; border-radius: 18px;
+            max-width: 80%; word-wrap: break-word;
+        }
+        .message.user { background: #6D5BD0; color: white; margin-left: auto; }
+        .message.bot { background: #f0f0f0; color: #333; }
+        .input-area { display: flex; gap: 10px; margin-top: 20px; }
+        input {
+            flex: 1; padding: 15px; border: none; border-radius: 25px;
+            font-size: 16px; outline: none;
+        }
+        button {
+            padding: 15px 25px; background: #6D5BD0; color: white;
+            border: none; border-radius: 25px; font-size: 16px; cursor: pointer;
+        }
+        .hidden { display: none; }
+        #messages { max-height: 400px; overflow-y: auto; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">K</div>
+            <h1>Kristina AI</h1>
+            <p>Твой UX-дизайнер из Стокгольма</p>
+        </div>
+        
+        <div id="auth-screen" class="chat-container">
+            <h2 style="text-align: center; margin-bottom: 20px;">Вход</h2>
+            <input type="text" id="username" placeholder="Имя пользователя" style="width: 100%; margin-bottom: 10px;">
+            <input type="password" id="password" placeholder="Пароль" style="width: 100%; margin-bottom: 20px;">
+            <button onclick="login()" style="width: 100%;">Войти</button>
+            <p id="error" style="color: red; text-align: center; margin-top: 10px;"></p>
+        </div>
+        
+        <div id="chat-screen" class="chat-container hidden">
+            <div id="messages"></div>
+            <div class="input-area">
+                <input type="text" id="message-input" placeholder="Напиши сообщение..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let token = localStorage.getItem('kristina_token');
+        let tg = window.Telegram.WebApp;
+        
+        tg.ready();
+        tg.expand();
+        
+        if (token) showChat();
+        
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                
+                const data = await response.json();
+                
+                if (data.access_token) {
+                    token = data.access_token;
+                    localStorage.setItem('kristina_token', token);
+                    tg.HapticFeedback.notificationOccurred('success');
+                    showChat();
+                } else {
+                    document.getElementById('error').textContent = 'Неверный логин или пароль';
+                    tg.HapticFeedback.notificationOccurred('error');
+                }
+            } catch (e) {
+                document.getElementById('error').textContent = 'Ошибка сети';
+            }
+        }
+        
+        function showChat() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('chat-screen').classList.remove('hidden');
+            loadHistory();
+        }
+        
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${API_URL}/chat/history`, {
+                    headers: {'Authorization': `Bearer ${token}`}
+                });
+                const messages = await response.json();
+                displayMessages(messages);
+            } catch (e) {
+                console.error('Ошибка истории:', e);
+            }
+        }
+        
+        function displayMessages(messages) {
+            const container = document.getElementById('messages');
+            container.innerHTML = messages.map(m => 
+                `<div class="message ${m.role}">${m.content}</div>`
+            ).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            input.value = '';
+            
+            const container = document.getElementById('messages');
+            container.innerHTML += `<div class="message user">${text}</div>`;
+            container.scrollTop = container.scrollHeight;
+            
+            try {
+                const response = await fetch(`${API_URL}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({message: text})
+                });
+                
+                const data = await response.json();
+                container.innerHTML += `<div class="message bot">${data.response}</div>`;
+                container.scrollTop = container.scrollHeight;
+                tg.HapticFeedback.impactOccurred('light');
+                
+            } catch (e) {
+                container.innerHTML += `<div class="message bot" style="color: red;">Ошибка</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

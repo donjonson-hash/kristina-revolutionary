@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kristina | Control Panel</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">K</div>
+                <span>Kristina Project</span>
+            </div>
+            <div class="status-indicator">
+                <span class="status-dot"></span>
+                <span>Online</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <main class="main-content">
+            <!-- Chat Section -->
+            <div class="card chat-container">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        💬 Web Chat
+                    </h2>
+                    <button id="clearChat" class="btn-send" style="padding: 8px 16px; font-size: 0.875rem;">
+                        Очистить
+                    </button>
+                </div>
+                <div id="chatMessages" class="chat-messages">
+                    <!-- Messages will appear here -->
+                </div>
+                <div class="chat-input-wrapper">
+                    <input 
+                        type="text" 
+                        id="chatInput" 
+                        class="chat-input" 
+                        placeholder="Напишите Кристине..."
+                        autocomplete="off"
+                    >
+                    <button id="sendBtn" class="btn-send">Отправить</button>
+                </div>
+            </div>
+
+            <!-- System Logs -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        🖥️ System Logs
+                    </h2>
+                </div>
+                <div id="logsContainer" class="logs-container">
+                    <!-- Logs will appear here -->
+                </div>
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <!-- Active Agent -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        🎭 Active Agent
+                    </h2>
+                </div>
+                <div class="agent-grid">
+                    <button class="agent-btn active" data-agent="kristina">
+                        <div class="agent-icon">👩‍💻</div>
+                        <div class="agent-name">Kristina</div>
+                    </button>
+                    <button class="agent-btn" data-agent="advisor">
+                        <div class="agent-icon">🧠</div>
+                        <div class="agent-name">Advisor</div>
+                    </button>
+                    <button class="agent-btn" data-agent="creative">
+                        <div class="agent-icon">✨</div>
+                        <div class="agent-name">Creative</div>
+                    </button>
+                </div>
+                <div style="margin-top: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.875rem;">
+                    Режим: <strong id="activeAgentName" style="color: var(--accent-deep);">Kristina</strong>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        📊 Statistics
+                    </h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div id="statMessages" class="stat-value">0</div>
+                        <div class="stat-label">Web Messages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="statUsers" class="stat-value">1</div>
+                        <div class="stat-label">Active Users</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="statUptime" class="stat-value">00:00</div>
+                        <div class="stat-label">Uptime</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: var(--accent-green);">✓</div>
+                        <div class="stat-label">System OK</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mood Engine -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        🌊 Mood Engine
+                    </h2>
+                </div>
+                <div class="mood-display">
+                    <div id="moodEmoji" class="mood-emoji">🌅</div>
+                    <div class="mood-info">
+                        <div class="mood-label">Текущее состояние</div>
+                        <div id="moodLabel" class="mood-value">Утреннее любопытство</div>
+                        <div class="energy-bar">
+                            <div id="energyFill" class="energy-fill" style="width: 65%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Telegram Monitor -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        📱 Telegram Monitor
+                    </h2>
+                </div>
+                <div class="tg-status">
+                    <div class="tg-icon">✈️</div>
+                    <div class="tg-info">
+                        <div class="tg-label">Bot Status</div>
+                        <div class="tg-value" style="color: var(--accent-green);">Connected</div>
+                    </div>
+                </div>
+                <div style="margin-top: 0.75rem; font-size: 0.875rem; color: var(--text-secondary);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span>Users:</span>
+                        <strong>1 active</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Last activity:</span>
+                        <strong>now</strong>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
