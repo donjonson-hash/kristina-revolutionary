@@ -18,6 +18,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # Document handler and intent detection
 from document_handler import handle_document, DOCUMENT_PROCESSOR_AVAILABLE
 from intent_detector import detect_proposal_intent, detect_meeting_intent
+from telegram_utils import split_message
 
 load_dotenv()
 
@@ -25,6 +26,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
+# httpx на уровне INFO пишет полный URL каждого запроса к Telegram,
+# а в нём содержится токен бота — не пускаем токен в журнал
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 from shared_context import user_context
@@ -120,9 +124,10 @@ async def trends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"({', '.join(result['sources']) or 'источники недоступны'})\n\n"
             f"{result['report']}"
         )
-        # Telegram ограничивает сообщение 4096 символами
-        for i in range(0, len(report), 4000):
-            await update.message.reply_text(report[i:i + 4000])
+        # Telegram ограничивает сообщение 4096 символами —
+        # делим по границам абзацев, чтобы не резать отчёт посреди строки
+        for chunk in split_message(report):
+            await update.message.reply_text(chunk)
     except Exception as e:
         logger.error(f"Trends command error: {e}")
         await update.message.reply_text(
