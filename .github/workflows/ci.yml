@@ -28,27 +28,4 @@ jobs:
         run: python -m compileall -q agents database *.py
 
       - name: Run tests
-        # Прогоняются стабильно зелёные тесты; остальные — в job legacy-tests
-        run: python -m pytest tests/test_trend_scout.py -v
-
-  legacy-tests:
-    name: Legacy tests (non-blocking)
-    runs-on: ubuntu-latest
-    # Исторически падающие тесты: не блокируют PR, но их состояние видно в логах.
-    # По мере починки переносить файлы в блокирующий job "tests".
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest pytest-asyncio
-
-      - name: Run legacy tests
-        run: python -m pytest tests/ --ignore=tests/test_trend_scout.py -v
+        run: python -m pytest tests/ -v
