@@ -1,0 +1,13 @@
+# Временный диагностический workflow: проверяет, что Actions запускается
+# без внешних action'ов (actions/checkout и т.п.). Будет удалён.
+name: Canary
+
+on:
+  push:
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo
+        run: echo "Actions works, python $(python3 --version)"
