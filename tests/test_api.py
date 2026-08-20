@@ -69,11 +69,11 @@ def client():
 class TestHealth:
 
     def test_health_endpoint(self, client):
-        """GET /health возвращает статус OK"""
+        """GET /health возвращает статус healthy"""
         response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "OK"
+        assert data["status"] == "healthy"
 
     def test_root_endpoint(self, client):
         """GET / возвращает описание API"""
@@ -172,8 +172,10 @@ class TestChat:
 
         assert response.status_code == 200
         data = response.json()
+        # Поля контракта ChatResponse (mobile_api.py)
         assert "response" in data
-        assert "emotion" in data
+        assert "agent" in data
+        assert "confidence" in data
 
     def test_chat_empty_message(self, client):
         """POST /chat с пустым сообщением"""
@@ -254,7 +256,9 @@ class TestPrice:
         })
         assert response.status_code == 200
         data = response.json()
-        assert "price" in data or "estimate" in str(data)
+        # Контракт PriceEstimateResponse: price_range, timeline, includes
+        assert "price_range" in data
+        assert "timeline" in data
 
 
 class TestRateLimiting:

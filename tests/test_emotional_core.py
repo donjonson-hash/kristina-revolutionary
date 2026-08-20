@@ -129,11 +129,13 @@ class TestRandomFluctuations:
             )
 
     def test_fluctuation_range(self, emotional_core):
-        """Изменение не выходит за [-0.05, +0.05] после нормализации"""
+        """Изменение не выходит за [-0.05, +0.05]"""
+        state_before = emotional_core.state.copy()
         emotional_core._apply_random_fluctuations()
 
         for emotion in emotional_core.state:
-            assert -0.05 <= emotional_core.state[emotion] - 0.0 <= 0.05
+            delta = emotional_core.state[emotion] - state_before[emotion]
+            assert -0.05 <= delta <= 0.05
 
 
 class TestNormalizeState:
