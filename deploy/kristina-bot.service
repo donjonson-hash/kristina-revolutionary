@@ -1,0 +1,19 @@
+[Unit]
+Description=Kristina AI Telegram Bot (agents: Persona, Advisor, Creative, TrendScout)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/kristina-revolutionary
+ExecStart=/opt/kristina-revolutionary/venv/bin/python bot.py
+Restart=always
+RestartSec=5
+# Токены читаются из .env через python-dotenv (load_dotenv в bot.py)
+
+# Ограничения под VPS с 1 ГБ RAM
+MemoryMax=700M
+OOMPolicy=continue
+
+[Install]
+WantedBy=multi-user.target
