@@ -34,12 +34,12 @@ class TrendScoutAgent(BaseAgent):
     """Агент-исследователь: спрос пользователей → идеи стартапов"""
 
     def __init__(self, collector=None, analyzer=None):
+        from trend_scout_prompt import AGENT_SYSTEM_PROMPT
         super().__init__(
             name="TrendScout",
             description="Разведчик рынка: собирает актуальные запросы пользователей "
                         "и предлагает идеи монетизируемых стартапов",
-            system_prompt="Ты аналитик стартап-рынка. Работаешь с реальными "
-                          "сигналами спроса из открытых источников."
+            system_prompt=AGENT_SYSTEM_PROMPT,
         )
         # Основы слов — матчатся с разными словоформами ("нишу", "монетизации")
         self.activation_keywords = [
