@@ -1,0 +1,17 @@
+[Unit]
+Description=Kristina Control Panel (web_server.py, port 8000) — опционально
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/kristina-revolutionary
+ExecStart=/opt/kristina-revolutionary/venv/bin/python web_server.py
+Restart=always
+RestartSec=5
+
+MemoryMax=400M
+OOMPolicy=continue
+
+[Install]
+WantedBy=multi-user.target
