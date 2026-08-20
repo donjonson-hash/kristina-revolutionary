@@ -8,6 +8,7 @@ def __getattr__(name):
         "KristinaPersonaAgent": "kristina_persona",
         "KristinaAdvisorAgent": "kristina_advisor",
         "KristinaCreativeAgent": "kristina_creative",
+        "TrendScoutAgent": "trend_scout",
     }
     if name in lazy_agents:
         module = importlib.import_module(f".{lazy_agents[name]}", __package__)
@@ -15,4 +16,5 @@ def __getattr__(name):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = ['router', 'BaseAgent', 'AgentResponse',
-           'KristinaPersonaAgent', 'KristinaAdvisorAgent', 'KristinaCreativeAgent']
+           'KristinaPersonaAgent', 'KristinaAdvisorAgent', 'KristinaCreativeAgent',
+           'TrendScoutAgent']
