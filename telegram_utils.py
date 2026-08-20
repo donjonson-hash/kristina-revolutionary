@@ -2,6 +2,7 @@
 Утилиты для отправки сообщений в Telegram
 """
 
+from datetime import datetime, timedelta
 from typing import List
 
 # Лимит Telegram — 4096 символов; оставляем запас
@@ -58,3 +59,29 @@ def split_message(text: str, limit: int = MESSAGE_LIMIT) -> List[str]:
 
     flush()
     return chunks
+
+
+def parse_admin_ids(raw: str) -> List[int]:
+    """
+    Разобрать KRISTINA_ADMIN_IDS: список Telegram chat_id через запятую.
+    Нечисловые значения (в т.ч. заглушка из .env.example) отбрасываются.
+    """
+    ids = []
+    for part in (raw or "").replace(" ", "").split(","):
+        if part.lstrip("-").isdigit():
+            ids.append(int(part))
+    return ids
+
+
+def next_weekly_run(now: datetime, weekday: int = 0, hour: int = 8) -> datetime:
+    """
+    Ближайший момент еженедельного запуска: день недели (0=понедельник)
+    и час в таймзоне переданного now. Если момент на этой неделе уже
+    прошёл — следующая неделя.
+    """
+    target = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+    days_ahead = (weekday - now.weekday()) % 7
+    target += timedelta(days=days_ahead)
+    if target <= now:
+        target += timedelta(weeks=1)
+    return target
