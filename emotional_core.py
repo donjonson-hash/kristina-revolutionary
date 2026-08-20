@@ -61,7 +61,8 @@ class EmotionalCore:
             self.state["energy"] -= 0.08
         elif 17 <= hour < 22:
             self.state["loneliness"] += 0.1
-        else:
+        elif hour >= 22 or hour < 6:
+            # Ночь; дневные часы вне интервалов (10-14) состояние не меняют
             self.state["energy"] -= 0.15
     
     def _apply_context_effects(self, context: Dict):

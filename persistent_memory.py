@@ -135,6 +135,31 @@ class PersistentMemory:
             "total_sessions": total_sessions
         }
     
+    def get_messages(self, session_id: str, limit: int = 10) -> List[tuple]:
+        """Последние сообщения сессии как кортежи (role, content)"""
+        messages = self.get_recent_messages(session_id, limit)
+        return [(m["role"], m["content"]) for m in messages]
+
+    def search_messages(self, keyword: str) -> List[Dict]:
+        """Поиск по тексту среди всех сессий"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """SELECT session_id, role, content, timestamp FROM messages
+               WHERE role LIKE ? OR content LIKE ?
+               ORDER BY timestamp DESC""",
+            (f"%{keyword}%", f"%{keyword}%")
+        )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    def clear_user(self, session_id: str) -> None:
+        """Удалить все сообщения сессии"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+        conn.commit()
+
     def close(self):
         """Закрыть соединение"""
         if hasattr(self._local, 'connection'):
@@ -151,25 +176,3 @@ def get_memory() -> PersistentMemory:
     if _memory_instance is None:
         _memory_instance = PersistentMemory()
     return _memory_instance
-
-    # Alias methods for test compatibility
-    def get_messages(self, session_id: str, limit: int = 10) -> List[Dict]:
-        return self.get_recent_messages(session_id, limit)
-    
-    def search_messages(self, session_id: str, keyword: str) -> List[Dict]:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT role, content, timestamp FROM messages WHERE session_id = ? AND content LIKE ? ORDER BY timestamp DESC",
-            (session_id, f"%{keyword}%")
-        )
-        rows = cursor.fetchall()
-        conn.close()
-        return [{"role": r[0], "content": r[1], "timestamp": r[2]} for r in rows]
-    
-    def clear_user(self, session_id: str) -> None:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
-        conn.commit()
-        conn.close()
