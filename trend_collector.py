@@ -5,6 +5,10 @@ Trend Collector — сбор сигналов пользовательского
 - Hacker News (Algolia API): популярные истории и Ask HN
 - Reddit (публичный JSON): сабреддиты о стартапах и запросах пользователей
 - GitHub (Search API): быстрорастущие новые репозитории
+- Поисковые подсказки (Google autocomplete): дословные массовые запросы
+
+TikTok и Instagram публичного API не имеют — они входят в методологию
+анализа и валидации (см. trend_scout_prompt.py).
 
 Каждый источник опрашивается независимо: падение одного не ломает сбор.
 """
@@ -14,6 +18,7 @@ import logging
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+from urllib.parse import quote_plus
 
 import aiohttp
 
@@ -78,7 +83,8 @@ class TrendCollector:
                 if response.status != 200:
                     logger.warning(f"Trend source {url}: HTTP {response.status}")
                     return None
-                return await response.json()
+                # content_type=None: suggest-эндпоинты отдают text/javascript
+                return await response.json(content_type=None)
         except Exception as e:
             logger.warning(f"Trend source {url} failed: {e}")
             return None
@@ -152,6 +158,64 @@ class TrendCollector:
             signals.extend(sub_signals)
         return signals
 
+    # ---------- Поисковые подсказки (Google autocomplete, без ключа) ----------
+
+    # Хвосты-индикаторы боли и намерения из методологии (trend_scout_prompt)
+    INTENT_TAILS = ["как", "для", "не работает", "альтернатива", "цена", "app", "tool"]
+    # Затравки для общего обзора, когда тема не задана
+    DEFAULT_SEEDS = [
+        "приложение для", "сервис для", "как автоматизировать",
+        "app for", "tool for", "how to automate",
+    ]
+
+    async def collect_search_suggest(self, topic: str = "", limit: int = 20) -> List[Signal]:
+        """Автодополнение поиска — дословные формулировки массовых запросов"""
+        if topic:
+            seeds = [topic] + [f"{topic} {tail}" for tail in self.INTENT_TAILS]
+        else:
+            seeds = self.DEFAULT_SEEDS
+
+        # Провайдеры с одинаковым форматом ответа: ["запрос", ["подсказка", ...]]
+        providers = [
+            ("https://suggestqueries.google.com/complete/search",
+             lambda seed: {"client": "firefox", "q": seed, "hl": "ru"}),
+            ("https://duckduckgo.com/ac/",
+             lambda seed: {"q": seed, "type": "list"}),
+        ]
+
+        async def fetch_seed(seed: str) -> List[Signal]:
+            data = None
+            for url, make_params in providers:
+                data = await self._get_json(url, make_params(seed))
+                if isinstance(data, list) and len(data) >= 2 and isinstance(data[1], list):
+                    break
+                data = None
+            if data is None:
+                return []
+            suggestions = [s for s in data[1] if isinstance(s, str) and s.strip()]
+            return [
+                Signal(
+                    source="search",
+                    title=suggestion,
+                    url="https://www.google.com/search?q=" + quote_plus(suggestion),
+                    # Позиция в подсказках — прокси популярности запроса
+                    score=len(suggestions) - idx,
+                    extra={"seed": seed},
+                )
+                for idx, suggestion in enumerate(suggestions)
+            ]
+
+        results = await asyncio.gather(*(fetch_seed(s) for s in seeds))
+        # Дедупликация по тексту запроса
+        seen, signals = set(), []
+        for seed_signals in results:
+            for signal in seed_signals:
+                key = signal.title.lower()
+                if key not in seen:
+                    seen.add(key)
+                    signals.append(signal)
+        return signals[:limit]
+
     # ---------- GitHub (Search API, без ключа) ----------
 
     async def collect_github(self, topic: str = "", limit: int = 15) -> List[Signal]:
@@ -191,6 +255,7 @@ class TrendCollector:
             self.collect_hackernews(topic, limit_per_source),
             self.collect_reddit(topic, limit=max(5, limit_per_source // 3)),
             self.collect_github(topic, limit_per_source),
+            self.collect_search_suggest(topic, limit_per_source),
             return_exceptions=True,
         )
         signals: List[Signal] = []
