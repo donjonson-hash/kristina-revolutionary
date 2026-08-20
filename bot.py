@@ -7,7 +7,7 @@ import os
 import sys
 import logging
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 from dotenv import load_dotenv
 
@@ -18,7 +18,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # Document handler and intent detection
 from document_handler import handle_document, DOCUMENT_PROCESSOR_AVAILABLE
 from intent_detector import detect_proposal_intent, detect_meeting_intent
-from telegram_utils import split_message
+from telegram_utils import split_message, parse_admin_ids, next_weekly_run
 
 load_dotenv()
 
@@ -210,6 +210,58 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             router.set_active_agent(agent_names[agent_id])
         await query.edit_message_text(f"🎭 Активен: {agent_id.title()}")
 
+# ✅ WEEKLY TREND REPORT
+async def weekly_trend_report(context: ContextTypes.DEFAULT_TYPE):
+    """Еженедельное исследование TrendScout с отправкой админам"""
+    admin_ids = parse_admin_ids(os.getenv("KRISTINA_ADMIN_IDS", ""))
+    if not admin_ids:
+        logger.warning("📅 Weekly trends: KRISTINA_ADMIN_IDS не задан — отчёт некому отправлять")
+        return
+
+    topic = os.getenv("TREND_REPORT_TOPIC", "")
+    logger.info(f"📅 Weekly TrendScout research started (topic: '{topic or 'общий обзор'}')")
+    try:
+        scout = router.agents.get("TrendScout") or TrendScoutAgent()
+        result = await scout.run_research(topic)
+        report = (
+            "📅 Еженедельный отчёт TrendScout\n"
+            f"📡 Сигналов: {result['signals_count']} "
+            f"({', '.join(result['sources']) or 'источники недоступны'})\n\n"
+            f"{result['report']}"
+        )
+    except Exception as e:
+        logger.error(f"📅 Weekly trends research error: {e}")
+        report = "😔 Еженедельное исследование TrendScout не удалось — проверь логи сервера."
+
+    for chat_id in admin_ids:
+        try:
+            for chunk in split_message(report):
+                await context.bot.send_message(chat_id=chat_id, text=chunk)
+            logger.info(f"📅 Weekly trends report sent to {chat_id}")
+        except Exception as e:
+            logger.error(f"📅 Weekly trends: не отправлено {chat_id}: {e}")
+
+
+def setup_weekly_trends(application):
+    """Запланировать еженедельный отчёт (по умолчанию: понедельник 08:00 UTC)"""
+    if application.job_queue is None:
+        logger.warning("📅 JobQueue недоступен — еженедельный отчёт выключен")
+        return
+    try:
+        weekday = int(os.getenv("TREND_REPORT_DAY", "0"))    # 0=понедельник
+        hour = int(os.getenv("TREND_REPORT_HOUR", "8"))      # час в UTC
+    except ValueError:
+        weekday, hour = 0, 8
+    first = next_weekly_run(datetime.now(timezone.utc), weekday=weekday, hour=hour)
+    application.job_queue.run_repeating(
+        weekly_trend_report,
+        interval=timedelta(weeks=1),
+        first=first,
+        name="weekly_trends",
+    )
+    logger.info(f"📅 Weekly TrendScout report scheduled, first run: {first.isoformat()}")
+
+
 # ✅ PROACTIVE MESSAGING
 def send_proactive_message(application, mood: str, energy: int, time_str: str):
     """Отправить proactive сообщение всем активным пользователям"""
@@ -277,6 +329,7 @@ def main():
     
     # Setup proactive
     setup_proactive_messaging(application)
+    setup_weekly_trends(application)
     
     # Handlers
     application.add_handler(CommandHandler("start", start))
