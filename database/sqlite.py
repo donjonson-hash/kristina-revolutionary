@@ -30,12 +30,47 @@ class SQLiteManager:
         """Close connection"""
         if self._conn:
             await self._conn.close()
+            self._conn = None
             logger.info("🔌 SQLite disconnected")
-    
+
     async def init_tables(self):
-        """Initialize tables (если нужно)"""
-        # Предполагаем, что таблицы уже созданы persistent_memory.py
-        pass
+        """Создать таблицы, которые использует менеджер"""
+        await self._conn.executescript("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                role TEXT,
+                content TEXT,
+                agent TEXT,
+                timestamp TEXT
+            );
+            CREATE TABLE IF NOT EXISTS sessions (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                agent TEXT,
+                updated_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS freelance_projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT,
+                client_id INTEGER,
+                description TEXT,
+                status TEXT,
+                attachments TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS dialog_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                message TEXT,
+                response TEXT,
+                agent TEXT,
+                sentiment TEXT,
+                timestamp TEXT
+            );
+        """)
+        await self._conn.commit()
     
     async def save_message(self, session_id: str, role: str, content: str, 
                           agent: str = None, metadata: dict = None) -> int:

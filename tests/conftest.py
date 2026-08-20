@@ -12,6 +12,10 @@ from typing import Dict, AsyncGenerator
 # Добавляем корень проекта в PYTHONPATH
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# agents.ai_adapter создаёт AIClient при импорте, а тот требует ключ.
+# Тесты API не вызывают (process замокан) — достаточно фиктивного значения.
+os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
+
 # ─── Fixtures: Brain & Router ─────────────────────────────────
 
 @pytest.fixture
@@ -108,9 +112,10 @@ async def memory_db():
     from database.sqlite import Database
 
     db = Database(":memory:")
-    await db.initialize()
+    await db.connect()
+    await db.init_tables()
     yield db
-    await db.close()
+    await db.disconnect()
 
 
 @pytest.fixture

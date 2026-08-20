@@ -50,7 +50,7 @@ logger.addHandler(console_handler)
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from jose import JWTError, jwt
 from slowapi import Limiter
@@ -324,14 +324,16 @@ async def get_status():
 
 @app.post("/chat", response_model=ChatResponse)
 @limiter.limit("30/minute")
-async def chat(request: ChatRequest, current_user: dict = Depends(get_current_user)):
+async def chat(payload: ChatRequest, request: Request,
+               current_user: dict = Depends(get_current_user)):
+    # slowapi требует параметр request: Request; тело запроса — payload
     user_id = current_user["id"]
-    store.add_message(user_id, "user", request.message)
-    
+    store.add_message(user_id, "user", payload.message)
+
     try:
         language_agent = brain.agents.get(BrainRegion.LANGUAGE)
         if language_agent:
-            response_text = await language_agent.generate(request.message)
+            response_text = await language_agent.generate(payload.message)
         else:
             response_text = "Извини, я сейчас занята... 🌸"
         
@@ -462,7 +464,7 @@ async def websocket_chat(websocket: WebSocket, token: str):
 
 @app.get("/chat/direct")
 @limiter.limit("30/minute")
-async def chat_direct(message: str = "Привет", user_id: str = "guest"):
+async def chat_direct(request: Request, message: str = "Привет", user_id: str = "guest"):
     """Прямой чат через GET с подключением к Brain"""
     from datetime import datetime
     
