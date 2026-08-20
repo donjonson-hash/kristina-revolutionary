@@ -1,5 +1,7 @@
 # 📈 TrendScout — агент разведки рынка
 
+[![CI](https://github.com/donjonson-hash/kristina-revolutionary/actions/workflows/ci.yml/badge.svg)](https://github.com/donjonson-hash/kristina-revolutionary/actions/workflows/ci.yml)
+
 Агент собирает информацию об **актуальных запросах пользователей** из открытых
 источников и на её основе предлагает **идеи монетизируемых стартапов**.
 
