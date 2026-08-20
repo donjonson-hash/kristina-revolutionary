@@ -166,6 +166,67 @@ def test_router_integration():
     assert router.get_active_agent().name == "TrendScout"
 
 
+# ---------- Методология (trend_scout_prompt) ----------
+
+def test_methodology_prompt_covers_required_channels():
+    """Промт содержит алгоритм и все каналы из ТЗ"""
+    from trend_scout_prompt import (
+        TREND_SCOUT_METHODOLOGY, ANALYSIS_SYSTEM_PROMPT, AGENT_SYSTEM_PROMPT,
+    )
+    for channel in ["Поисковики", "TikTok", "Instagram", "форумы", "GitHub"]:
+        assert channel in TREND_SCOUT_METHODOLOGY, f"канал {channel} не описан"
+    for step in ["Сбор сигналов", "Извлечение запросов", "Кластеризация",
+                 "Скоринг", "Отбор", "Валидация"]:
+        assert step in TREND_SCOUT_METHODOLOGY, f"шаг {step} не описан"
+    # Полный промт = методология + формат отчёта
+    assert TREND_SCOUT_METHODOLOGY in ANALYSIS_SYSTEM_PROMPT
+    assert "ФОРМАТ ОТЧЁТА" in ANALYSIS_SYSTEM_PROMPT
+    # Краткий промт агента упоминает ключевые каналы
+    assert "TikTok" in AGENT_SYSTEM_PROMPT and "Instagram" in AGENT_SYSTEM_PROMPT
+
+
+def test_agent_uses_methodology_prompt():
+    from trend_scout_prompt import AGENT_SYSTEM_PROMPT
+    agent = make_agent()
+    assert agent.system_prompt == AGENT_SYSTEM_PROMPT
+
+
+def test_analyzer_system_prompt_is_methodology():
+    import trend_analyzer
+    from trend_scout_prompt import ANALYSIS_SYSTEM_PROMPT
+    assert trend_analyzer.ANALYSIS_SYSTEM_PROMPT == ANALYSIS_SYSTEM_PROMPT
+
+
+# ---------- Поисковые подсказки ----------
+
+def test_collect_search_suggest_parses_and_dedupes():
+    collector = TrendCollector()
+
+    async def fake_get_json(url, params=None):
+        seed = params["q"]
+        return [seed, [f"{seed} подсказка", "общий запрос"]]
+
+    collector._get_json = fake_get_json
+    signals = asyncio.run(collector.collect_search_suggest("тема", limit=50))
+
+    assert signals, "подсказки не собраны"
+    assert all(s.source == "search" for s in signals)
+    # "общий запрос" повторяется для каждой затравки — должен остаться один
+    assert sum(1 for s in signals if s.title == "общий запрос") == 1
+    # url ведёт на страницу поиска
+    assert signals[0].url.startswith("https://www.google.com/search?q=")
+
+
+def test_collect_search_suggest_handles_bad_payload():
+    collector = TrendCollector()
+
+    async def fake_get_json(url, params=None):
+        return {"unexpected": "shape"}
+
+    collector._get_json = fake_get_json
+    assert asyncio.run(collector.collect_search_suggest("тема")) == []
+
+
 def test_collector_source_failure_is_isolated():
     """Падение одного источника не ломает collect_all"""
     collector = TrendCollector()
@@ -179,6 +240,7 @@ def test_collector_source_failure_is_isolated():
     collector.collect_hackernews = ok
     collector.collect_reddit = boom
     collector.collect_github = boom
+    collector.collect_search_suggest = boom
 
     signals = asyncio.run(collector.collect_all())
     assert len(signals) == 1
