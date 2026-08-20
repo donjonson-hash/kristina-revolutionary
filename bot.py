@@ -41,6 +41,7 @@ try:
     from agents.kristina_persona import KristinaPersonaAgent
     from agents.kristina_advisor import KristinaAdvisorAgent
     from agents.kristina_creative import KristinaCreativeAgent
+    from agents.trend_scout import TrendScoutAgent
     from proactive_messaging import SCHEDULE
     
     # Получаем AI клиент
@@ -58,6 +59,7 @@ def init_agents():
         router.register_agent(KristinaPersonaAgent(), is_default=True)
         router.register_agent(KristinaAdvisorAgent())
         router.register_agent(KristinaCreativeAgent())
+        router.register_agent(TrendScoutAgent())
         logger.info(f"🎭 Agents registered: {len(router.agents)}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -71,6 +73,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🎭 Команды:
 /agent — выбрать агента
+/trends [тема] — исследование запросов пользователей и идеи стартапов
 /tts on/off — голосовые сообщения
 /clear — очистить историю
 
@@ -81,7 +84,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def agent_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[{"text": "👩‍💻 Kristina", "callback_data": "agent_kristina"}],
                 [{"text": "🧠 Advisor", "callback_data": "agent_advisor"}],
-                [{"text": "✨ Creative", "callback_data": "agent_creative"}]]
+                [{"text": "✨ Creative", "callback_data": "agent_creative"}],
+                [{"text": "📈 TrendScout", "callback_data": "agent_trendscout"}]]
     
     await update.message.reply_text("🎭 Выбери агента:", reply_markup={"inline_keyboard": keyboard})
 
@@ -98,6 +102,32 @@ async def tts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🧹 История очищена!")
+
+async def trends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Запуск исследования TrendScout: /trends [тема]"""
+    topic = " ".join(context.args) if context.args else ""
+    scope = f"по теме «{topic}»" if topic else "общий обзор"
+    await update.message.reply_text(
+        f"📡 Запускаю исследование ({scope})... Это займёт минуту-две."
+    )
+    try:
+        scout = router.agents.get("TrendScout")
+        if scout is None:
+            scout = TrendScoutAgent()
+        result = await scout.run_research(topic)
+        report = (
+            f"📡 Сигналов: {result['signals_count']} "
+            f"({', '.join(result['sources']) or 'источники недоступны'})\n\n"
+            f"{result['report']}"
+        )
+        # Telegram ограничивает сообщение 4096 символами
+        for i in range(0, len(report), 4000):
+            await update.message.reply_text(report[i:i + 4000])
+    except Exception as e:
+        logger.error(f"Trends command error: {e}")
+        await update.message.reply_text(
+            "😔 Исследование не удалось — источники или AI недоступны. Попробуй позже."
+        )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -164,6 +194,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data.startswith("agent_"):
         agent_id = query.data.replace("agent_", "")
         active_agents[user_id] = agent_id
+        # Переключаем агента и в роутере
+        agent_names = {
+            "kristina": "Kristina",
+            "advisor": "Kristina-Advisor",
+            "creative": "Kristina-Creative",
+            "trendscout": "TrendScout",
+        }
+        if agent_id in agent_names:
+            router.set_active_agent(agent_names[agent_id])
         await query.edit_message_text(f"🎭 Активен: {agent_id.title()}")
 
 # ✅ PROACTIVE MESSAGING
@@ -239,6 +278,7 @@ def main():
     application.add_handler(CommandHandler("agent", agent_command))
     application.add_handler(CommandHandler("tts", tts_command))
     application.add_handler(CommandHandler("clear", clear_command))
+    application.add_handler(CommandHandler("trends", trends_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     application.add_handler(CallbackQueryHandler(button_callback))
