@@ -21,6 +21,9 @@ venv_local/
 logs/
 *.log
 
+# Отчёты TrendScout
+data/trend_reports/
+
 # OS
 .DS_Store
 Thumbs.db

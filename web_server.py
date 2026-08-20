@@ -22,6 +22,7 @@ try:
     from agents.kristina_persona import KristinaPersonaAgent
     from agents.kristina_advisor import KristinaAdvisorAgent
     from agents.kristina_creative import KristinaCreativeAgent
+    from agents.trend_scout import TrendScoutAgent
     from mood_engine import mood_engine
 except ImportError as e:
     print(f"⚠️  Import warning: {e}")
@@ -45,6 +46,7 @@ def init_web_agents():
             router.register_agent(KristinaPersonaAgent(), is_default=True)
             router.register_agent(KristinaAdvisorAgent())
             router.register_agent(KristinaCreativeAgent())
+            router.register_agent(TrendScoutAgent())
             print(f"🎭 Web: Инициализировано агентов: {len(router.agents)}")
         except Exception as e:
             print(f"⚠️  Agent init error: {e}")
