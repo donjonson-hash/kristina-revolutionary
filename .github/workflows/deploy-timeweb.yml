@@ -1,0 +1,100 @@
+name: Deploy to Timeweb
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: production-timeweb
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy production
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Check deployment configuration
+        id: config
+        env:
+          TIMEWEB_HOST: ${{ secrets.TIMEWEB_HOST }}
+          TIMEWEB_USER: ${{ secrets.TIMEWEB_USER }}
+          TIMEWEB_SSH_KEY: ${{ secrets.TIMEWEB_SSH_KEY }}
+          TIMEWEB_KNOWN_HOSTS: ${{ secrets.TIMEWEB_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [ -n "$TIMEWEB_HOST" ] && \
+             [ -n "$TIMEWEB_USER" ] && \
+             [ -n "$TIMEWEB_SSH_KEY" ] && \
+             [ -n "$TIMEWEB_KNOWN_HOSTS" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Timeweb deploy skipped: configure TIMEWEB_HOST, TIMEWEB_USER, TIMEWEB_SSH_KEY and TIMEWEB_KNOWN_HOSTS."
+          fi
+
+      - name: Configure SSH
+        if: steps.config.outputs.ready == 'true'
+        env:
+          TIMEWEB_HOST: ${{ secrets.TIMEWEB_HOST }}
+          TIMEWEB_SSH_KEY: ${{ secrets.TIMEWEB_SSH_KEY }}
+          TIMEWEB_KNOWN_HOSTS: ${{ secrets.TIMEWEB_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$TIMEWEB_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$TIMEWEB_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy Kristina
+        if: steps.config.outputs.ready == 'true'
+        env:
+          TIMEWEB_HOST: ${{ secrets.TIMEWEB_HOST }}
+          TIMEWEB_USER: ${{ secrets.TIMEWEB_USER }}
+        run: |
+          set -euo pipefail
+          ssh \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            "$TIMEWEB_USER@$TIMEWEB_HOST" \
+            'set -euo pipefail
+             cd /opt/kristina-revolutionary
+             git fetch origin main
+             git checkout main
+             git reset --hard origin/main
+             bash deploy/deploy.sh
+             systemctl is-active --quiet kristina-bot
+             echo "Deployed commit: $(git rev-parse HEAD)"
+             systemctl --no-pager --lines=20 status kristina-bot'
+
+      - name: Deployment summary
+        if: steps.config.outputs.ready == 'true' && success()
+        run: |
+          {
+            echo '## Timeweb deployment'
+            echo ''
+            echo '✅ `kristina-bot` is active on the production VPS.'
+            echo ''
+            echo 'Trigger: `${{ github.event_name }}`'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configuration summary
+        if: steps.config.outputs.ready != 'true'
+        run: |
+          {
+            echo '## Timeweb deployment'
+            echo ''
+            echo '⏭️ Deployment skipped because production SSH secrets are not configured yet.'
+          } >> "$GITHUB_STEP_SUMMARY"
