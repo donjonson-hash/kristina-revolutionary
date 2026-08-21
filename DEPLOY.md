@@ -46,6 +46,17 @@ systemctl stop kristina-bot       # остановка
 cd /opt/kristina-revolutionary && bash deploy/deploy.sh
 ```
 
+## Автоматический production deploy
+
+После настройки GitHub Actions workflow `Deploy to Timeweb` каждый успешный
+CI на ветке `main` автоматически обновляет `/opt/kristina-revolutionary` до
+`origin/main`, запускает `deploy/deploy.sh` и проверяет, что `kristina-bot`
+остался в состоянии `active`.
+
+Для SSH-деплоя используются только GitHub Actions Secrets:
+`TIMEWEB_HOST`, `TIMEWEB_USER`, `TIMEWEB_SSH_KEY`, `TIMEWEB_KNOWN_HOSTS`.
+Секреты не должны храниться в репозитории.
+
 ## Проверка после запуска
 
 1. `systemctl status kristina-bot` → `active (running)`;
