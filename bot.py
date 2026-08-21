@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
 """
-Kristina AI Influencer Bot — Telegram + Proactive Messaging
+Kristina AI Influencer Bot — Telegram + autonomous proactive messaging
 """
 
 import os
 import sys
 import logging
-import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from typing import Dict
 from dotenv import load_dotenv
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-from apscheduler.schedulers.background import BackgroundScheduler
 
-# Document handler and intent detection
 from document_handler import handle_document, DOCUMENT_PROCESSOR_AVAILABLE
 from intent_detector import detect_proposal_intent, detect_meeting_intent
 from telegram_utils import split_message, parse_admin_ids, next_weekly_run
@@ -26,8 +23,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-# httpx на уровне INFO пишет полный URL каждого запроса к Telegram,
-# а в нём содержится токен бота — не пускаем токен в журнал
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
@@ -46,9 +41,9 @@ try:
     from agents.kristina_advisor import KristinaAdvisorAgent
     from agents.kristina_creative import KristinaCreativeAgent
     from agents.trend_scout import TrendScoutAgent
-    from proactive_messaging import SCHEDULE
-    
-    # Получаем AI клиент
+    from emotional_core import get_emotional_core
+    from autonomy_decision import DesireEngine, DecisionEngine
+
     ai = get_ai_client()
 except ImportError as e:
     logger.error(f"❌ Import error: {e}")
@@ -56,7 +51,14 @@ except ImportError as e:
 
 user_tts_enabled: Dict[int, bool] = {}
 active_agents: Dict[int, str] = {}
-active_chat_ids: set = set()  # Для proactive messaging
+active_chat_ids: set = set()
+last_user_activity: Dict[int, datetime] = {}
+last_proactive: Dict[int, datetime] = {}
+
+emotional_core = get_emotional_core()
+desire_engine = DesireEngine()
+decision_engine = DecisionEngine()
+
 
 def init_agents():
     if not router.agents:
@@ -66,13 +68,19 @@ def init_agents():
         router.register_agent(TrendScoutAgent())
         logger.info(f"🎭 Agents registered: {len(router.agents)}")
 
+
+def mark_user_active(user_id: int):
+    active_chat_ids.add(user_id)
+    last_user_activity[user_id] = datetime.now(timezone.utc)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_tts_enabled[user_id] = False
     active_agents[user_id] = "kristina"
-    active_chat_ids.add(user_id)
+    mark_user_active(user_id)
     logger.info(f"Active chat: {user_id}, total: {len(active_chat_ids)}")
-    
+
     welcome = """Привет! 👋 Я Кристина!
 
 🎭 Команды:
@@ -82,21 +90,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /clear — очистить историю
 
 Напиши мне! ✨"""
-    
+
     await update.message.reply_text(welcome)
+
 
 async def agent_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[{"text": "👩‍💻 Kristina", "callback_data": "agent_kristina"}],
                 [{"text": "🧠 Advisor", "callback_data": "agent_advisor"}],
                 [{"text": "✨ Creative", "callback_data": "agent_creative"}],
                 [{"text": "📈 TrendScout", "callback_data": "agent_trendscout"}]]
-    
+
     await update.message.reply_text("🎭 Выбери агента:", reply_markup={"inline_keyboard": keyboard})
+
 
 async def tts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     args = context.args
-    
+
     if args and args[0].lower() in ['on', 'off']:
         user_tts_enabled[user_id] = (args[0].lower() == 'on')
         status = "включены" if user_tts_enabled[user_id] else "выключены"
@@ -104,8 +114,10 @@ async def tts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Используй: /tts on или /tts off")
 
+
 async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🧹 История очищена!")
+
 
 async def trends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Запуск исследования TrendScout: /trends [тема]"""
@@ -124,8 +136,6 @@ async def trends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"({', '.join(result['sources']) or 'источники недоступны'})\n\n"
             f"{result['report']}"
         )
-        # Telegram ограничивает сообщение 4096 символами —
-        # делим по границам абзацев, чтобы не резать отчёт посреди строки
         for chunk in split_message(report):
             await update.message.reply_text(chunk)
     except Exception as e:
@@ -134,20 +144,18 @@ async def trends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "😔 Исследование не удалось — источники или AI недоступны. Попробуй позже."
         )
 
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     message_text = update.message.text
     agent_id = active_agents.get(user_id, "kristina")
-    active_chat_ids.add(user_id)
-    
-    # Сначала проверяем специальные намерения (КП, встреча)
+    mark_user_active(user_id)
+
     if detect_proposal_intent(message_text) and user_id in user_context and "last_document" in user_context[user_id]:
-        # Генерируем коммерческое предложение
         doc_info = user_context[user_id]["last_document"]
-        # Рассчитываем реальную стоимость
         from pricing_config import format_price_quote
         price_quote = format_price_quote(doc_info)
-        
+
         kp_prompt = f"""Ты Кристина, UX-дизайнер из Стокгольма. Подготовь коммерческое предложение.
 
 Документ: {doc_info['filename']}
@@ -172,17 +180,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         except Exception as e:
             logger.error(f"KP error: {e}")
-    
-    # Стандартная обработка через агента
+
     try:
         response = await router.process(message_text, context={"agent_id": agent_id, "user_id": user_id})
         response_text = response.content if hasattr(response, 'content') else str(response)
     except Exception as e:
         logger.error(f"Router error: {e}")
         response_text = "Извини, ошибка. Попробуй ещё раз."
-    
+
     await update.message.reply_text(response_text)
-    
+
     if user_tts_enabled.get(user_id, False):
         try:
             audio_path = tts.synthesize(response_text)
@@ -191,15 +198,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"TTS error: {e}")
 
+
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = update.effective_user.id
-    
+
     if query.data.startswith("agent_"):
         agent_id = query.data.replace("agent_", "")
         active_agents[user_id] = agent_id
-        # Переключаем агента и в роутере
         agent_names = {
             "kristina": "Kristina",
             "advisor": "Kristina-Advisor",
@@ -210,7 +217,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             router.set_active_agent(agent_names[agent_id])
         await query.edit_message_text(f"🎭 Активен: {agent_id.title()}")
 
-# ✅ WEEKLY TREND REPORT
+
 async def weekly_trend_report(context: ContextTypes.DEFAULT_TYPE):
     """Еженедельное исследование TrendScout с отправкой админам"""
     admin_ids = parse_admin_ids(os.getenv("KRISTINA_ADMIN_IDS", ""))
@@ -243,13 +250,12 @@ async def weekly_trend_report(context: ContextTypes.DEFAULT_TYPE):
 
 
 def setup_weekly_trends(application):
-    """Запланировать еженедельный отчёт (по умолчанию: понедельник 08:00 UTC)"""
     if application.job_queue is None:
         logger.warning("📅 JobQueue недоступен — еженедельный отчёт выключен")
         return
     try:
-        weekday = int(os.getenv("TREND_REPORT_DAY", "0"))    # 0=понедельник
-        hour = int(os.getenv("TREND_REPORT_HOUR", "8"))      # час в UTC
+        weekday = int(os.getenv("TREND_REPORT_DAY", "0"))
+        hour = int(os.getenv("TREND_REPORT_HOUR", "8"))
     except ValueError:
         weekday, hour = 0, 8
     first = next_weekly_run(datetime.now(timezone.utc), weekday=weekday, hour=hour)
@@ -262,76 +268,89 @@ def setup_weekly_trends(application):
     logger.info(f"📅 Weekly TrendScout report scheduled, first run: {first.isoformat()}")
 
 
-# ✅ PROACTIVE MESSAGING
-def send_proactive_message(application, mood: str, energy: int, time_str: str):
-    """Отправить proactive сообщение всем активным пользователям"""
+async def generate_autonomous_message(intention: str, emotional_state: Dict) -> str:
+    mood = emotional_state.get("mood_description", "спокойная")
+    state = emotional_state.get("state", {})
+    prompt = f"""Ты Кристина, 25-летний UX-дизайнер из Стокгольма.
+Ты сама решила написать человеку, без его запроса.
+
+Текущее состояние: {mood}.
+Энергия: {state.get('energy', 0.5):.2f}; любопытство: {state.get('curiosity', 0.5):.2f};
+одиночество: {state.get('loneliness', 0.3):.2f}; раздражение: {state.get('irritation', 0.1):.2f}.
+Твой внутренний импульс: {intention}.
+
+Напиши одно естественное Telegram-сообщение, 1-2 предложения.
+Не объясняй своё настроение и не говори, что ты AI.
+Не обязана задавать вопрос. Не используй шаблонные фразы вроде «как прошёл день?» без причины.
+Пиши так, будто мысль возникла спонтанно прямо сейчас."""
+    response = await ai.chat([{"role": "user", "content": prompt}], temperature=0.9, max_tokens=180)
+    return response.strip().strip('"').strip("'")
+
+
+async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
+    """Periodic opportunity to act; most ticks are allowed to produce silence."""
     if not active_chat_ids:
-        logger.info(f"📤 Proactive [{time_str}]: нет активных чатов")
         return
-    
-    # Генерируем сообщение based on mood
-    messages = {
-        "пробуждение": "🌅 Доброе утро! Как спалось? Готова к новому дню?",
-        "любопытство": "🔍 Интересно... Чем занимаешься сейчас?",
-        "энергия": "⚡ Пик энергии! Давай творить что-то крутое!",
-        "работа": "💼 Как продвигается работа? Нужен совет?",
-        "мечтательность": "☁️ Время мечтать... О чём думаешь?",
-        "ностальгия": "🌅 Помнишь наше первое сообщение? Было здорово!",
-        "размышление": "🤔 Вечер — время подвести итоги. Как прошёл день?",
-        "интимность": "💫 Привет... Хочется просто поговорить по-настоящему. Как ты?",
-        "спокойствие": "🌙 Вечернее спокойствие... Расскажи, что на душе?",
-        "меланхолия": "🌧️ Тихий вечер... Иногда это тоже прекрасно, да?",
-        "сон": "😴 Пора отдыхать. Спокойной ночи!",
-        "мистика": "🌙 Полночь... Время тайн и загадок. Не спишь?"
-    }
-    
-    message = messages.get(mood, f"✨ Привет! Настроение: {mood}")
-    
-    # Отправляем всем активным чатам
+
+    now = datetime.now(timezone.utc)
+    emotional_state = emotional_core.evolve()
+
     for chat_id in list(active_chat_ids):
+        last_seen = last_user_activity.get(chat_id, now)
+        hours_since_contact = max(0.0, (now - last_seen).total_seconds() / 3600.0)
+        decision_context = {
+            "hours_since_contact": hours_since_contact,
+            "last_proactive": last_proactive.get(chat_id),
+        }
+        desires = desire_engine.calculate(emotional_state, decision_context)
+        decision = decision_engine.decide(desires, decision_context, now=now)
+
+        logger.info(
+            "🧠 Autonomous decision chat=%s action=%s intention=%s score=%.2f reason=%s",
+            chat_id, decision.action, decision.intention, decision.score, decision.reason,
+        )
+
+        if decision.action != "message":
+            continue
+
         try:
-            asyncio.create_task(
-                application.bot.send_message(chat_id=chat_id, text=message)
-            )
-            logger.info(f"📤 Proactive to {chat_id}: {mood}")
+            message = await generate_autonomous_message(decision.intention, emotional_state)
+            if not message:
+                continue
+            await context.bot.send_message(chat_id=chat_id, text=message)
+            last_proactive[chat_id] = now
+            logger.info(f"📤 Autonomous proactive sent to {chat_id}: {decision.intention}")
         except Exception as e:
-            logger.error(f"Failed to send proactive to {chat_id}: {e}")
+            logger.error(f"Autonomous proactive failed for {chat_id}: {e}")
+
 
 def setup_proactive_messaging(application):
-    """Настроить proactive messaging"""
+    """Check for an internal impulse periodically instead of using fixed message times."""
+    if application.job_queue is None:
+        logger.warning("🧠 JobQueue недоступен — autonomous proactive выключен")
+        return
+
     try:
-        scheduler = BackgroundScheduler()
-        
-        for time_str, config in SCHEDULE.items():
-            hour, minute = map(int, time_str.split(':'))
-            
-            scheduler.add_job(
-                lambda t=time_str, c=config: send_proactive_message(
-                    application, c['mood'], c['energy'], t
-                ),
-                'cron',
-                hour=hour,
-                minute=minute,
-                id=f"proactive_{time_str}",
-                replace_existing=True
-            )
-            logger.info(f"📅 Scheduled: {time_str} - {config['mood']}")
-        
-        scheduler.start()
-        logger.info(f"✅ Proactive messaging: {len(SCHEDULE)} jobs")
-        
-    except Exception as e:
-        logger.error(f"Proactive setup error: {e}")
+        interval_minutes = max(5, int(os.getenv("KRISTINA_AUTONOMY_INTERVAL_MINUTES", "15")))
+    except ValueError:
+        interval_minutes = 15
+
+    application.job_queue.run_repeating(
+        autonomous_proactive_tick,
+        interval=timedelta(minutes=interval_minutes),
+        first=timedelta(minutes=1),
+        name="autonomous_proactive",
+    )
+    logger.info(f"✅ Autonomous proactive check every {interval_minutes} minutes")
+
 
 def main():
     init_agents()
     application = Application.builder().token(KRISTINA_TELEGRAM_TOKEN).build()
-    
-    # Setup proactive
+
     setup_proactive_messaging(application)
     setup_weekly_trends(application)
-    
-    # Handlers
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("agent", agent_command))
     application.add_handler(CommandHandler("tts", tts_command))
@@ -340,9 +359,10 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     application.add_handler(CallbackQueryHandler(button_callback))
-    
-    logger.info("🚀 Kristina Bot started with proactive messaging!")
+
+    logger.info("🚀 Kristina Bot started with autonomous proactive messaging!")
     application.run_polling()
+
 
 if __name__ == "__main__":
     main()
