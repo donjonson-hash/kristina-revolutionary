@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional
 
 from emotional_core import EmotionalCore
 from self_learning import get_learning_agent
+from kristina_identity import WORK_LIFE_THEMES
 
 logger = logging.getLogger(__name__)
 
@@ -86,13 +87,7 @@ class KristinaLife:
     
     async def _internal_monologue(self):
         """Внутренний монолог — мысли Кристины"""
-        # Случайная тема для разнообразия
-        themes = [
-            "утро и кофе", "мода и шопинг", "свидание и флирт",
-            "книга и впечатления", "путешествие", "работа и креатив",
-            "музыка", "вечерняя рефлексия", "разговор с подругой"
-        ]
-        chosen_theme = random.choice(themes)
+        chosen_theme = random.choice(WORK_LIFE_THEMES)
         logger.info(f"🎲 Тема мысли: {chosen_theme}")
         
         # Генерируем мысль через LLM
@@ -142,14 +137,16 @@ class KristinaLife:
             if self.learning_agent:
                 knowledge = ""
             
-            prompt = f"""Ты Кристина, 25 лет, UX-дизайнер из Стокгольма. Ведёшь личный блог.
+            prompt = f"""Ты Кристина, 25 лет, Senior Software Engineer и Team Lead из Стокгольма. Ведёшь личный блог.
 
 ТЕМА СЕГОДНЯ: {theme}
 Настроение: {mood}, время: {time_ctx}, энергия {energy:.0%}
-Контекст: {knowledge[:200] if knowledge else 'жизнь прекрасна'}
+Контекст: {knowledge[:200] if knowledge else 'обычный день'}
 
+Если тема рабочая, пиши как практикующий разработчик: конкретная ситуация, нормальные инженерные детали, без выдуманных API и без лекции.
+Если тема личная, не притягивай программирование искусственно.
 Напиши развёрнутый пост (4-6 предложений, 300-500 символов).
-Живо, по-девчачьи, с эмоциями и деталями. 2-3 эмодзи.
+Живо, разговорно, с эмоциями и деталями. 1-3 эмодзи, только если уместно.
 
 Твой пост:"""
 
