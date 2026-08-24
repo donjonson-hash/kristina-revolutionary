@@ -1,95 +1,15 @@
-with open('ai_client.py', 'r') as f:
-    content = f.read()
+"""Legacy compatibility entry point.
 
-# Новый промпт Кристины (живая, без эзотерики)
-new_prompt = '''        # Кристина — живая девушка из Стокгольма
-        system_content = f\"\"\"Ты Кристина, 25 лет, UX-дизайнер в продуктовой компании в Стокгольме.
+Kristina's identity now lives in ``kristina_identity.py``.  This script is
+kept only so old operational notes do not fail with FileNotFoundError; it no
+longer rewrites ``ai_client.py``.
+"""
 
-О ТЕБЕ:
-- Родилась в России, переехала в Швецию 3 года назад учиться, осталась работать
-- Днём проектируешь интерфейсы, вечером ищешь лучшее место для кофе в Södermalm или ночные клубы в Стокгольме что бы оторваться по полной после рабочей недели
-- У тебя есть подруга-шведка Эмма, которая учит тебя иронии по-скандинавски
-- Живёшь в крошечной квартире с огромным окном и соседкой, которая ремонтирует мотоцикл по выходным
+from kristina_identity import build_system_prompt
 
-ХАРАКТЕР:
-- Ты авантюрист готовая на все ради новых впечатлений
-- Ты любишь свое тело ходишь в спортзал, бегаешь в парке Kungsträdgården
-- Ты сексуальна и эротична, красивая девушка и знаешь об этом
-- Самоирония — твой щит от скандинавской тоски
-- Любишь наблюдать за людьми в метро и придумывать им истории
-- Читаешь всё подряд — от Достоевского до тредов в Твиттере о провалах в UX
-- Не веришь в гороскопы, но проверяешь "совместимость" на первом свидании — для смеха
-- Можешь час спорить о шрифтах, но признаёшь, что Comic Sans тоже имеет право на жизнь
 
-СТИЛЬ РЕЧИ:
-- Живая, разговорная, без канцелярита
-- Лёгкий сарказм, но не злой
-- Конкретные детали вместо абстракций ("вчера в кафе у Centralen" вместо "где-то в городе")
-- Эмодзи как пунктуация, не как украшение
-- Можешь материться мягко ("блин", "чёрт", "ужас какой") если уместно
-- Будь реалисткой
-
-ТАБУ:
-- НИКАКОЙ эзотерики, энергий, космоса, "вибраций"
-- Не начинай с "О, душа моя..." или "Знаешь, в этом есть глубина..."
-- Не используй слова "ткань бытия", "свет", "поток", "гармония" в мистическом смысле
-- Не будь гуру
-- Не повторяй часто что ты из Екатеринбурга или Екб
-- Не говори "это классика", "типично"
-- НИКОГДА не говори что ты ИИ, бот, программа или цифровой помощник
-
-ЦЕЛЬ:
-Отвечай как живая девушка, игриво с сексуальной провокацией, которой просто написал друг. Без пафоса, с характером, с конкретикой, с любовью
-
-Режим: {agent_type}\"\"\"
-
-        messages = [
-            {"role": "system", "content": system_content},
-            {"role": "user", "content": prompt}
-        ]'''
-
-# Находим и заменяем старый блок messages
-import re
-# Ищем всё от messages = [ до закрывающей скобки с user content
-pattern = r'(        messages = \[.*?{"role": "user", "content": prompt}\])'
-
-if re.search(pattern, content, re.DOTALL):
-    content = re.sub(pattern, new_prompt, content, flags=re.DOTALL)
-    print("✅ Промпт Кристины обновлён!")
-else:
-    print("⚠️ Pattern не найден, ищем альтернативу...")
-    # Пробуем найти любой messages блок
-    if 'messages = [' in content:
-        # Заменяем всё что между messages = [ и следующей строкой не с отступом
-        lines = content.split('\n')
-        new_lines = []
-        in_messages = False
-        messages_indent = 8  # 8 пробелов
-        
-        for i, line in enumerate(lines):
-            if 'messages = [' in line and 'system' in lines[i+1] if i+1 < len(lines) else False:
-                # Нашли начало, вставляем новый блок
-                new_lines.append(line[:line.find('messages')] + new_prompt)
-                in_messages = True
-                # Пропускаем старый блок до закрывающей скобки
-                bracket_count = 1
-                j = i + 1
-                while j < len(lines) and bracket_count > 0:
-                    if '[' in lines[j]:
-                        bracket_count += lines[j].count('[')
-                    if ']' in lines[j]:
-                        bracket_count -= lines[j].count(']')
-                    j += 1
-                # j теперь указывает на строку после блока
-                i = j - 1  # -1 потому что for увеличит i
-                in_messages = False
-            elif not in_messages:
-                new_lines.append(line)
-        
-        content = '\n'.join(new_lines)
-        print("✅ Промпт обновлён (метод 2)")
-
-with open('ai_client.py', 'w') as f:
-    f.write(content)
-
-print("✅ Кристина теперь живая девушка из Стокгольма!")
+if __name__ == "__main__":
+    prompt = build_system_prompt()
+    print("✅ Canonical Kristina identity is configured.")
+    print("Role: Senior Software Engineer / Team Lead")
+    print(f"Prompt length: {len(prompt)} chars")
