@@ -172,13 +172,10 @@ class TestAgentRouter:
 
     def test_get_active_agent_fallback(self, router):
         """get_active_agent падает на default если current не установлен"""
-        # Без default должен быть None
         assert router.get_active_agent() is None
 
-        # С default — возвращается он
         default = DummyAgent("Default", [])
         router.register_agent(default, is_default=True)
-        # Сбрасываем current
         router.current_agent = None
         assert router.get_active_agent() is default
 
@@ -228,7 +225,6 @@ class TestRouting:
         }
 
         decision = await router.route("привет", context)
-        # Должен выбрать default
         assert decision.selected_agent is agents["persona"]
 
     @pytest.mark.asyncio
@@ -239,10 +235,8 @@ class TestRouting:
         router.register_agent(a1)
 
         decision = await router.route("test keyword", base_context)
-        # Если нет default_agent — берётся первый (единственный) зарегистрированный
         assert decision.selected_agent is a1
         assert decision.confidence >= 0
-        # Проверяем, что решение принято без ошибок
         assert len(decision.alternatives) >= 0
 
     @pytest.mark.asyncio
@@ -254,13 +248,11 @@ class TestRouting:
         router.register_agent(a1, is_default=True)
         router.register_agent(a2)
 
-        # Сбрасываем current_agent, чтобы включить авто-выбор
         router.current_agent = None
 
         decision = await router.route("надо проверить test", base_context)
         assert decision.selected_agent is a1 or decision.selected_agent is a2
         assert decision.confidence >= 0
-        # Должны быть alternatives
         assert len(decision.alternatives) >= 0
 
 
@@ -310,14 +302,14 @@ class TestRouterStatus:
         assert router.get_all_agents_status() == {}
 
     def test_get_all_agents_status(self, router_with_agents):
-        """Статус содержит описание и историю всех агентов"""
+        """Статус содержит актуальное описание и историю всех агентов"""
         router, agents = router_with_agents
         status = router.get_all_agents_status()
 
         assert "Kristina" in status
-        assert status["Kristina"]["description"] == "UX-дизайнер, 25 лет, Стокгольм - реалистичная, саркастичная"
+        assert status["Kristina"]["description"] == "Senior Software Engineer / Team Lead, 25 лет, Стокгольм — живая, прямолинейная, саркастичная"
         assert status["Kristina"]["history_count"] == 0
-        assert status["Kristina"]["is_active"] is False  # не активирован вручную
+        assert status["Kristina"]["is_active"] is False
 
     def test_get_all_agents_status_after_activate(self, router_with_agents):
         """Активация агента отражается в статусе"""
