@@ -1,4 +1,4 @@
-"""Kristina Persona Agent — canonical identity + mood, memory and brain context."""
+"""Kristina Persona Agent — canonical identity + mood, memory, brain and tool context."""
 
 import asyncio
 import datetime
@@ -9,6 +9,7 @@ from typing import Dict
 
 from .base_agent import BaseAgent, AgentResponse
 from .ai_adapter import ai_adapter as ai
+from github_readonly_tool import format_github_context, inspect_repositories_from_text
 from kristina_identity import build_system_prompt
 from memory_wrapper import get_user_memory, save_interaction
 from mood_engine import mood_engine
@@ -33,7 +34,8 @@ class KristinaPersonaAgent(BaseAgent):
             "привет", "как дела", "расскажи", "что думаешь", "помоги", "совет",
             "жизнь", "швеция", "стокгольм", "работа", "коллеги", "кофе", "выходные",
             "россия", "екатеринбург", "экб", "сосед", "эмма", "код", "python",
-            "архитектура", "релиз", "прод", "team lead", "разработка",
+            "архитектура", "релиз", "прод", "team lead", "разработка", "github",
+            "репозиторий", "репо", "код-ревью", "code review",
         ]
         self.used_phrases = set()
         self.use_brain_integration = _BRAIN_AVAILABLE
@@ -56,6 +58,23 @@ class KristinaPersonaAgent(BaseAgent):
 
         mood = mood_engine.update(user_message=True)
         user_id = context.get("user_id", "unknown")
+
+        # Tool use happens before LLM generation. If the user supplied a GitHub URL,
+        # Kristina receives real GET-only repository evidence instead of inventing a review.
+        github_context = ""
+        github_tool_used = False
+        try:
+            inspections = await inspect_repositories_from_text(user_input)
+            if inspections:
+                github_tool_used = True
+                github_context = format_github_context(inspections)
+        except Exception as exc:
+            github_tool_used = True
+            github_context = (
+                "GITHUB READ-ONLY TOOL ERROR\n"
+                f"Error: {exc}\n"
+                "Do not claim that you inspected repository files."
+            )
 
         brain_snapshot = {}
         if self.use_brain_integration and get_brain_bridge is not None:
@@ -123,6 +142,18 @@ class KristinaPersonaAgent(BaseAgent):
             f"\n\nТекущее настроение: {mood.value}. {mood_prompt}\n"
         )
 
+        if github_context:
+            full_prompt += (
+                "\n\n# ПРОВЕРЕННЫЕ ДАННЫЕ ИЗ GITHUB TOOL\n"
+                f"{github_context}\n"
+                "# ПРАВИЛА РАБОТЫ С GITHUB EVIDENCE\n"
+                "- Утверждай о структуре, файлах и коде только то, что видно в evidence.\n"
+                "- Если нужного файла нет в evidence, скажи, что его содержимое не было прочитано.\n"
+                "- Не изображай действия вроде *открывает ссылку* или *листает код*: просто скажи, что реально посмотрела.\n"
+                "- При TOOL ERROR прямо скажи, что GitHub сейчас не удалось прочитать; не подменяй данные догадками.\n"
+                "- Предположения явно называй предположениями.\n"
+            )
+
         brain_recs = brain_snapshot.get("recommendations", {}) if brain_snapshot else {}
         if brain_recs:
             rec_text = brain_recs.get("agent_recommendations", [])
@@ -163,7 +194,11 @@ class KristinaPersonaAgent(BaseAgent):
             confidence=0.9,
             emotion="прямая, немного саркастичная",
             suggested_actions=["уточнить", "пошутить", "закончить тему"],
-            context_used={"delay": delay, "history_len": len(self.conversation_history)},
+            context_used={
+                "delay": delay,
+                "history_len": len(self.conversation_history),
+                "github_tool_used": github_tool_used,
+            },
         )
 
     def _sanitize_response(self, text: str, user_input: str) -> str:
