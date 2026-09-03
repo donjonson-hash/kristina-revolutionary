@@ -66,7 +66,9 @@ class TrendAnalyzer:
                 {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
                 {"role": "user", "content": build_analysis_prompt(signals, topic)},
             ]
-            report = await ai.chat(messages, temperature=0.4, max_tokens=2000)
+            # 4000: тематические отчёты с 3-4 детальными идеями не влезали
+            # в 2000 токенов и обрывались до секций «Резерв» и «Вывод»
+            report = await ai.chat(messages, temperature=0.4, max_tokens=4000)
             return report
         except Exception as e:
             logger.error(f"Trend analysis LLM error: {e}")
