@@ -73,6 +73,18 @@ def parse_admin_ids(raw: str) -> List[int]:
     return ids
 
 
+def parse_report_days(raw: str, default: tuple = (0, 3)) -> List[int]:
+    """
+    Разобрать TREND_REPORT_DAYS: дни недели через запятую (0=понедельник).
+    Значения вне 0-6 и мусор отбрасываются; пусто → default (пн и чт).
+    """
+    days = sorted({
+        int(part) for part in (raw or "").replace(" ", "").split(",")
+        if part.isdigit() and 0 <= int(part) <= 6
+    })
+    return days or list(default)
+
+
 def next_weekly_run(now: datetime, weekday: int = 0, hour: int = 8) -> datetime:
     """
     Ближайший момент еженедельного запуска: день недели (0=понедельник)
