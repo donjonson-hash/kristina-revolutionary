@@ -242,6 +242,7 @@ def test_collector_source_failure_is_isolated():
     collector.collect_github = boom
     collector.collect_search_suggest = boom
     collector.collect_stackexchange = boom
+    collector.collect_appstore = boom
 
     signals = asyncio.run(collector.collect_all())
     assert len(signals) == 1
@@ -306,3 +307,72 @@ def test_collect_stackexchange_bad_payload():
 
     collector._get_json = fake_get_json
     assert asyncio.run(collector.collect_stackexchange()) == []
+
+
+# ---------- App Store ----------
+
+def make_appstore_collector(entries):
+    collector = TrendCollector()
+
+    async def fake_get_json(url, params=None):
+        if "itunes.apple.com/search" in url:
+            return {"results": [{"trackId": 42, "trackName": "TaxApp"}]}
+        if "customerreviews" in url:
+            return {"feed": {"entry": entries}}
+        raise AssertionError(f"unexpected url {url}")
+
+    collector._get_json = fake_get_json
+    return collector
+
+
+def test_collect_appstore_filters_negative_reviews():
+    entries = [
+        {"im:name": {"label": "TaxApp"}},  # метаданные приложения, без рейтинга
+        {"im:rating": {"label": "1"}, "title": {"label": "Ужасно"},
+         "content": {"label": "Слетает синхронизация, поддержка молчит"}},
+        {"im:rating": {"label": "5"}, "title": {"label": "Супер"},
+         "content": {"label": "Всё нравится"}},
+        {"im:rating": {"label": "3"}, "title": {"label": "Так себе"},
+         "content": {"label": "Нет экспорта в Excel"}},
+    ]
+    signals = asyncio.run(make_appstore_collector(entries).collect_appstore("налоги"))
+
+    # 5★ отброшен, метаданные пропущены; поиск идёт по 2 странам → дедупа нет, но фейк один
+    ratings = sorted(s.extra["rating"] for s in signals)
+    assert set(ratings) <= {1, 3}
+    assert all(s.source == "appstore" for s in signals)
+    one_star = next(s for s in signals if s.extra["rating"] == 1)
+    assert one_star.score == 3          # вес боли: 1★ → 3
+    assert "TaxApp (1★)" in one_star.title
+    assert "синхронизация" in one_star.title
+
+
+def test_collect_appstore_bad_payload():
+    collector = TrendCollector()
+
+    async def fake_get_json(url, params=None):
+        return None
+
+    collector._get_json = fake_get_json
+    assert asyncio.run(collector.collect_appstore("тема")) == []
+
+
+# ---------- Легенда сигналов и затравки ----------
+
+def test_signal_legend_in_prompt():
+    """Промт объясняет, что score подсказок — позиция, а не показы"""
+    from trend_scout_prompt import SIGNAL_LEGEND, ANALYSIS_SYSTEM_PROMPT
+    assert "ПОЗИЦИЯ" in SIGNAL_LEGEND
+    assert "НЕ показы" in SIGNAL_LEGEND
+    assert "appstore" in SIGNAL_LEGEND
+    assert SIGNAL_LEGEND in ANALYSIS_SYSTEM_PROMPT
+
+
+def test_default_seeds_pain_oriented():
+    """Затравки общего режима содержат боль-ориентированные формулировки"""
+    seeds = TrendCollector.DEFAULT_SEEDS
+    assert "как избавиться от" in seeds
+    assert "устал от" in seeds
+    assert "инструмент для автоматизации" in seeds
+    assert any("tired of" in s for s in seeds)
+    assert any("get rid of" in s for s in seeds)
