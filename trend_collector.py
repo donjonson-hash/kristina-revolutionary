@@ -7,6 +7,8 @@ Trend Collector — сбор сигналов пользовательского
 - GitHub (Search API): быстрорастущие новые репозитории
 - Поисковые подсказки (Google autocomplete, fallback DuckDuckGo)
 - Stack Exchange (softwarerecs): прямые запросы «посоветуйте софт»
+- App Store (iTunes Search + RSS отзывов): негативные отзывы 1-3★ —
+  жалобы платящих пользователей на существующие приложения
 
 Сигналы балансируются между источниками (см. balance_by_source):
 шкалы score несравнимы, глобальная сортировка искажала бы выборку.
@@ -168,10 +170,15 @@ class TrendCollector:
 
     # Хвосты-индикаторы боли и намерения из методологии (trend_scout_prompt)
     INTENT_TAILS = ["как", "для", "не работает", "альтернатива", "цена", "app", "tool"]
-    # Затравки для общего обзора, когда тема не задана
+    # Затравки для общего обзора, когда тема не задана:
+    # боль-ориентированные формулировки дают запросы с неудовлетворённым
+    # спросом, а не generic-перечни «приложение для рисования»
     DEFAULT_SEEDS = [
         "приложение для", "сервис для", "как автоматизировать",
+        "как избавиться от", "устал от", "надоело вручную",
+        "инструмент для автоматизации",
         "app for", "tool for", "how to automate",
+        "how to get rid of", "tired of manually", "i wish there was an app",
     ]
 
     async def collect_search_suggest(self, topic: str = "", limit: int = 20) -> List[Signal]:
@@ -294,6 +301,83 @@ class TrendCollector:
             ))
         return signals
 
+    # ---------- App Store: негативные отзывы 1-3★ (iTunes RSS, без ключа) ----------
+
+    # Термины для общего обзора, когда тема не задана
+    DEFAULT_APP_TERMS = ["productivity", "финансы"]
+    APP_COUNTRIES = ("us", "ru")
+
+    async def _find_app_ids(self, term: str, country: str, limit: int = 2) -> List[Dict]:
+        """iTunes Search API: топ приложений по запросу"""
+        data = await self._get_json(
+            "https://itunes.apple.com/search",
+            {"term": term, "entity": "software", "country": country, "limit": limit},
+        )
+        if not isinstance(data, dict):
+            return []
+        return [
+            {"id": r.get("trackId"), "name": r.get("trackName") or ""}
+            for r in data.get("results", [])
+            if r.get("trackId")
+        ]
+
+    async def _fetch_app_reviews(self, app: Dict, country: str, max_reviews: int = 5) -> List[Signal]:
+        """RSS свежих отзывов приложения; берём только 1-3★ — карта болей"""
+        data = await self._get_json(
+            f"https://itunes.apple.com/{country}/rss/customerreviews/"
+            f"id={app['id']}/sortBy=mostRecent/json"
+        )
+        if not isinstance(data, dict):
+            return []
+        entries = data.get("feed", {}).get("entry", [])
+        if isinstance(entries, dict):
+            entries = [entries]
+        signals = []
+        for entry in entries:
+            rating_raw = entry.get("im:rating", {}).get("label")
+            if rating_raw is None:
+                continue  # первая entry — метаданные приложения, не отзыв
+            try:
+                rating = int(rating_raw)
+            except (TypeError, ValueError):
+                continue
+            if rating > 3:
+                continue
+            title = (entry.get("title", {}).get("label") or "").strip()
+            content = (entry.get("content", {}).get("label") or "").strip()
+            text = f"{title} — {content}" if title and content else (title or content)
+            if not text:
+                continue
+            signals.append(Signal(
+                source="appstore",
+                title=f"{app['name']} ({rating}★): {text[:200]}",
+                url=f"https://apps.apple.com/{country}/app/id{app['id']}",
+                score=4 - rating,  # вес боли: 1★ → 3, 3★ → 1
+                extra={"app": app["name"], "rating": rating, "country": country},
+            ))
+            if len(signals) >= max_reviews:
+                break
+        return signals
+
+    async def collect_appstore(self, topic: str = "", limit: int = 15) -> List[Signal]:
+        """
+        Отзывы 1-3★ на приложения по теме — жалобы платящих пользователей
+        на существующие решения (Google Play публичного RSS не имеет).
+        """
+        terms = [topic] if topic else self.DEFAULT_APP_TERMS
+
+        apps: List[tuple] = []  # (app, country)
+        for country in self.APP_COUNTRIES:
+            found = await asyncio.gather(*(self._find_app_ids(t, country) for t in terms))
+            for app_list in found:
+                apps.extend((app, country) for app in app_list)
+
+        review_lists = await asyncio.gather(
+            *(self._fetch_app_reviews(app, country) for app, country in apps)
+        )
+        signals = [s for lst in review_lists for s in lst]
+        return signals[:limit]
+
     # ---------- Общий сбор ----------
 
     async def collect_all(self, topic: str = "", limit_per_source: int = 15) -> List[Signal]:
@@ -304,6 +388,7 @@ class TrendCollector:
             self.collect_github(topic, limit_per_source),
             self.collect_search_suggest(topic, limit_per_source),
             self.collect_stackexchange(topic, limit_per_source),
+            self.collect_appstore(topic, limit_per_source),
             return_exceptions=True,
         )
         signals: List[Signal] = []
