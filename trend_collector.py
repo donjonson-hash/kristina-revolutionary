@@ -5,7 +5,11 @@ Trend Collector — сбор сигналов пользовательского
 - Hacker News (Algolia API): популярные истории и Ask HN
 - Reddit (публичный JSON): сабреддиты о стартапах и запросах пользователей
 - GitHub (Search API): быстрорастущие новые репозитории
-- Поисковые подсказки (Google autocomplete): дословные массовые запросы
+- Поисковые подсказки (Google autocomplete, fallback DuckDuckGo)
+- Stack Exchange (softwarerecs): прямые запросы «посоветуйте софт»
+
+Сигналы балансируются между источниками (см. balance_by_source):
+шкалы score несравнимы, глобальная сортировка искажала бы выборку.
 
 TikTok и Instagram публичного API не имеют — они входят в методологию
 анализа и валидации (см. trend_scout_prompt.py).
@@ -14,9 +18,11 @@ TikTok и Instagram публичного API не имеют — они вход
 """
 
 import asyncio
+import html
 import logging
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta
+from itertools import zip_longest
 from typing import Dict, List, Optional
 from urllib.parse import quote_plus
 
@@ -247,6 +253,47 @@ class TrendCollector:
             ))
         return signals
 
+    # ---------- Stack Exchange (Software Recommendations, без ключа) ----------
+
+    async def collect_stackexchange(self, topic: str = "", limit: int = 15,
+                                    site: str = "softwarerecs") -> List[Signal]:
+        """
+        softwarerecs.stackexchange.com — люди прямо просят посоветовать софт
+        под задачу: канал прямых запросов пользователей (работает с IP
+        дата-центров, в отличие от Reddit).
+        """
+        week_ago = int((datetime.now() - timedelta(days=14)).timestamp())
+        params = {
+            "site": site,
+            "sort": "votes",
+            "order": "desc",
+            "fromdate": week_ago,
+            "pagesize": limit,
+        }
+        url = "https://api.stackexchange.com/2.3/questions"
+        if topic:
+            url = "https://api.stackexchange.com/2.3/search/advanced"
+            params["q"] = topic
+        data = await self._get_json(url, params)
+        if not isinstance(data, dict):
+            return []
+        signals = []
+        for item in data.get("items", []):
+            title = html.unescape(item.get("title") or "")
+            if not title:
+                continue
+            signals.append(Signal(
+                source="stackexchange",
+                title=title,
+                url=item.get("link") or "",
+                score=item.get("score") or 0,
+                comments=item.get("answer_count") or 0,
+                created_at=datetime.fromtimestamp(item.get("creation_date", 0)).isoformat()
+                if item.get("creation_date") else "",
+                extra={"site": site, "tags": (item.get("tags") or [])[:5]},
+            ))
+        return signals
+
     # ---------- Общий сбор ----------
 
     async def collect_all(self, topic: str = "", limit_per_source: int = 15) -> List[Signal]:
@@ -256,6 +303,7 @@ class TrendCollector:
             self.collect_reddit(topic, limit=max(5, limit_per_source // 3)),
             self.collect_github(topic, limit_per_source),
             self.collect_search_suggest(topic, limit_per_source),
+            self.collect_stackexchange(topic, limit_per_source),
             return_exceptions=True,
         )
         signals: List[Signal] = []
@@ -265,11 +313,30 @@ class TrendCollector:
                 continue
             signals.extend(result)
 
-        # Сильные сигналы первыми
-        signals.sort(key=lambda s: s.score, reverse=True)
-        sources = {s.source for s in signals}
-        logger.info(f"📡 Collected {len(signals)} signals from {len(sources)} sources")
-        return signals
+        balanced = balance_by_source(signals)
+        sources = {s.source for s in balanced}
+        logger.info(f"📡 Collected {len(balanced)} signals from {len(sources)} sources")
+        return balanced
+
+
+def balance_by_source(signals: List[Signal]) -> List[Signal]:
+    """
+    Сбалансировать сигналы: сортировка по score внутри источника и
+    чередование источников. Шкалы score несравнимы между каналами
+    (звёзды GitHub ≫ апвоуты форумов), поэтому глобальная сортировка
+    вытесняла бы все каналы, кроме GitHub, из топа промпта для LLM.
+    """
+    by_source: Dict[str, List[Signal]] = {}
+    for signal in signals:
+        by_source.setdefault(signal.source, []).append(signal)
+    for group in by_source.values():
+        group.sort(key=lambda s: s.score, reverse=True)
+    return [
+        signal
+        for batch in zip_longest(*by_source.values())
+        for signal in batch
+        if signal is not None
+    ]
 
 
 def get_trend_collector() -> TrendCollector:

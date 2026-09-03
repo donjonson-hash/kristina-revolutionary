@@ -241,7 +241,68 @@ def test_collector_source_failure_is_isolated():
     collector.collect_reddit = boom
     collector.collect_github = boom
     collector.collect_search_suggest = boom
+    collector.collect_stackexchange = boom
 
     signals = asyncio.run(collector.collect_all())
     assert len(signals) == 1
     assert signals[0].source == "hackernews"
+
+
+# ---------- Балансировка источников ----------
+
+def test_balance_by_source_interleaves():
+    """GitHub с огромными score не вытесняет остальные каналы из топа"""
+    from trend_collector import balance_by_source
+
+    signals = (
+        [Signal(source="github", title=f"gh{i}", url="", score=100000 - i) for i in range(10)]
+        + [Signal(source="hackernews", title=f"hn{i}", url="", score=500 - i) for i in range(10)]
+        + [Signal(source="search", title=f"s{i}", url="", score=10 - i) for i in range(10)]
+    )
+    balanced = balance_by_source(signals)
+
+    assert len(balanced) == 30
+    # В первых шести — все три источника, по кругу
+    first_sources = [s.source for s in balanced[:6]]
+    assert set(first_sources) == {"github", "hackernews", "search"}
+    # Внутри источника порядок по score
+    gh = [s for s in balanced if s.source == "github"]
+    assert gh[0].score >= gh[1].score >= gh[2].score
+
+
+def test_balance_by_source_empty():
+    from trend_collector import balance_by_source
+    assert balance_by_source([]) == []
+
+
+# ---------- Stack Exchange ----------
+
+def test_collect_stackexchange_parses():
+    collector = TrendCollector()
+
+    async def fake_get_json(url, params=None):
+        assert "api.stackexchange.com" in url
+        return {"items": [
+            {"title": "Tool to track &amp; split expenses?", "link": "https://softwarerecs.stackexchange.com/q/1",
+             "score": 12, "answer_count": 3, "creation_date": 1756600000, "tags": ["finance", "web-app"]},
+            {"title": "", "link": "skip-me"},
+        ]}
+
+    collector._get_json = fake_get_json
+    signals = asyncio.run(collector.collect_stackexchange("expenses"))
+
+    assert len(signals) == 1
+    s = signals[0]
+    assert s.source == "stackexchange"
+    assert s.title == "Tool to track & split expenses?"  # HTML-сущности раскодированы
+    assert s.score == 12 and s.comments == 3
+
+
+def test_collect_stackexchange_bad_payload():
+    collector = TrendCollector()
+
+    async def fake_get_json(url, params=None):
+        return ["unexpected"]
+
+    collector._get_json = fake_get_json
+    assert asyncio.run(collector.collect_stackexchange()) == []
