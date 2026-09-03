@@ -376,3 +376,25 @@ def test_default_seeds_pain_oriented():
     assert "инструмент для автоматизации" in seeds
     assert any("tired of" in s for s in seeds)
     assert any("get rid of" in s for s in seeds)
+
+
+# ---------- Лимит генерации отчёта ----------
+
+def test_analyzer_requests_enough_tokens():
+    """Тематические отчёты обрезались на max_tokens=2000 — лимит поднят"""
+    captured = {}
+
+    class RecordingAI:
+        async def chat(self, messages, **kwargs):
+            captured.update(kwargs)
+            return "## Отчёт"
+
+    analyzer = TrendAnalyzer(ai_client=RecordingAI())
+    asyncio.run(analyzer.analyze(make_signals()))
+    assert captured.get("max_tokens", 0) >= 4000
+
+
+def test_prompt_requires_complete_report():
+    from trend_scout_prompt import ANALYSIS_SYSTEM_PROMPT
+    assert "ДОВЕДЁН ДО КОНЦА" in ANALYSIS_SYSTEM_PROMPT
+    assert "не обрывай отчёт" in ANALYSIS_SYSTEM_PROMPT
