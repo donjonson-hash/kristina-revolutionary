@@ -17,7 +17,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 from document_handler import handle_document, DOCUMENT_PROCESSOR_AVAILABLE
 from intent_detector import detect_proposal_intent, detect_meeting_intent
-from telegram_utils import split_message, parse_admin_ids, next_weekly_run
+from telegram.error import NetworkError
+from telegram_utils import split_message, parse_admin_ids, parse_report_days, next_weekly_run
 from kristina_identity import build_system_prompt
 from proactive_naturalness import (
     format_recent_messages,
@@ -282,22 +283,26 @@ async def weekly_trend_report(context: ContextTypes.DEFAULT_TYPE):
 
 
 def setup_weekly_trends(application):
+    """Отчёты TrendScout по расписанию: по умолчанию пн и чт, 08:00 UTC"""
     if application.job_queue is None:
-        logger.warning("📅 JobQueue недоступен — еженедельный отчёт выключен")
+        logger.warning("📅 JobQueue недоступен — отчёты TrendScout выключены")
         return
+    # TREND_REPORT_DAYS="0,3" (пн,чт); TREND_REPORT_DAY поддержан для совместимости
+    days = parse_report_days(os.getenv("TREND_REPORT_DAYS") or os.getenv("TREND_REPORT_DAY", ""))
     try:
-        weekday = int(os.getenv("TREND_REPORT_DAY", "0"))
         hour = int(os.getenv("TREND_REPORT_HOUR", "8"))
     except ValueError:
-        weekday, hour = 0, 8
-    first = next_weekly_run(datetime.now(timezone.utc), weekday=weekday, hour=hour)
-    application.job_queue.run_repeating(
-        weekly_trend_report,
-        interval=timedelta(weeks=1),
-        first=first,
-        name="weekly_trends",
-    )
-    logger.info(f"📅 Weekly TrendScout report scheduled, first run: {first.isoformat()}")
+        hour = 8
+    now = datetime.now(timezone.utc)
+    for weekday in days:
+        first = next_weekly_run(now, weekday=weekday, hour=hour)
+        application.job_queue.run_repeating(
+            weekly_trend_report,
+            interval=timedelta(weeks=1),
+            first=first,
+            name=f"weekly_trends_{weekday}",
+        )
+        logger.info(f"📅 TrendScout report scheduled (day {weekday}), first run: {first.isoformat()}")
 
 
 async def generate_autonomous_message(
@@ -417,9 +422,18 @@ def setup_proactive_messaging(application):
     logger.info("✅ Autonomous proactive heartbeat enabled with jittered opportunities")
 
 
+async def on_telegram_error(update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик ошибок PTB: сетевые обрывы polling'а — не спам в журнал"""
+    if isinstance(context.error, NetworkError):
+        logger.warning(f"🌐 Telegram network hiccup (переподключимся): {context.error}")
+    else:
+        logger.error("Unhandled Telegram error", exc_info=context.error)
+
+
 def main():
     init_agents()
     application = Application.builder().token(KRISTINA_TELEGRAM_TOKEN).build()
+    application.add_error_handler(on_telegram_error)
 
     setup_proactive_messaging(application)
     setup_weekly_trends(application)

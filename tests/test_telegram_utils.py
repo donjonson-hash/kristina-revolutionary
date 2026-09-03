@@ -115,3 +115,16 @@ def test_next_weekly_run():
 
     # Результат всегда в будущем
     assert next_weekly_run(now, weekday=3, hour=0) > now
+
+
+# ---------- parse_report_days ----------
+
+def test_parse_report_days():
+    from telegram_utils import parse_report_days
+    assert parse_report_days("0,3") == [0, 3]
+    assert parse_report_days("3, 0, 3") == [0, 3]      # дедупликация и сортировка
+    assert parse_report_days("2") == [2]
+    assert parse_report_days("") == [0, 3]             # default: пн и чт
+    assert parse_report_days(None) == [0, 3]
+    assert parse_report_days("7,9,мусор") == [0, 3]    # вне 0-6 → default
+    assert parse_report_days("1,8") == [1]             # валидные остаются
