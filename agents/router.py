@@ -5,6 +5,9 @@ Agent Router - исправленная версия с set_active_agent
 from typing import Dict, List, Optional, NamedTuple
 from .base_agent import BaseAgent, AgentResponse
 from github_readonly import GitHubReadOnlyTool, extract_github_repo_url
+from conversation_context import conversation_session_id
+from persistent_memory import get_memory
+import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,11 +20,22 @@ class RoutingDecision(NamedTuple):
 
 
 class AgentRouter:
-    def __init__(self):
+    def __init__(self, memory=None):
         self.agents: Dict[str, BaseAgent] = {}
         self.default_agent: Optional[BaseAgent] = None
         self.current_agent: Optional[BaseAgent] = None  # Активный по выбору пользователя
         self.github_reader = GitHubReadOnlyTool()
+        self._memory = memory
+        self._session_locks = {}
+
+    @property
+    def memory(self):
+        if self._memory is None:
+            self._memory = get_memory()
+        return self._memory
+
+    def session_lock(self, session_id: str):
+        return self._session_locks.setdefault(session_id, asyncio.Lock())
 
     def register_agent(self, agent: BaseAgent, is_default: bool = False):
         self.agents[agent.name] = agent
@@ -45,6 +59,18 @@ class AgentRouter:
 
     async def route(self, user_input: str, context: Dict) -> RoutingDecision:
         """Авто-выбор агента по ключевым словам (если нет фиксированного)"""
+        agent_id = context.get("agent_id")
+        if agent_id is not None:
+            names = {
+                "kristina": "Kristina",
+                "advisor": "Kristina-Advisor",
+                "creative": "Kristina-Creative",
+                "trendscout": "TrendScout",
+            }
+            selected = self.agents.get(names.get(agent_id, agent_id))
+            if selected is None:
+                raise ValueError(f"Unknown agent: {agent_id}")
+            return RoutingDecision(selected_agent=selected, confidence=1.0, alternatives=[])
         # Stage 2: учесть мозговые рекомендации, если они есть
         brain_recs = context.get("brain_recommendations", {}) or {}
         agent_recs = brain_recs.get("agent_recommendations", [])
@@ -52,8 +78,6 @@ class AgentRouter:
             for rec_name in agent_recs:
                 for name, agent in self.agents.items():
                     if agent.__class__.__name__ == rec_name or agent.name == rec_name:
-                        self.current_agent = agent
-                        agent.activate()
                         logger.info(f"🎯 Brain-recommended агент активирован: {agent.name}")
                         return RoutingDecision(selected_agent=agent, confidence=1.0, alternatives=[])
 
@@ -109,6 +133,22 @@ class AgentRouter:
 
     async def process(self, user_input: str, context: Dict) -> AgentResponse:
         """Обработка через выбранного агента"""
+        context = dict(context)
+        session_id = conversation_session_id(context)
+        context["session_id"] = session_id
+        if session_id is None:
+            context["history"] = []
+            return await self._process(user_input, context)
+        async with self.session_lock(session_id):
+            context["history"] = self.memory.get_context_for_llm(session_id, limit=20)
+            response = await self._process(user_input, context)
+            self.memory.save_exchange(
+                session_id, user_input, response.content,
+                channel=context.get("channel") or context.get("source") or "web",
+            )
+            return response
+
+    async def _process(self, user_input: str, context: Dict) -> AgentResponse:
         await self._attach_github_evidence(user_input, context)
         decision = await self.route(user_input, context)
         response = await decision.selected_agent.process(user_input, context)

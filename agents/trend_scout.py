@@ -103,7 +103,6 @@ class TrendScoutAgent(BaseAgent):
         }
 
     async def process(self, user_input: str, context: Dict) -> AgentResponse:
-        self.add_to_history("user", user_input)
 
         topic = extract_topic(user_input)
         logger.info(f"🔍 TrendScout research, topic: '{topic or 'общий обзор'}'")
@@ -123,7 +122,6 @@ class TrendScoutAgent(BaseAgent):
                 "например, «тренды AI для малого бизнеса»."
             )
 
-        self.add_to_history("assistant", response_text)
 
         return AgentResponse(
             content=response_text,

@@ -61,7 +61,9 @@ class BrainBridge:
                 memory_context = {
                     "memory_context": [],
                 }
-                if hasattr(self.memory, "get_context_for_llm"):
+                if "history" in context:
+                    memory_context["memory_context"] = context["history"]
+                elif hasattr(self.memory, "get_context_for_llm"):
                     memory_context["memory_context"] = self.memory.get_context_for_llm(session_id, limit=5)
             except Exception:
                 memory_context = {"memory_context": []}

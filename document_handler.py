@@ -4,6 +4,8 @@
 import os
 import logging
 from shared_context import user_context
+from conversation_context import conversation_session_id, telegram_conversation
+from persistent_memory import get_memory
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -26,6 +28,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     user_id = update.effective_user.id
+    session_id = conversation_session_id(telegram_conversation(update))
     document = update.message.document
     
     # Проверяем размер (20MB лимит Telegram)
@@ -92,13 +95,16 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await processing_msg.edit_text(response)
         
         # Сохраняем в контекст для дальнейшей работы
-        if user_id not in user_context:
-            user_context[user_id] = {}
-        user_context[user_id]['last_document'] = {
+        if session_id not in user_context:
+            user_context[session_id] = {}
+        user_context[session_id]['last_document'] = {
             'text': result['text'],
             'filename': document.file_name,
             'stats': stats
         }
+        get_memory().save_exchange(
+            session_id, f"[Документ: {document.file_name}]", response, channel="telegram",
+        )
         
         # Удаляем временный файл
         os.remove(file_path)
