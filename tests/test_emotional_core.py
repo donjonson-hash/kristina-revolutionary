@@ -3,15 +3,13 @@ Test Suite: Emotional Core
 
 Проверяет:
 1. EmotionalCore — инициализация, traits, state
-2. evolve() — циркадные ритмы, контекст, флуктуации
+2. evolve() — циркадные ритмы, контекст, постепенное восстановление
 3. get_emotional_state() — доминантная эмоция, mood description
 4. Normalization — границы [0.1, 1.0]
 """
 
 import pytest
-import random
-from datetime import datetime
-from unittest.mock import patch
+from datetime import datetime, timedelta, timezone
 
 from emotional_core import EmotionalCore
 
@@ -53,42 +51,19 @@ class TestEmotionalCoreInit:
 
 class TestCircadianRhythm:
 
-    def test_morning_boost(self, emotional_core):
-        """Утро (6-10): energy +0.15, curiosity +0.1"""
-        start_energy = emotional_core.state["energy"]
-        start_curiosity = emotional_core.state["curiosity"]
+    @pytest.mark.parametrize("hour, direction", [(8, 1), (15, -1), (23, -1)])
+    def test_energy_moves_gradually(self, emotional_core, hour, direction):
+        start = emotional_core.state["energy"]
+        emotional_core._apply_circadian_rhythm(hour, elapsed_hours=1)
+        change = emotional_core.state["energy"] - start
+        assert change * direction > 0
+        assert abs(change) < 0.15
 
-        emotional_core._apply_circadian_rhythm(8)
-
-        assert emotional_core.state["energy"] == pytest.approx(start_energy + 0.15)
-        assert emotional_core.state["curiosity"] == pytest.approx(start_curiosity + 0.1)
-
-    def test_afternoon_slump(self, emotional_core):
-        """Послеобед (14-17): energy -0.08"""
-        start_energy = emotional_core.state["energy"]
-        emotional_core._apply_circadian_rhythm(15)
-        assert emotional_core.state["energy"] == pytest.approx(start_energy - 0.08)
-
-    def test_evening_loneliness(self, emotional_core):
-        """Вечер (17-22): loneliness +0.1"""
-        start_loneliness = emotional_core.state["loneliness"]
-        emotional_core._apply_circadian_rhythm(20)
-        assert emotional_core.state["loneliness"] == pytest.approx(start_loneliness + 0.1)
-
-    def test_night_decline(self, emotional_core):
-        """Ночь (0-6, 22-24): energy -0.15"""
-        start_energy = emotional_core.state["energy"]
-        emotional_core._apply_circadian_rhythm(23)
-        assert emotional_core.state["energy"] == pytest.approx(start_energy - 0.15)
-
-    def test_no_change_between_periods(self, emotional_core):
-        """10-14 и 17-17 (границы): нет специальных изменений кем-то, кроме флуктуаций"""
-        state_before = emotional_core.state.copy()
-        emotional_core._apply_circadian_rhythm(12)  # 12:00 — нет спец-правил
-        state_after = emotional_core.state.copy()
-
-        # При 12:00 ни один if не сработает, поэтому всё должно совпадать
-        assert state_before == state_after
+    def test_rest_eases_irritation(self, emotional_core):
+        emotional_core.evolve({"negative_tone": True})
+        start = emotional_core.state["irritation"]
+        emotional_core._apply_circadian_rhythm(12, elapsed_hours=1)
+        assert 0.1 < emotional_core.state["irritation"] < start
 
 
 class TestContextEffects:
@@ -114,28 +89,35 @@ class TestContextEffects:
         assert emotional_core.state == state_before
 
 
-class TestRandomFluctuations:
+class TestTimeBasedEvolution:
 
-    def test_random_fluctuations_all_emotions(self, emotional_core):
-        """_apply_random_fluctuations меняет все 7 emotions"""
-        state_before = emotional_core.state.copy()
+    def test_repeated_ticks_without_elapsed_time_do_not_change_emotions(self, emotional_core):
+        before = emotional_core.get_emotional_state()
+        for _ in range(100):
+            assert emotional_core.evolve() == before
 
-        with patch("random.uniform", return_value=0.03):
-            emotional_core._apply_random_fluctuations()
+    @pytest.mark.parametrize("start", [
+        datetime(2026, 9, 5, 18, 17, tzinfo=timezone.utc),
+        datetime(2026, 3, 29, 0, 17, tzinfo=timezone.utc),  # Stockholm DST starts
+        datetime(2026, 10, 25, 0, 17, tzinfo=timezone.utc),  # Stockholm DST ends
+    ])
+    def test_tick_frequency_does_not_change_result(self, start):
+        now = start
+        frequent = EmotionalCore(clock=lambda: now)
+        sparse = EmotionalCore(clock=lambda: now)
+        for _ in range(24 * 60):
+            now += timedelta(minutes=1)
+            frequent.evolve()
+        assert frequent.state == pytest.approx(sparse.evolve()["state"], abs=1e-12)
 
-        for emotion in state_before:
-            assert emotional_core.state[emotion] == pytest.approx(
-                state_before[emotion] + 0.03
-            )
-
-    def test_fluctuation_range(self, emotional_core):
-        """Изменение не выходит за [-0.05, +0.05]"""
-        state_before = emotional_core.state.copy()
-        emotional_core._apply_random_fluctuations()
-
-        for emotion in emotional_core.state:
-            delta = emotional_core.state[emotion] - state_before[emotion]
-            assert -0.05 <= delta <= 0.05
+    def test_backwards_clock_does_not_repeat_elapsed_time(self):
+        now = datetime(2026, 9, 5, 10, tzinfo=timezone.utc)
+        core = EmotionalCore(clock=lambda: now)
+        before = core.evolve()
+        now -= timedelta(hours=1)
+        assert core.evolve() == before
+        now += timedelta(hours=1)
+        assert core.evolve() == before
 
 
 class TestNormalizeState:
@@ -258,11 +240,13 @@ class TestEvolveFullCycle:
             result = emotional_core.evolve({"negative_tone": _ % 2 == 0})
             assert 0.0 <= result["dominant_value"] <= 1.0
 
-    def test_evolve_twice_with_morning(self, emotional_core):
-        """Ручная установка часа: утренний boost дважды"""
-        with patch("emotional_core.datetime") as mock_dt:
-            mock_dt.now.return_value.hour = 8
-            result1 = emotional_core.evolve()
-            result2 = emotional_core.evolve()
-            # Энергия растёт (но не выходит за границу из-за нормализации)
-            assert result2["state"]["energy"] >= result1["state"]["energy"] - 0.1
+    def test_conversation_accumulates_fatigue_and_rest_recovers_it(self):
+        now = datetime(2026, 9, 5, 8, tzinfo=timezone.utc)
+        core = EmotionalCore(clock=lambda: now)
+        for _ in range(15):
+            core.evolve({"user_message": True})
+        tired = core.state["energy"]
+        assert tired < 0.4
+        now += timedelta(hours=2)
+        rested = core.evolve()["state"]["energy"]
+        assert tired < rested < 0.75

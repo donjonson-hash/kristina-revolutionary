@@ -9,7 +9,7 @@ set -e
 # Настройки
 BACKUP_DIR="$(dirname "$0")/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-DB_FILES=("kristina_memory.db" "freelance.db" "kristina_knowledge.db")
+DB_FILES=("kristina_memory.db" "freelance.db" "kristina_knowledge.db" "kristina_state.db")
 KEEP_DAYS=7
 
 # Создаём директорию для бэкапов
