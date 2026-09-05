@@ -44,7 +44,10 @@ def persona_router(memory, monkeypatch):
 
     monkeypatch.setattr(persona, "ai", SimpleNamespace(generate=AsyncMock(return_value="Принято.")))
     monkeypatch.setattr(persona, "asyncio", SimpleNamespace(sleep=AsyncMock()))
-    monkeypatch.setattr(persona.night_mode, "check", lambda: False)
+    from emotional_core import EmotionalCore
+    from mood_engine import MoodEngine
+    core = EmotionalCore(clock=lambda: datetime(2026, 9, 5, 10, tzinfo=timezone.utc))
+    monkeypatch.setattr(persona, "mood_engine", MoodEngine(core))
     bridge = SimpleNamespace(process_signal=AsyncMock(return_value={}))
     monkeypatch.setattr(persona, "get_brain_bridge", lambda: bridge)
     agent = persona.KristinaPersonaAgent()
@@ -62,6 +65,8 @@ def telegram_bot(persona_router, monkeypatch):
     import bot
     router, _, _ = persona_router
     monkeypatch.setattr(bot, "router", router)
+    import agents.kristina_persona as persona
+    monkeypatch.setattr(bot, "emotional_core", persona.mood_engine.core)
     monkeypatch.setattr(bot, "active_agents", {})
     monkeypatch.setattr(bot, "active_chat_ids", set())
     monkeypatch.setattr(bot, "last_user_activity", {})
@@ -294,3 +299,22 @@ def test_history_budget_keeps_recent_details():
     assert len(history) <= 12000
     assert "old " not in history
     assert len(format_conversation_history([{"role": "user", "content": "x" * 20000}])) <= 12000
+
+
+async def test_proactive_uses_the_state_changed_by_conversation(telegram_bot, persona_router, monkeypatch):
+    bot = telegram_bot
+    router, _, _ = persona_router
+    for _ in range(15):
+        await router.process("Продолжим", conversation())
+    tired_energy = bot.emotional_core.state["energy"]
+    assert tired_energy < 0.4
+    bot.active_chat_ids.add(1)
+    bot.next_proactive_opportunity[1] = datetime.now(timezone.utc) - timedelta(minutes=1)
+    monkeypatch.setattr(bot, "decision_engine", SimpleNamespace(decide=lambda *a, **k: SimpleNamespace(
+        action="message", intention="share", score=0.9, reason="test")))
+    proactive = AsyncMock(return_value="Давай вернёмся к этому завтра.")
+    monkeypatch.setattr(bot, "generate_autonomous_message", proactive)
+    await bot.autonomous_proactive_tick(SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock())))
+    snapshot = proactive.call_args.args[1]
+    assert snapshot["state"]["energy"] == tired_energy
+    assert "Уставшая" in snapshot["mood_description"]
