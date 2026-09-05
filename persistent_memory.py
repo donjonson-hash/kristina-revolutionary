@@ -81,13 +81,26 @@ class PersistentMemory:
             """SELECT role, content, speaker, timestamp 
                FROM messages 
                WHERE session_id = ? 
-               ORDER BY timestamp DESC 
+               ORDER BY id DESC
                LIMIT ?""",
             (session_id, limit)
         )
         
         rows = cursor.fetchall()
         return [dict(row) for row in reversed(rows)]
+
+    def save_exchange(self, session_id: str, user_input: str, response: str,
+                      channel: str = 'unknown') -> None:
+        """Commit a complete conversation turn atomically."""
+        conn = self._get_connection()
+        timestamp = datetime.now().isoformat()
+        with conn:
+            conn.executemany(
+                """INSERT INTO messages (session_id, role, content, channel, timestamp)
+                   VALUES (?, ?, ?, ?, ?)""",
+                [(session_id, role, content, channel, timestamp)
+                 for role, content in (("user", user_input), ("assistant", response))],
+            )
     
     def get_session_history(self, session_id: str) -> List[Dict]:
         """Получить всю историю сессии"""

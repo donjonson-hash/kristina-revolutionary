@@ -28,7 +28,6 @@ class KristinaAdvisorAgent(BaseAgent):
         ]
     
     async def process(self, user_input: str, context: Dict) -> AgentResponse:
-        self.add_to_history("user", user_input)
         
         response_text = f"""🧠 Давай разберёмся структурно.
 
@@ -41,7 +40,6 @@ class KristinaAdvisorAgent(BaseAgent):
 
 Я здесь, чтобы помочь увидеть картину целиком."""
         
-        self.add_to_history("assistant", response_text)
         
         return AgentResponse(
             content=response_text,
