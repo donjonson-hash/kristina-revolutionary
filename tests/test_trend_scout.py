@@ -130,14 +130,23 @@ def test_agent_run_research():
     assert "Отчёт по 3 сигналам" in result["report"]
 
 
-def test_agent_process_returns_report():
+def test_agent_process_returns_report(tmp_path):
+    from agents.router import AgentRouter
+    from persistent_memory import PersistentMemory
+    from conversation_context import conversation_session_id
+
     agent = make_agent()
-    response = asyncio.run(agent.process("исследуй тренды рынка", {"user_id": "u1"}))
+    memory = PersistentMemory(str(tmp_path / "scout.db"))
+    router = AgentRouter(memory=memory)
+    router.register_agent(agent, is_default=True)
+    context = {"user_id": "u1"}
+    response = asyncio.run(router.process("исследуй тренды рынка", context))
     assert response.agent_name == "TrendScout"
     assert "Собрано сигналов: 3" in response.content
     assert response.confidence > 0.5
-    # История ведётся
-    assert len(agent.conversation_history) == 2
+    # История принадлежит сессии, а не общему экземпляру агента.
+    assert len(memory.get_recent_messages(conversation_session_id(context))) == 2
+    memory.close()
 
 
 def test_agent_process_survives_broken_collector():

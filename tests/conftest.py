@@ -28,12 +28,12 @@ def mock_ai_client():
 
 
 @pytest.fixture
-def router():
+def router(persistent_memory):
     """AgentRouter с зарегистрированными тестовыми агентами"""
     from agents.base_agent import AgentResponse
     from agents.router import AgentRouter
 
-    router = AgentRouter()
+    router = AgentRouter(memory=persistent_memory)
     return router
 
 

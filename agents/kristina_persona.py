@@ -10,7 +10,7 @@ from typing import Dict
 from .base_agent import BaseAgent, AgentResponse
 from .ai_adapter import ai_adapter as ai
 from kristina_identity import build_system_prompt
-from memory_wrapper import get_user_memory, save_interaction
+from conversation_context import format_conversation_history
 from mood_engine import mood_engine
 from night_mode import night_mode
 
@@ -65,13 +65,14 @@ class KristinaPersonaAgent(BaseAgent):
                 signal = SimpleNamespace(
                     content=user_input,
                     timestamp=datetime.datetime.now(),
-                    session_id=context.get("session_id", "default"),
+                    session_id=context.get("session_id"),
                 )
                 brain_snapshot = await bridge.process_signal(
                     signal,
                     context={
                         "user_id": user_id,
-                        "session_id": context.get("session_id", "default"),
+                        "session_id": context.get("session_id"),
+                        "history": context.get("history", []),
                     },
                 )
             except Exception:
@@ -80,20 +81,8 @@ class KristinaPersonaAgent(BaseAgent):
         if brain_snapshot and isinstance(brain_snapshot, dict):
             context["brain_recommendations"] = brain_snapshot.get("recommendations", {})
 
-        user_memory = get_user_memory(user_id)
-        memory_context = ""
-        if user_memory.get("messages"):
-            memory_context = f"\nПредыдущие темы: {', '.join(user_memory.get('topics', []))}\n"
-
-        brain_memory_text = ""
         brain_emotion_text = ""
         if brain_snapshot:
-            mem_ctx = brain_snapshot.get("memory", {}).get("memory_context", [])
-            if isinstance(mem_ctx, list) and mem_ctx:
-                brain_memory_text = "\nМозг память: " + ", ".join(map(str, mem_ctx))
-            elif isinstance(mem_ctx, str) and mem_ctx:
-                brain_memory_text = "\nМозг память: " + mem_ctx
-
             emo = brain_snapshot.get("emotion", {})
             if emo:
                 dom = emo.get("dominant_emotion", "")
@@ -132,13 +121,10 @@ class KristinaPersonaAgent(BaseAgent):
         delay = random.randint(20, 60)
         await asyncio.sleep(delay)
 
-        self.add_to_history("user", user_input)
-        history_block = self.get_history_prompt()
+        history_block = format_conversation_history(context.get("history", []))
 
         full_prompt = (
             f"{self.system_prompt}"
-            f"{memory_context}"
-            f"{brain_memory_text}"
             f"{brain_emotion_text}"
             f"{github_context}"
             f"\n{night_prompt}"
@@ -168,7 +154,7 @@ class KristinaPersonaAgent(BaseAgent):
         try:
             response_text = await ai.generate(
                 prompt=full_prompt,
-                session_id=f"kristina_{context.get('user_id', 'default')}",
+                session_id=context.get("session_id"),
                 temperature=0.75,
                 max_tokens=520 if github_evidence else 180,
             )
@@ -176,9 +162,6 @@ class KristinaPersonaAgent(BaseAgent):
         except Exception as e:
             print(f"⚠️ AI error: {e}")
             response_text = self._creative_fallback(user_input)
-
-        self.add_to_history("assistant", response_text)
-        save_interaction(user_id, user_input, response_text)
 
         return AgentResponse(
             content=response_text,
@@ -188,7 +171,7 @@ class KristinaPersonaAgent(BaseAgent):
             suggested_actions=["уточнить", "пошутить", "закончить тему"],
             context_used={
                 "delay": delay,
-                "history_len": len(self.conversation_history),
+                "history_len": len(context.get("history", [])),
                 "github_grounded": bool(github_evidence),
             },
         )
