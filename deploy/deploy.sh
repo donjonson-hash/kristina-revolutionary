@@ -65,6 +65,8 @@ systemctl daemon-reload
 systemctl enable kristina-bot
 
 if [ "$NEED_ENV" = "0" ]; then
+    # SQLite backup API includes committed WAL data; failures stop the restart.
+    venv/bin/python deploy/backup_state.py
     systemctl restart kristina-bot
     sleep 3
     systemctl --no-pager --lines=5 status kristina-bot || true
