@@ -10,7 +10,7 @@ import json
 import datetime
 
 try:
-    from brain_unified import CortexAgent
+    from brain_unified import CortexAgent, EmotionalAgent
 except Exception:
     CortexAgent = None  # type: ignore
 
@@ -28,13 +28,34 @@ logger = logging.getLogger(__name__)
 
 class BrainBridge:
     """Lightweight orchestrator around brain_unified components."""
-    def __init__(self):
-        self.cortex = CortexAgent() if CortexAgent is not None else None
-        self.emotional = get_emotional_core() if get_emotional_core is not None else None
-        self.memory = get_memory() if get_memory is not None else None
+    def __init__(self, cortex=None, emotional=None, memory=None):
+        self.cortex = cortex if cortex is not None else (CortexAgent() if CortexAgent is not None else None)
+        self.emotional = emotional if emotional is not None else (get_emotional_core() if get_emotional_core is not None else None)
+        self.memory = memory if memory is not None else (get_memory() if get_memory is not None else None)
+        self.emotional_agent = EmotionalAgent(self.emotional) if self.emotional is not None and CortexAgent is not None else None
 
     async def process_signal(self, signal: Any, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Process a neural signal and enrich with emotion & memory context."""
+        if context and context.get("appraise_event"):
+            # The live Persona path: assess -> emotional response -> reply.
+            # This branch has exactly one owner of the user-message event.
+            appraisal = None
+            if self.cortex is not None:
+                try:
+                    appraisal = await self.cortex.appraise(
+                        signal.content, context.get("history", []), context.get("interest"),
+                    )
+                except Exception as exc:
+                    logger.warning("Cortex appraisal failed: %s", type(exc).__name__)
+            emotion = self.emotional_agent.react(appraisal, user_message=True) if self.emotional_agent else {}
+            return {
+                "cortex": {"status": "appraised" if appraisal else "unavailable"},
+                "appraisal": appraisal,
+                "emotion": emotion,
+                "memory": {"memory_context": context.get("history", [])},
+                "recommendations": {"agent_recommendations": [], "actions": []},
+            }
+
         # Cortex processing
         if self.cortex is None:
             cortex_result = {"status": "uninitialized"}

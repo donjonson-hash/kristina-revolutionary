@@ -83,7 +83,7 @@ class EmotionalCore:
             return self.get_emotional_state()
 
     def _payload(self):
-        return {"version": 1, "state": self.state.copy(),
+        return {"version": 2, "state": self.state.copy(),
                 "last_update": self.last_update.isoformat(),
                 "recent_experiences": [event.copy() for event in self.recent_experiences]}
 
@@ -91,14 +91,15 @@ class EmotionalCore:
         state = payload["state"]
         updated = datetime.fromisoformat(payload["last_update"])
         experiences = payload["recent_experiences"]
-        if (payload.get("version") != 1 or set(state) != set(self.state)
+        if (payload.get("version") not in (1, 2) or set(state) != set(self.state)
                 or any(type(v) not in (int, float) or not math.isfinite(v)
                        or not 0.1 <= v <= 1.0 for v in state.values())
                 or updated.tzinfo is None or updated.utcoffset() is None
                 or not isinstance(experiences, list)
                 or any(not isinstance(event, dict)
                        or set(event) != {"event", "at"}
-                       or event["event"] not in ("user_message", "negative_tone")
+                       or event["event"] not in ("user_message", "negative_tone", "appraisal_curiosity",
+                                              "appraisal_warmth", "appraisal_concern", "appraisal_frustration")
                        or not isinstance(event["at"], str) for event in experiences)):
             raise ValueError("Invalid persisted emotional state; refusing to reset it")
         self.state = state
@@ -141,6 +142,9 @@ class EmotionalCore:
 
     def _apply_context_effects(self, context: Dict):
         """Only explicit events affect state; no guessing sentiment from keywords."""
+        from cognitive_appraisal import Appraisal
+        appraisal = context.get("appraisal")
+        effects = appraisal.effects() if isinstance(appraisal, Appraisal) else {}
         events = []
         if context.get("user_message"):
             self.state["energy"] -= 0.025
@@ -150,6 +154,10 @@ class EmotionalCore:
         if context.get("negative_tone", False):
             self.state["irritation"] += 0.2
             events.append("negative_tone")
+        for emotion, change in effects.items():
+            self.state[emotion] += change
+        if effects:
+            events.append("appraisal_" + appraisal.reaction)
         for event in events:
             self.recent_experiences.append({"event": event, "at": self.last_update.isoformat()})
         self.recent_experiences = self.recent_experiences[-20:]

@@ -1,6 +1,6 @@
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Optional
 import threading
 
@@ -52,6 +52,17 @@ class PersistentMemory:
             )
         """)
         
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cognitive_interests (
+                session_id TEXT PRIMARY KEY,
+                topic TEXT NOT NULL,
+                reflection TEXT NOT NULL,
+                source_quote TEXT NOT NULL,
+                source_message_id INTEGER NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_session ON messages(session_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON messages(timestamp)")
         
@@ -90,18 +101,49 @@ class PersistentMemory:
         return [dict(row) for row in reversed(rows)]
 
     def save_exchange(self, session_id: str, user_input: str, response: str,
-                      channel: str = 'unknown') -> None:
-        """Commit a complete conversation turn atomically."""
+                      channel: str = 'unknown', appraisal=None) -> None:
+        """Commit the turn and its source-linked interest in one transaction."""
         conn = self._get_connection()
         timestamp = datetime.now().isoformat()
+        if appraisal is not None:
+            from dataclasses import asdict
+            from cognitive_appraisal import Appraisal
+            if not isinstance(appraisal, Appraisal):
+                raise ValueError("Interest update requires a validated appraisal")
+            Appraisal.parse(json.dumps(asdict(appraisal)), user_input)
         with conn:
-            conn.executemany(
+            user_row = conn.execute(
                 """INSERT INTO messages (session_id, role, content, channel, timestamp)
-                   VALUES (?, ?, ?, ?, ?)""",
-                [(session_id, role, content, channel, timestamp)
-                 for role, content in (("user", user_input), ("assistant", response))],
+                   VALUES (?, 'user', ?, ?, ?)""",
+                (session_id, user_input, channel, timestamp),
             )
-    
+            conn.execute(
+                """INSERT INTO messages (session_id, role, content, channel, timestamp)
+                   VALUES (?, 'assistant', ?, ?, ?)""",
+                (session_id, response, channel, timestamp),
+            )
+            if appraisal is not None and appraisal.interest_action == "clear":
+                conn.execute("DELETE FROM cognitive_interests WHERE session_id = ?", (session_id,))
+            elif appraisal is not None and appraisal.interest_action == "replace":
+                conn.execute(
+                    """INSERT OR REPLACE INTO cognitive_interests
+                       (session_id, topic, reflection, source_quote, source_message_id, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (session_id, appraisal.topic, appraisal.reflection, appraisal.source_quote,
+                     user_row.lastrowid, datetime.now(timezone.utc).isoformat()),
+                )
+
+    def get_interest(self, session_id: str) -> Optional[Dict]:
+        """One interpretation per conversation, anchored to an actual user message."""
+        row = self._get_connection().execute(
+            """SELECT i.topic, i.reflection, i.source_quote, i.updated_at,
+                      i.source_message_id, 'user_report' AS source_kind
+               FROM cognitive_interests i JOIN messages m ON m.id = i.source_message_id
+               WHERE i.session_id = ? AND m.session_id = i.session_id AND m.role = 'user'""",
+            (session_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
     def get_session_history(self, session_id: str) -> List[Dict]:
         """Получить всю историю сессии"""
         conn = self._get_connection()
@@ -169,9 +211,9 @@ class PersistentMemory:
     def clear_user(self, session_id: str) -> None:
         """Удалить все сообщения сессии"""
         conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
-        conn.commit()
+        with conn:
+            conn.execute("DELETE FROM cognitive_interests WHERE session_id = ?", (session_id,))
+            conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
 
     def close(self):
         """Закрыть соединение"""
