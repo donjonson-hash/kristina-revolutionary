@@ -21,6 +21,7 @@ from telegram.error import NetworkError
 from telegram_utils import split_message, parse_admin_ids, parse_report_days, next_weekly_run
 from kristina_identity import build_system_prompt
 from cognitive_appraisal import cognitive_context
+from intention_cycle import IntentionStore, IntentionWorker, intention_context
 from conversation_context import (
     conversation_session_id, telegram_conversation, format_conversation_history,
 )
@@ -427,7 +428,8 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                     emotional_state,
                     recent_proactive[chat_id],
                     dialog_history=format_conversation_history(history),
-                    cognition=cognitive_context(router.memory.get_interest(session_id), history),
+                    cognition=(cognitive_context(router.memory.get_interest(session_id), history)
+                               + intention_context(IntentionStore(router.memory).get_current(session_id))),
                 )
                 if not message:
                     continue
@@ -438,6 +440,14 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"📤 Autonomous proactive sent to {chat_id}: {decision.intention}")
         except Exception as e:
             logger.error(f"Autonomous proactive failed for {chat_id}: {e}")
+
+
+async def autonomous_work_tick(context: ContextTypes.DEFAULT_TYPE):
+    """Progress saved intentions independently of Telegram delivery and active chats."""
+    try:
+        await IntentionWorker(router.memory, emotional_core, router.session_lock).tick()
+    except Exception as exc:
+        logger.error("Autonomous work failed: %s", type(exc).__name__)
 
 
 def setup_proactive_messaging(application):
@@ -452,7 +462,13 @@ def setup_proactive_messaging(application):
         first=timedelta(seconds=random.randint(15, 50)),
         name="autonomous_proactive",
     )
-    logger.info("✅ Autonomous proactive heartbeat enabled with jittered opportunities")
+    application.job_queue.run_repeating(
+        autonomous_work_tick,
+        interval=timedelta(minutes=1),
+        first=timedelta(seconds=30),
+        name="autonomous_work",
+    )
+    logger.info("✅ Autonomous proactive and durable work heartbeats enabled")
 
 
 async def on_telegram_error(update, context: ContextTypes.DEFAULT_TYPE):
