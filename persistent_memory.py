@@ -66,6 +66,8 @@ class PersistentMemory:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_session ON messages(session_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON messages(timestamp)")
         
+        from intention_cycle import init_tables
+        init_tables(conn)
         conn.commit()
         conn.close()
         print(f"✅ База данных готова: {self.db_path}")
@@ -122,6 +124,10 @@ class PersistentMemory:
                    VALUES (?, 'assistant', ?, ?, ?)""",
                 (session_id, response, channel, timestamp),
             )
+            if appraisal is not None and appraisal.interest_action in ("clear", "replace"):
+                conn.execute("""UPDATE agent_intentions SET status='cancelled', reason='source_changed',
+                    updated_at=? WHERE session_id=? AND status IN ('planning','planned')""",
+                    (datetime.now(timezone.utc).isoformat(), session_id))
             if appraisal is not None and appraisal.interest_action == "clear":
                 conn.execute("DELETE FROM cognitive_interests WHERE session_id = ?", (session_id,))
             elif appraisal is not None and appraisal.interest_action == "replace":
@@ -212,6 +218,7 @@ class PersistentMemory:
         """Удалить все сообщения сессии"""
         conn = self._get_connection()
         with conn:
+            conn.execute("DELETE FROM agent_intentions WHERE session_id = ?", (session_id,))
             conn.execute("DELETE FROM cognitive_interests WHERE session_id = ?", (session_id,))
             conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
 

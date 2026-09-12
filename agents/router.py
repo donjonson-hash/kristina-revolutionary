@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, NamedTuple
 from .base_agent import BaseAgent, AgentResponse
 from github_readonly import GitHubReadOnlyTool, extract_github_repo_url
 from conversation_context import conversation_session_id
+from intention_cycle import IntentionStore
 from persistent_memory import get_memory
 import asyncio
 import logging
@@ -138,12 +139,14 @@ class AgentRouter:
         context["session_id"] = session_id
         context.pop("_appraisal", None)
         context["interest"] = None
+        context["intention"] = None
         if session_id is None:
             context["history"] = []
             return await self._process(user_input, context)
         async with self.session_lock(session_id):
             context["history"] = self.memory.get_context_for_llm(session_id, limit=20)
             context["interest"] = self.memory.get_interest(session_id)
+            context["intention"] = IntentionStore(self.memory).get_current(session_id)
             response = await self._process(user_input, context)
             self.memory.save_exchange(
                 session_id, user_input, response.content,
