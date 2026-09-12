@@ -145,3 +145,66 @@ async def test_bot_clear_and_proactive_share_source_linked_interest(pipeline, mo
     p.appraisal.return_value = None
     await p.router.process("Привет", conversation())
     assert INTEREST.reflection not in p.generate.call_args.kwargs["prompt"]
+
+
+async def test_completed_experiment_reaches_own_reply_but_not_other_session(pipeline):
+    from intention_cycle import IntentionStore, REFLECTION_PAUSE
+    from tests.test_intention_cycle import PLAN
+    p = pipeline
+    await p.router.process(SOURCE, conversation())
+    store = IntentionStore(p.memory)
+    claim = store.claim(DAY)
+    store.finish_plan(claim['id'], PLAN, DAY)
+    store.complete(claim['id'], DAY + REFLECTION_PAUSE)
+    p.appraisal.return_value = None
+    await p.router.process('Что ты проверила?', conversation())
+    prompt = p.generate.call_args.kwargs['prompt']
+    assert 'counterexample_found' in prompt
+    assert '2024-02-30' in prompt
+    assert 'tool_result' in prompt
+    await p.router.process('Что ты проверила?', conversation(2, 2))
+    assert 'counterexample_found' not in p.generate.call_args.kwargs['prompt']
+    await p.router.process('Привет', {'agent_id': 'kristina',
+        'intention': store.get_current(conversation_session_id(conversation()))})
+    assert 'counterexample_found' not in p.generate.call_args.kwargs['prompt']
+    # An appraisal replacing the source must not carry the previous experiment into the new topic.
+    p.appraisal.return_value = INTEREST
+    await p.router.process(SOURCE, conversation())
+    assert 'counterexample_found' not in p.generate.call_args.kwargs['prompt']
+
+
+async def test_bot_work_progresses_without_active_chats_and_sends_nothing(pipeline, monkeypatch):
+    monkeypatch.setenv("KRISTINA_TELEGRAM_TOKEN", "12345:test-not-a-real-token")
+    import bot
+    from intention_cycle import IntentionStore, IntentionWorker, REFLECTION_PAUSE
+    from tests.test_intention_cycle import PLAN
+    p = pipeline
+    await p.router.process(SOURCE, conversation())
+    store = IntentionStore(p.memory)
+    claim = store.claim(DAY)
+    store.finish_plan(claim['id'], PLAN, DAY)
+    monkeypatch.setattr(bot, 'router', p.router)
+    monkeypatch.setattr(bot, 'emotional_core', p.core)
+    monkeypatch.setattr(bot, 'active_chat_ids', set())
+    planner = AsyncMock()
+    monkeypatch.setattr(bot, 'IntentionWorker', lambda *args: IntentionWorker(
+        *args, planner=planner, clock=lambda: DAY + REFLECTION_PAUSE))
+    delivery = SimpleNamespace(bot=SimpleNamespace(send_message=AsyncMock()))
+    await bot.autonomous_work_tick(delivery)
+    assert store.get_current(conversation_session_id(conversation()))['status'] == 'completed'
+    planner.assert_not_awaited()
+    delivery.bot.send_message.assert_not_awaited()
+
+
+def test_work_and_delivery_have_separate_scheduled_jobs(monkeypatch):
+    monkeypatch.setenv("KRISTINA_TELEGRAM_TOKEN", "12345:test-not-a-real-token")
+    import bot
+    from unittest.mock import Mock
+    application = SimpleNamespace(job_queue=SimpleNamespace(run_repeating=Mock()))
+    bot.setup_proactive_messaging(application)
+    calls = application.job_queue.run_repeating.call_args_list
+    assert {call.kwargs['name']: call.args[0] for call in calls} == {
+        'autonomous_work': bot.autonomous_work_tick,
+        'autonomous_proactive': bot.autonomous_proactive_tick,
+    }
+    bot.setup_proactive_messaging(SimpleNamespace(job_queue=None))

@@ -6,6 +6,7 @@ Emotional Evolution v2.0 — Kristina меняется как живой чел�
 import json
 import math
 import os
+import re
 import sqlite3
 import threading
 from contextlib import closing
@@ -44,10 +45,15 @@ class EmotionalCore:
         self.last_update = self._now()
         self.db_path = db_path
         self._lock = threading.RLock()
+        self._experiment_ids = set()
         if db_path is not None:
             with closing(sqlite3.connect(db_path)) as conn, conn:
                 conn.execute("""CREATE TABLE IF NOT EXISTS emotional_state (
                     id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL
+                )""")
+                conn.execute("""CREATE TABLE IF NOT EXISTS experiment_effects (
+                    experiment_id TEXT PRIMARY KEY, outcome TEXT NOT NULL,
+                    applied_at TEXT NOT NULL
                 )""")
             self.evolve()
         
@@ -81,6 +87,53 @@ class EmotionalCore:
                     self._restore(previous)
                     raise
             return self.get_emotional_state()
+
+    def record_experiment(self, experiment_id: str, outcome: str) -> bool:
+        """Apply a completed experiment once, atomically with its durable receipt."""
+        if not isinstance(experiment_id, str) or re.fullmatch(r"[0-9a-f]{32}", experiment_id) is None:
+            raise ValueError("experiment_id must be a UUID hex string")
+        if not isinstance(outcome, str) or outcome not in ("supported_on_cases", "counterexample_found"):
+            raise ValueError("Invalid experiment outcome")
+        with self._lock:
+            previous = self._payload()
+            try:
+                if self.db_path is None:
+                    if experiment_id in self._experiment_ids:
+                        return False
+                    self._apply_experiment_effects(outcome)
+                    self._experiment_ids.add(experiment_id)
+                else:
+                    with closing(sqlite3.connect(self.db_path, timeout=5)) as conn, conn:
+                        conn.execute("BEGIN IMMEDIATE")
+                        row = conn.execute("SELECT payload FROM emotional_state WHERE id = 1").fetchone()
+                        if row:
+                            self._restore(json.loads(row[0]))
+                        if conn.execute(
+                            "SELECT 1 FROM experiment_effects WHERE experiment_id = ?", (experiment_id,)
+                        ).fetchone():
+                            return False
+                        self._apply_experiment_effects(outcome)
+                        conn.execute(
+                            "INSERT INTO experiment_effects (experiment_id, outcome, applied_at) VALUES (?, ?, ?)",
+                            (experiment_id, outcome, self.last_update.isoformat()),
+                        )
+                        conn.execute(
+                            "INSERT OR REPLACE INTO emotional_state (id, payload) VALUES (1, ?)",
+                            (json.dumps(self._payload()),),
+                        )
+            except Exception:
+                self._restore(previous)
+                raise
+            return True
+
+    def _apply_experiment_effects(self, outcome):
+        self._advance(self._now(), None)
+        if outcome == "supported_on_cases":
+            self.state["happiness"] += 0.03
+        else:
+            self.state["curiosity"] += 0.04
+            self.state["irritation"] += 0.01
+        self._normalize_state()
 
     def _payload(self):
         return {"version": 2, "state": self.state.copy(),
