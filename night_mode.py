@@ -4,6 +4,7 @@ Night Mode - режим сна Кристины
 
 import logging
 from datetime import datetime, time
+from zoneinfo import ZoneInfo
 from typing import Optional
 import random
 
@@ -17,7 +18,7 @@ class NightMode:
         
     def check(self) -> bool:
         """Проверяет, ночь ли сейчас"""
-        now = datetime.now().time()
+        now = datetime.now(ZoneInfo("Europe/Stockholm")).time()
         
         # Ночь: с 23:00 до 08:00
         if self.night_start <= now or now < self.night_end:
@@ -36,7 +37,7 @@ class NightMode:
     def should_send_proactive(self) -> bool:
         """Проверяет, можно ли отправлять proactive ночью"""
         # Только с 23:00 до 00:15 (точка "мистика"), потом молчим
-        now = datetime.now()
+        now = datetime.now(ZoneInfo("Europe/Stockholm"))
         if now.hour == 23 or (now.hour == 0 and now.minute <= 15):
             return True
         return False

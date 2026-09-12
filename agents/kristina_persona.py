@@ -3,6 +3,7 @@
 import asyncio
 import datetime
 import json
+import logging
 import random
 from types import SimpleNamespace
 from typing import Dict
@@ -13,6 +14,8 @@ from kristina_identity import build_system_prompt
 from conversation_context import format_conversation_history
 from mood_engine import mood_engine
 from night_mode import night_mode
+
+logger = logging.getLogger(__name__)
 
 try:
     from brain_integration import get_brain_bridge
@@ -40,22 +43,16 @@ class KristinaPersonaAgent(BaseAgent):
         self.use_brain_integration = _BRAIN_AVAILABLE
 
     async def process(self, user_input: str, context: Dict) -> AgentResponse:
-        if night_mode.check():
-            if random.random() < 0.3:
-                await asyncio.sleep(random.randint(60, 120))
-                return AgentResponse(
-                    content=night_mode.get_sleep_response(),
-                    agent_name=self.name,
-                    confidence=0.5,
-                    emotion="сонная",
-                    suggested_actions=["завтра"],
-                    context_used={"night_mode": True},
-                )
-            night_prompt = night_mode.get_response_modifier()
-        else:
-            night_prompt = ""
-
-        mood = mood_engine.update(user_message=True)
+        emotional_state = mood_engine.snapshot(user_message=True)
+        mood = mood_engine.mood_for(emotional_state)
+        night_prompt = night_mode.get_response_modifier() if emotional_state["is_night"] else ""
+        mood_prompt = mood_engine.get_mood_prompt(emotional_state)
+        delay = mood_engine.get_delay(emotional_state)
+        logger.info(
+            "Response rhythm mood=%s energy=%.2f curiosity=%.2f night=%s delay=%ss state_at=%s",
+            mood.value, emotional_state["state"]["energy"], emotional_state["state"]["curiosity"],
+            emotional_state["is_night"], delay, emotional_state["updated_at"],
+        )
         user_id = context.get("user_id", "unknown")
 
         brain_snapshot = {}
@@ -81,18 +78,10 @@ class KristinaPersonaAgent(BaseAgent):
         if brain_snapshot and isinstance(brain_snapshot, dict):
             context["brain_recommendations"] = brain_snapshot.get("recommendations", {})
 
-        brain_emotion_text = ""
-        if brain_snapshot:
-            emo = brain_snapshot.get("emotion", {})
-            if emo:
-                dom = emo.get("dominant_emotion", "")
-                state = emo.get("state", {})
-                brain_emotion_text = (
-                    "\nМозг эмоции: dominant="
-                    + str(dom)
-                    + ", state="
-                    + json.dumps(state, ensure_ascii=False)
-                )
+        emotion_text = (
+            "\nТекущее эмоциональное состояние: "
+            + json.dumps(emotional_state["state"], ensure_ascii=False)
+        )
 
         github_evidence = context.get("github_evidence", "")
         github_error = context.get("github_error", "")
@@ -114,18 +103,13 @@ class KristinaPersonaAgent(BaseAgent):
                 "Не изображай просмотр кода. Скажи, что GitHub сейчас не удалось открыть, и не выдумывай детали репозитория.\n"
             )
 
-        mood_prompt = mood_engine.get_mood_prompt()
-        delay = mood_engine.get_delay()
-        await asyncio.sleep(delay)
-
-        delay = random.randint(20, 60)
         await asyncio.sleep(delay)
 
         history_block = format_conversation_history(context.get("history", []))
 
         full_prompt = (
             f"{self.system_prompt}"
-            f"{brain_emotion_text}"
+            f"{emotion_text}"
             f"{github_context}"
             f"\n{night_prompt}"
             f"\n\nТекущее настроение: {mood.value}. {mood_prompt}\n"
@@ -167,10 +151,11 @@ class KristinaPersonaAgent(BaseAgent):
             content=response_text,
             agent_name=self.name,
             confidence=0.9,
-            emotion="прямая, немного саркастичная",
+            emotion=mood.value,
             suggested_actions=["уточнить", "пошутить", "закончить тему"],
             context_used={
                 "delay": delay,
+                "emotional_state": emotional_state,
                 "history_len": len(context.get("history", [])),
                 "github_grounded": bool(github_evidence),
             },

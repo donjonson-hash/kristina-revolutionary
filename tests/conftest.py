@@ -16,6 +16,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # Тесты API не вызывают (process замокан) — достаточно фиктивного значения.
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key-not-real")
 
+@pytest.fixture(autouse=True)
+def isolated_emotional_singleton(tmp_path, monkeypatch):
+    """Never let tests open or mutate the real character's state database."""
+    import emotional_core as module
+    monkeypatch.setenv("KRISTINA_STATE_DB", str(tmp_path / "emotional_state.db"))
+    monkeypatch.setattr(module, "_emotional_core", None)
+
+
 # ─── Fixtures: Brain & Router ─────────────────────────────────
 
 @pytest.fixture
@@ -101,7 +109,8 @@ def base_context():
 def emotional_core():
     """Эмоциональное ядро"""
     from emotional_core import EmotionalCore
-    return EmotionalCore()
+    from datetime import datetime, timezone
+    return EmotionalCore(clock=lambda: datetime(2026, 9, 5, 10, tzinfo=timezone.utc))
 
 
 # ─── Fixtures: Database ───────────────────────────────────────
