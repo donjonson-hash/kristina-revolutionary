@@ -26,9 +26,9 @@ class MoodEngine:
     def current_mood(self):
         return self.mood_for(self.core.get_emotional_state())
 
-    def snapshot(self, user_message: bool = False) -> Dict:
+    def snapshot(self, user_message: bool = False, appraisal=None) -> Dict:
         old_mood = self.current_mood
-        snapshot = self.core.evolve({"user_message": True} if user_message else None)
+        snapshot = self.core.evolve({"user_message": user_message, "appraisal": appraisal})
         new_mood = self.mood_for(snapshot)
         if new_mood != old_mood:
             event_bus.publish(Events.MOOD_CHANGED, {

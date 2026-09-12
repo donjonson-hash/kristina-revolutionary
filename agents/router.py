@@ -136,15 +136,19 @@ class AgentRouter:
         context = dict(context)
         session_id = conversation_session_id(context)
         context["session_id"] = session_id
+        context.pop("_appraisal", None)
+        context["interest"] = None
         if session_id is None:
             context["history"] = []
             return await self._process(user_input, context)
         async with self.session_lock(session_id):
             context["history"] = self.memory.get_context_for_llm(session_id, limit=20)
+            context["interest"] = self.memory.get_interest(session_id)
             response = await self._process(user_input, context)
             self.memory.save_exchange(
                 session_id, user_input, response.content,
                 channel=context.get("channel") or context.get("source") or "web",
+                appraisal=context.get("_appraisal"),
             )
             return response
 

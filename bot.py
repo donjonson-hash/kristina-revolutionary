@@ -20,6 +20,7 @@ from intent_detector import detect_proposal_intent, detect_meeting_intent
 from telegram.error import NetworkError
 from telegram_utils import split_message, parse_admin_ids, parse_report_days, next_weekly_run
 from kristina_identity import build_system_prompt
+from cognitive_appraisal import cognitive_context
 from conversation_context import (
     conversation_session_id, telegram_conversation, format_conversation_history,
 )
@@ -327,6 +328,7 @@ async def generate_autonomous_message(
     emotional_state: Dict,
     recent_messages: Iterable[str] = (),
     dialog_history: str = "",
+    cognition: str = "",
 ) -> str:
     """Generate a proactive message with short-term memory of recent phrasing."""
     mood = emotional_state.get("mood_description", "спокойная")
@@ -340,6 +342,8 @@ async def generate_autonomous_message(
 Энергия: {state.get('energy', 0.5):.2f}; любопытство: {state.get('curiosity', 0.5):.2f};
 одиночество: {state.get('loneliness', 0.3):.2f}; раздражение: {state.get('irritation', 0.1):.2f}.
 Твой внутренний импульс: {intention}.
+
+{cognition or cognitive_context()}
 
 Последние proactive-сообщения:
 {recent_text}
@@ -423,6 +427,7 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                     emotional_state,
                     recent_proactive[chat_id],
                     dialog_history=format_conversation_history(history),
+                    cognition=cognitive_context(router.memory.get_interest(session_id), history),
                 )
                 if not message:
                     continue
