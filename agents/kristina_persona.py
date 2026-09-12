@@ -12,6 +12,7 @@ from .base_agent import BaseAgent, AgentResponse
 from .ai_adapter import ai_adapter as ai
 from kristina_identity import build_system_prompt
 from conversation_context import format_conversation_history
+from cognitive_appraisal import Appraisal, cognitive_context
 from mood_engine import mood_engine
 from night_mode import night_mode
 
@@ -43,16 +44,6 @@ class KristinaPersonaAgent(BaseAgent):
         self.use_brain_integration = _BRAIN_AVAILABLE
 
     async def process(self, user_input: str, context: Dict) -> AgentResponse:
-        emotional_state = mood_engine.snapshot(user_message=True)
-        mood = mood_engine.mood_for(emotional_state)
-        night_prompt = night_mode.get_response_modifier() if emotional_state["is_night"] else ""
-        mood_prompt = mood_engine.get_mood_prompt(emotional_state)
-        delay = mood_engine.get_delay(emotional_state)
-        logger.info(
-            "Response rhythm mood=%s energy=%.2f curiosity=%.2f night=%s delay=%ss state_at=%s",
-            mood.value, emotional_state["state"]["energy"], emotional_state["state"]["curiosity"],
-            emotional_state["is_night"], delay, emotional_state["updated_at"],
-        )
         user_id = context.get("user_id", "unknown")
 
         brain_snapshot = {}
@@ -70,11 +61,31 @@ class KristinaPersonaAgent(BaseAgent):
                         "user_id": user_id,
                         "session_id": context.get("session_id"),
                         "history": context.get("history", []),
+                        "interest": context.get("interest"),
+                        "appraise_event": True,
                     },
                 )
             except Exception:
                 brain_snapshot = {}
 
+        appraisal = brain_snapshot.get("appraisal")
+        if not isinstance(appraisal, Appraisal):
+            appraisal = None
+        else:
+            context["_appraisal"] = appraisal
+        emotional_state = brain_snapshot.get("emotion") or mood_engine.snapshot(user_message=True)
+        interest = appraisal.interest(context.get("interest")) if appraisal else context.get("interest")
+        cognitive_prompt = cognitive_context(interest, context.get("history", []))
+        mood = mood_engine.mood_for(emotional_state)
+        night_prompt = night_mode.get_response_modifier() if emotional_state["is_night"] else ""
+        mood_prompt = mood_engine.get_mood_prompt(emotional_state)
+        delay = mood_engine.get_delay(emotional_state)
+        logger.info(
+            "Response rhythm mood=%s energy=%.2f curiosity=%.2f night=%s delay=%ss state_at=%s reaction=%s",
+            mood.value, emotional_state["state"]["energy"], emotional_state["state"]["curiosity"],
+            emotional_state["is_night"], delay, emotional_state["updated_at"],
+            appraisal.reaction if appraisal else "unavailable",
+        )
         if brain_snapshot and isinstance(brain_snapshot, dict):
             context["brain_recommendations"] = brain_snapshot.get("recommendations", {})
 
@@ -110,6 +121,7 @@ class KristinaPersonaAgent(BaseAgent):
         full_prompt = (
             f"{self.system_prompt}"
             f"{emotion_text}"
+            f"\n{cognitive_prompt}"
             f"{github_context}"
             f"\n{night_prompt}"
             f"\n\nТекущее настроение: {mood.value}. {mood_prompt}\n"
@@ -156,6 +168,7 @@ class KristinaPersonaAgent(BaseAgent):
             context_used={
                 "delay": delay,
                 "emotional_state": emotional_state,
+                "appraisal_reaction": appraisal.reaction if appraisal else None,
                 "history_len": len(context.get("history", [])),
                 "github_grounded": bool(github_evidence),
             },

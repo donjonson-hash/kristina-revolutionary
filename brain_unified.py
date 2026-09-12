@@ -94,6 +94,12 @@ class CortexAgent(BaseBrainAgent):
             BrainRegion.MOTOR: 0.5,
         }
     
+    async def appraise(self, user_input, history, interest, now=None):
+        """Assess one conversation event without making a second public reply."""
+        from cognitive_appraisal import assess_event
+
+        return await assess_event(user_input, history, interest, now=now)
+
     async def process(self, signal: NeuralSignal) -> Dict[str, Any]:
         """Обработка сигнала и принятие решения"""
         self.cognitive_load = min(1.0, self.cognitive_load + 0.1)
@@ -118,43 +124,37 @@ class CortexAgent(BaseBrainAgent):
 class EmotionalAgent(BaseBrainAgent):
     """ЛИМБИЧЕСКАЯ СИСТЕМА — Эмоциональный центр"""
     
-    MOODS = ["радость", "спокойствие", "любопытство", "ностальгия", "энергия", "мечтательность"]
-    
-    def __init__(self):
+    def __init__(self, emotional_core=None):
         super().__init__(BrainRegion.EMOTIONAL)
-        self.current_mood = "спокойствие"
-        self.energy = 0.7
-        self.stress_level = 0.0
-        self.empathy_index = 0.8
+        if emotional_core is None:
+            from emotional_core import get_emotional_core
+            emotional_core = get_emotional_core()
+        self.emotional_core = emotional_core
         
         self.receptors = {
             BrainRegion.CORTEX: 0.9,
             BrainRegion.MEMORY: 0.6,
         }
     
+    def react(self, appraisal=None, user_message=True) -> Dict[str, Any]:
+        """Apply one event through the shared, persistent emotional core."""
+        from mood_engine import MoodEngine
+        return MoodEngine(self.emotional_core).snapshot(user_message=user_message, appraisal=appraisal)
+
     async def update_mood(self, context: Dict[str, Any]) -> str:
-        """Обновление настроения"""
-        hour = datetime.now().hour
-        
-        if 6 <= hour < 10:
-            self.current_mood = "энергия"
-        elif 10 <= hour < 14:
-            self.current_mood = "любопытство"
-        elif 14 <= hour < 18:
-            self.current_mood = "радость"
-        elif 18 <= hour < 22:
-            self.current_mood = "мечтательность"
-        else:
-            self.current_mood = "спокойствие"
-        
-        return self.current_mood
+        """Compatibility entry point; only explicit events affect emotions."""
+        event = {key: context[key] for key in ("user_message", "appraisal", "negative_tone")
+                 if key in context}
+        return self.emotional_core.evolve(event)["mood_description"]
     
     def get_status(self) -> Dict[str, Any]:
+        snapshot = self.emotional_core.get_emotional_state()
         return {
             "agent": "emotional",
-            "mood": self.current_mood,
-            "energy": self.energy,
-            "stress": self.stress_level
+            "mood": snapshot["mood_description"],
+            "energy": snapshot["state"]["energy"],
+            "anxiety": snapshot["state"]["anxiety"],
+            "stress": snapshot["state"]["anxiety"],
         }
 
 
