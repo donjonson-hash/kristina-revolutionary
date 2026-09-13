@@ -28,6 +28,30 @@ def seed(memory, session='own'):
     memory.save_exchange(session, SOURCE, 'Есть идея проверки.', appraisal=INTEREST)
 
 
+async def test_availability_explains_actual_pause_and_shared_budget_without_other_data(cycle):
+    from intention_cycle import research_status
+    c = cycle
+    before = c.store.availability('own', DAY)
+    assert before['status'] == 'not_scheduled' and before['blockers'] == []
+    await c.worker.tick()
+    own = c.store.availability('own', DAY)
+    assert own['status'] == 'planned' and own['blockers'] == ['reflection_pause']
+    other = c.store.availability('other', DAY)
+    assert set(other['blockers']) == {'no_saved_interest', 'worker_busy', 'planning_cooldown'}
+    assert other['next_planning_at'] == (DAY + PLANNING_INTERVAL).isoformat()
+    report = research_status(None, other, {'is_night': True, 'state': {'energy': .2, 'curiosity': .3}})
+    assert 'шесть часов' in report and 'Ночью' in report and 'энергии' in report
+    assert SOURCE not in report and PLAN['rationale'] not in report
+    c.planner.assert_awaited_once()  # reporting never schedules another job
+
+
+@pytest.mark.parametrize('status', ['completed', 'failed', 'declined', 'cancelled'])
+def test_terminal_research_status_does_not_promise_another_step(status):
+    from intention_cycle import availability_text
+    text = availability_text({'status': status, 'blockers': [], 'next_planning_at': None})
+    assert 'Ожидается следующий шаг' not in text
+
+
 @pytest.fixture
 def cycle(persistent_memory, tmp_path):
     from types import SimpleNamespace

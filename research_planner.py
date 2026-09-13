@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from ai_client import get_ai_client
 from emotional_core import STOCKHOLM
 from repository_research import RepositoryReader, search_paths
+from repository_evidence import source_excerpt
 from schema_experiment import schema_fields, validate_schema_plan
 
 
@@ -68,8 +69,7 @@ async def choose_repository_experiment(interest, target, now=None, reader=None):
                 except (ValueError, TypeError, RecursionError):
                     fields = []
                 available.extend({'path': source['path'], **field} for field in fields[:80])
-            excerpts.append({k: source[k] for k in ('path', 'blob_sha', 'sha256', 'url')} | {
-                'excerpt': source['content'][:5000], 'excerpt_truncated': len(source['content']) > 5000})
+            excerpts.append(source_excerpt(source))
         if not available:
             raise ValueError('No supported date fields in selected files')
         choice = await _selection(client,

@@ -22,7 +22,7 @@ from telegram_utils import split_message, parse_admin_ids, parse_report_days, ne
 from kristina_identity import build_system_prompt
 from cognitive_appraisal import cognitive_context
 from intention_cycle import (IntentionStore, IntentionWorker, intention_context,
-                             research_status, research_capabilities, research_target)
+                             research_status, research_capabilities, research_target, research_runtime_context)
 from conversation_context import (
     conversation_session_id, telegram_conversation, format_conversation_history,
 )
@@ -167,7 +167,8 @@ async def research_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show persisted evidence/status without invoking a model or advancing work."""
     session_id = conversation_session_id(telegram_conversation(update))
     async with router.session_lock(session_id):
-        report = research_status(IntentionStore(router.memory).get_current(session_id))
+        store = IntentionStore(router.memory)
+        report = research_status(store.get_current(session_id), store.availability(session_id), emotional_core.evolve())
     for part in split_message(report):
         await update.message.reply_text(part)
 
@@ -440,6 +441,7 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                     dialog_history=format_conversation_history(history),
                     cognition=(cognitive_context(router.memory.get_interest(session_id), history)
                                + intention_context(IntentionStore(router.memory).get_current(session_id))
+                               + research_runtime_context(IntentionStore(router.memory).availability(session_id), emotional_state)
                                + research_capabilities(research_target(router.memory, session_id))),
                 )
                 if not message:
