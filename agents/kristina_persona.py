@@ -13,7 +13,7 @@ from .ai_adapter import ai_adapter as ai
 from kristina_identity import build_system_prompt
 from conversation_context import format_conversation_history
 from cognitive_appraisal import Appraisal, cognitive_context
-from intention_cycle import intention_context
+from intention_cycle import intention_context, research_capabilities
 from mood_engine import mood_engine
 from night_mode import night_mode
 
@@ -79,6 +79,7 @@ class KristinaPersonaAgent(BaseAgent):
         cognitive_prompt = cognitive_context(interest, context.get("history", []))
         if appraisal is None or appraisal.interest_action == "keep":
             cognitive_prompt += intention_context(context.get("intention"))
+        cognitive_prompt += research_capabilities(context.get("research_target"))
         mood = mood_engine.mood_for(emotional_state)
         night_prompt = night_mode.get_response_modifier() if emotional_state["is_night"] else ""
         mood_prompt = mood_engine.get_mood_prompt(emotional_state)
