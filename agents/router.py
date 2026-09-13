@@ -6,7 +6,8 @@ from typing import Dict, List, Optional, NamedTuple
 from .base_agent import BaseAgent, AgentResponse
 from github_readonly import GitHubReadOnlyTool, extract_github_repo_url
 from conversation_context import conversation_session_id
-from intention_cycle import IntentionStore
+from intention_cycle import IntentionStore, research_target
+from repository_research import extract_research_target
 from persistent_memory import get_memory
 import asyncio
 import logging
@@ -129,7 +130,7 @@ class AgentRouter:
             logger.info("🔎 GitHub read-only evidence loaded for %s (%s chars)", ref.full_name, len(evidence))
         except Exception as exc:
             context.pop("github_evidence", None)
-            context["github_error"] = f"{type(exc).__name__}: {exc}"
+            context["github_error"] = type(exc).__name__
             logger.warning("⚠️ GitHub read-only inspection failed for %s: %s", ref.full_name, exc)
 
     async def process(self, user_input: str, context: Dict) -> AgentResponse:
@@ -140,6 +141,7 @@ class AgentRouter:
         context.pop("_appraisal", None)
         context["interest"] = None
         context["intention"] = None
+        context["research_target"] = None
         if session_id is None:
             context["history"] = []
             return await self._process(user_input, context)
@@ -147,6 +149,12 @@ class AgentRouter:
             context["history"] = self.memory.get_context_for_llm(session_id, limit=20)
             context["interest"] = self.memory.get_interest(session_id)
             context["intention"] = IntentionStore(self.memory).get_current(session_id)
+            target = research_target(self.memory, session_id)
+            current_target = extract_research_target(user_input)
+            context["research_target"] = current_target or (target['url'] if target else None)
+            if current_target and (target is None or current_target != target["url"]):
+                # A different target creates a source revision when the exchange commits.
+                context["intention"] = None
             response = await self._process(user_input, context)
             self.memory.save_exchange(
                 session_id, user_input, response.content,

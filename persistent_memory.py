@@ -126,7 +126,7 @@ class PersistentMemory:
             )
             if appraisal is not None and appraisal.interest_action in ("clear", "replace"):
                 conn.execute("""UPDATE agent_intentions SET status='cancelled', reason='source_changed',
-                    updated_at=? WHERE session_id=? AND status IN ('planning','planned')""",
+                    updated_at=? WHERE session_id=? AND status IN ('planning','planned','running')""",
                     (datetime.now(timezone.utc).isoformat(), session_id))
             if appraisal is not None and appraisal.interest_action == "clear":
                 conn.execute("DELETE FROM cognitive_interests WHERE session_id = ?", (session_id,))
