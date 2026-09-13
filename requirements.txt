@@ -19,3 +19,6 @@ bleach>=6.1.0
 
 # PostgreSQL (опционально)
 asyncpg>=0.29.0
+
+# Reproducible JSON Schema experiments (date/date-time format assertions)
+jsonschema[format-nongpl]==4.26.0
