@@ -8,6 +8,7 @@ from github_readonly import GitHubReadOnlyTool, extract_github_repo_url
 from conversation_context import conversation_session_id
 from intention_cycle import IntentionStore, research_target
 from repository_research import extract_research_target
+from repository_dialogue import inspect_followup
 from persistent_memory import get_memory
 import asyncio
 import logging
@@ -27,6 +28,7 @@ class AgentRouter:
         self.default_agent: Optional[BaseAgent] = None
         self.current_agent: Optional[BaseAgent] = None  # Активный по выбору пользователя
         self.github_reader = GitHubReadOnlyTool()
+        self.github_followup = inspect_followup
         self._memory = memory
         self._session_locks = {}
 
@@ -119,19 +121,26 @@ class AgentRouter:
     async def _attach_github_evidence(self, user_input: str, context: Dict) -> None:
         """Inspect a GitHub URL using GET-only API calls and attach bounded evidence."""
         ref = extract_github_repo_url(user_input)
-        if ref is None:
+        target = context.get('research_target')
+        if ref is None and not target:
             return
 
-        context["github_repo"] = ref.full_name
+        context['repository_action'] = 'not_run'
         try:
-            evidence = await self.github_reader.inspect(ref)
-            context["github_evidence"] = evidence
-            context.pop("github_error", None)
-            logger.info("🔎 GitHub read-only evidence loaded for %s (%s chars)", ref.full_name, len(evidence))
+            if ref:
+                evidence = await asyncio.wait_for(self.github_reader.inspect(ref), timeout=90)
+            else:
+                evidence = await asyncio.wait_for(self.github_followup(
+                    target, user_input, context.get('history', [])), timeout=90)
+            if evidence:
+                context["github_evidence"] = evidence
+                context['repository_action'] = 'completed'
+                logger.info("GitHub evidence supplied (%s chars)", len(evidence))
         except Exception as exc:
             context.pop("github_evidence", None)
             context["github_error"] = type(exc).__name__
-            logger.warning("⚠️ GitHub read-only inspection failed for %s: %s", ref.full_name, exc)
+            context['repository_action'] = 'failed'
+            logger.warning("GitHub inspection failed: %s", type(exc).__name__)
 
     async def process(self, user_input: str, context: Dict) -> AgentResponse:
         """Обработка через выбранного агента"""
@@ -142,6 +151,10 @@ class AgentRouter:
         context["interest"] = None
         context["intention"] = None
         context["research_target"] = None
+        context['research_availability'] = None
+        context['repository_action'] = 'not_run'
+        for key in ('github_evidence', 'github_error', 'github_repo'):
+            context.pop(key, None)
         if session_id is None:
             context["history"] = []
             return await self._process(user_input, context)
@@ -149,12 +162,15 @@ class AgentRouter:
             context["history"] = self.memory.get_context_for_llm(session_id, limit=20)
             context["interest"] = self.memory.get_interest(session_id)
             context["intention"] = IntentionStore(self.memory).get_current(session_id)
+            context['research_availability'] = IntentionStore(self.memory).availability(session_id)
             target = research_target(self.memory, session_id)
             current_target = extract_research_target(user_input)
             context["research_target"] = current_target or (target['url'] if target else None)
             if current_target and (target is None or current_target != target["url"]):
                 # A different target creates a source revision when the exchange commits.
                 context["intention"] = None
+                context['research_availability'] = {'status': 'not_scheduled',
+                    'blockers': ['source_changing'], 'next_planning_at': None}
             response = await self._process(user_input, context)
             self.memory.save_exchange(
                 session_id, user_input, response.content,
