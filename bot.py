@@ -21,7 +21,8 @@ from telegram.error import NetworkError
 from telegram_utils import split_message, parse_admin_ids, parse_report_days, next_weekly_run
 from kristina_identity import build_system_prompt
 from cognitive_appraisal import cognitive_context
-from intention_cycle import IntentionStore, IntentionWorker, intention_context
+from intention_cycle import (IntentionStore, IntentionWorker, intention_context,
+                             research_status, research_capabilities, research_target)
 from conversation_context import (
     conversation_session_id, telegram_conversation, format_conversation_history,
 )
@@ -160,6 +161,15 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.effective_chat.type == "private":
             recent_proactive.pop(update.effective_chat.id, None)
     await update.message.reply_text("🧹 История очищена!")
+
+
+async def research_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show persisted evidence/status without invoking a model or advancing work."""
+    session_id = conversation_session_id(telegram_conversation(update))
+    async with router.session_lock(session_id):
+        report = research_status(IntentionStore(router.memory).get_current(session_id))
+    for part in split_message(report):
+        await update.message.reply_text(part)
 
 
 async def trends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -429,7 +439,8 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                     recent_proactive[chat_id],
                     dialog_history=format_conversation_history(history),
                     cognition=(cognitive_context(router.memory.get_interest(session_id), history)
-                               + intention_context(IntentionStore(router.memory).get_current(session_id))),
+                               + intention_context(IntentionStore(router.memory).get_current(session_id))
+                               + research_capabilities(research_target(router.memory, session_id))),
                 )
                 if not message:
                     continue
@@ -492,6 +503,7 @@ def main():
     application.add_handler(CommandHandler("tts", tts_command))
     application.add_handler(CommandHandler("clear", clear_command))
     application.add_handler(CommandHandler("trends", trends_command))
+    application.add_handler(CommandHandler("research", research_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     application.add_handler(CallbackQueryHandler(button_callback))
