@@ -60,11 +60,15 @@ async def test_assessment_precedes_one_emotional_event_and_reaches_reply(pipelin
     assert p.memory.get_interest(conversation_session_id(conversation()))["source_quote"] == INTEREST.source_quote
 
 
-async def test_ilands_retry_preserves_single_appraisal_emotion_and_memory_write(pipeline, tmp_path):
+@pytest.mark.parametrize("scope", [
+    {"conversation_id": "chat-1"},
+    {"message_kind": "direct", "sender_type": "user"},
+])
+async def test_ilands_retry_preserves_single_appraisal_emotion_and_memory_write(pipeline, tmp_path, scope):
     from ilands_bridge import ReplyBridge
     p = pipeline
-    request = dict(agent_id="agent-1", conversation_id="chat-1", sender_id="visitor-1",
-                   message_id="message-1", text=SOURCE)
+    request = dict(agent_id="agent-1", sender_id="visitor-1",
+                   message_id="message-1", text=SOURCE, **scope)
     journal = tmp_path / "ilands.db"
     first = await ReplyBridge(journal, p.router.process).reply(**request)
     after = dict(p.core.state)

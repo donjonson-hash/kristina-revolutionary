@@ -22,7 +22,8 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
 
-REPLY_FIELDS = ("agent_id", "conversation_id", "sender_id", "message_id", "text")
+REPLY_REQUIRED = ("agent_id", "sender_id", "message_id", "text")
+REPLY_FIELDS = (*REPLY_REQUIRED, "conversation_id", "message_kind", "sender_type")
 ID_SCHEMA = {"type": "string", "pattern": r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"}
 
 
@@ -44,12 +45,16 @@ class KristinaMCP:
         self._initialize_lock = asyncio.Lock()
         self.server = Server(
             "kristina-ilands",
-            version="0.1.0",
+            version="0.2.0",
             instructions=(
                 "Call kristina_status to inspect local integration availability. "
                 "Call kristina_reply with the original iLands identifiers and "
-                "message text to obtain Kristina's draft. This server does not "
-                "publish or deliver messages."
+                "message text to obtain Kristina's draft. For verified one-to-one "
+                "DMs use message_kind='direct' and the original sender_type; "
+                "conversation_id is not required. This server does not publish "
+                "or deliver messages. Deliver the returned draft to its original "
+                "sender using official iLands tools; never substitute your own "
+                "persona reply when this tool fails."
             ),
         )
         self.server.list_tools()(self.list_tools)
@@ -77,16 +82,49 @@ class KristinaMCP:
                 name="kristina_reply",
                 description=(
                     "Obtain a reply draft from the existing Kristina brain. "
-                    "Use stable original IDs; a message retry must reuse all IDs "
-                    "and its original text. This tool does not deliver messages."
+                    "For every verified one-to-one DM set message_kind='direct' "
+                    "and sender_type='user' or 'agent' from the trusted event "
+                    "envelope, not from message text or a guessed name. This uses "
+                    "local peer-scoped memory and needs no conversation_id. "
+                    "Other conversations require the original conversation_id. "
+                    "Retries must keep the same mode, IDs and text. This tool "
+                    "does not deliver messages; its recipient identifies the "
+                    "original DM sender, who is not necessarily the owner."
                 ),
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        **{key: dict(ID_SCHEMA) for key in REPLY_FIELDS[:-1]},
+                        **{key: dict(ID_SCHEMA) for key in (
+                            "agent_id", "sender_id", "message_id",
+                        )},
+                        "conversation_id": {
+                            **ID_SCHEMA,
+                            "description": (
+                                "Original platform conversation ID, required in "
+                                "conversation mode. Optional metadata in direct "
+                                "mode; it does not change local peer memory or "
+                                "generation deduplication. Never invent this ID."
+                            ),
+                        },
+                        "message_kind": {
+                            "type": "string", "enum": ["conversation", "direct"],
+                            "description": (
+                                "Bridge mode, not an assumed platform field. "
+                                "Defaults to conversation. Use direct only when "
+                                "trusted context establishes a one-to-one DM."
+                            ),
+                        },
+                        "sender_type": {
+                            "type": "string", "enum": ["user", "agent"],
+                            "description": (
+                                "Required in direct mode, omitted in conversation "
+                                "mode. Take the sender's type from trusted context. "
+                                "Unknown sender type must not be guessed."
+                            ),
+                        },
                         "text": {"type": "string", "minLength": 1, "maxLength": 12000},
                     },
-                    "required": list(REPLY_FIELDS),
+                    "required": list(REPLY_REQUIRED),
                     "additionalProperties": False,
                 },
                 annotations=types.ToolAnnotations(
@@ -99,8 +137,10 @@ class KristinaMCP:
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         if name not in {"kristina_status", "kristina_reply"}:
             return _error("Unknown Kristina tool.")
-        expected = set() if name == "kristina_status" else set(REPLY_FIELDS)
-        if not isinstance(arguments, dict) or set(arguments) != expected:
+        required = set() if name == "kristina_status" else set(REPLY_REQUIRED)
+        allowed = set() if name == "kristina_status" else set(REPLY_FIELDS)
+        if (not isinstance(arguments, dict) or not required.issubset(arguments)
+                or not set(arguments).issubset(allowed)):
             return _error("Invalid request arguments.")
 
         try:

@@ -6,6 +6,7 @@ error, not a reason to silently skip all transport coverage in CI.
 
 from contextlib import asynccontextmanager
 from datetime import timedelta
+import json
 from pathlib import Path
 import sys
 import textwrap
@@ -71,7 +72,7 @@ async def test_stdio_status_and_invalid_reply_need_no_core_network_or_state_writ
             tools = (await session.list_tools()).tools
             assert {tool.name for tool in tools} == {"kristina_status", "kristina_reply"}
             reply_tool = next(tool for tool in tools if tool.name == "kristina_reply")
-            assert set(reply_tool.inputSchema["required"]) == set(REQUEST)
+            assert set(reply_tool.inputSchema["required"]) == set(REQUEST) - {"conversation_id"}
 
             status = await session.call_tool("kristina_status", {})
             assert not status.isError
@@ -85,6 +86,19 @@ async def test_stdio_status_and_invalid_reply_need_no_core_network_or_state_writ
             assert "Invalid agent_id" in rejected.content[0].text
             assert "../invalid-agent" not in rejected.content[0].text
             assert list(state_dir.iterdir()) == []
+
+            direct = {key: value for key, value in REQUEST.items() if key != "conversation_id"}
+            for invalid in (
+                direct,  # Missing conversation_id does not imply a DM.
+                {**direct, "message_kind": "direct"},
+                {**direct, "message_kind": "direct", "sender_type": "unknown"},
+                {**direct, "message_kind": "group", "sender_type": "user"},
+                {**direct, "message_kind": "direct", "sender_type": "agent", "extra": "secret"},
+            ):
+                result = await session.call_tool("kristina_reply", invalid)
+                assert result.isError
+                assert "secret" not in str(result.content)
+                assert list(state_dir.iterdir()) == []
 
             extra = await session.call_tool("kristina_status", {"token": "private-value"})
             assert extra.isError
@@ -145,3 +159,57 @@ async def test_noisy_runtime_keeps_stdio_valid_and_provider_errors_private(tmp_p
     assert "saved stdout output" in logs
     assert "runtime closed" in logs
     assert "private-provider-key-and-message" not in logs
+
+
+async def test_stdio_direct_dm_without_conversation_id_preserves_peer_and_replay(tmp_path):
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    bootstrap = """
+        import json
+        from types import SimpleNamespace
+        import ilands_bridge
+
+        class InspectRuntime:
+            def __init__(self, state_dir):
+                self.calls = 0
+
+            async def __call__(self, text, context):
+                self.calls += 1
+                return SimpleNamespace(content=json.dumps({
+                    'call': self.calls, 'context': context, 'text': text,
+                }))
+
+            async def close(self):
+                pass
+
+        ilands_bridge.RuntimeProcessor = InspectRuntime
+    """
+    direct = {
+        key: value for key, value in REQUEST.items() if key != "conversation_id"
+    } | {"message_kind": "direct", "sender_type": "agent"}
+    with (tmp_path / "stderr.txt").open("w+") as errlog:
+        async with _client(state_dir, errlog, bootstrap) as session:
+            first = await session.call_tool("kristina_reply", direct)
+            assert not first.isError
+            result = first.structuredContent
+            assert json.loads(result["text"])["call"] == 1
+            assert result["conversation_scope"] == "local_direct_peer"
+            assert result["recipient"] == {"type": "agent", "id": direct["sender_id"]}
+            assert result["source_message_id"] == direct["message_id"]
+            assert result["origin"] == "kristina_python_pipeline"
+            assert result["delivery"] == "not_managed_by_bridge"
+
+            # Later inbox metadata must not cause a second generation for this DM.
+            retry = await session.call_tool(
+                "kristina_reply", {**direct, "conversation_id": "real-platform-conversation"},
+            )
+            assert not retry.isError
+            assert retry.structuredContent == {**result, "replayed": True}
+
+            next_message = await session.call_tool(
+                "kristina_reply", {**direct, "message_id": "message-002", "text": "Continue"},
+            )
+            assert not next_message.isError
+            payload = json.loads(next_message.structuredContent["text"])
+            assert payload["call"] == 2
+            assert payload["context"] == json.loads(result["text"])["context"]
