@@ -60,6 +60,24 @@ async def test_assessment_precedes_one_emotional_event_and_reaches_reply(pipelin
     assert p.memory.get_interest(conversation_session_id(conversation()))["source_quote"] == INTEREST.source_quote
 
 
+async def test_ilands_retry_preserves_single_appraisal_emotion_and_memory_write(pipeline, tmp_path):
+    from ilands_bridge import ReplyBridge
+    p = pipeline
+    request = dict(agent_id="agent-1", conversation_id="chat-1", sender_id="visitor-1",
+                   message_id="message-1", text=SOURCE)
+    journal = tmp_path / "ilands.db"
+    first = await ReplyBridge(journal, p.router.process).reply(**request)
+    after = dict(p.core.state)
+    retry = await ReplyBridge(journal, p.router.process).reply(**request)
+    assert first["text"] == retry["text"]
+    assert retry["replayed"] is True
+    p.appraisal.assert_awaited_once()
+    p.generate.assert_awaited_once()
+    assert p.core.state == after
+    assert p.memory.get_stats()["total_messages"] == 2
+    assert INTEREST.reflection in p.generate.call_args.kwargs["prompt"]
+
+
 async def test_followup_after_restart_uses_interest_outside_recent_history(pipeline, monkeypatch):
     p = pipeline
     await p.router.process(SOURCE, conversation())

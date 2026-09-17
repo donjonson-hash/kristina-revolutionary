@@ -1,0 +1,3 @@
+# Optional stdio transport; the main application does not require MCP.
+# Official SDK maintenance line: https://py.sdk.modelcontextprotocol.io/v1/
+mcp==1.30.0
