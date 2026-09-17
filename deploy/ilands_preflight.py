@@ -76,8 +76,8 @@ def inventory():
             or (Path.home() / ".local/bin/ilands-runner").is_file(),
         "linux_host_prerequisites_confirmed": host_supported,
         "runtime_version_and_authentication": "not_checked; use the selected Runner Doctor",
-        "python_brain_connected": False,
-        "ilands_identity_created": False,
+        "python_brain_integration": "not_provided_by_this_preflight",
+        "ilands_connection": "not_checked",
         "blockers": blockers,
     }
 
