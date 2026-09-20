@@ -15,11 +15,15 @@ def conversation_session_id(context: Dict) -> Optional[str]:
 
 
 def telegram_conversation(update) -> Dict:
-    return {
+    context = {
         "channel": "telegram",
         "chat_id": update.effective_chat.id,
         "user_id": update.effective_user.id,
     }
+    message_id = getattr(getattr(update, "message", None), "message_id", None)
+    if type(message_id) is int and message_id > 0:
+        context["event_id"] = f"telegram:{message_id}"
+    return context
 
 
 def format_conversation_history(messages: list, max_chars: int = 12000) -> str:
