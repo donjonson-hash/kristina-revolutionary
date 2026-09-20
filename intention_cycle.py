@@ -242,6 +242,30 @@ class IntentionStore:
                             (session_id,)).fetchall()
         return next((self.decode(row) for row in rows if self.current_source(conn, row)), None)
 
+    def availability(self, session_id, now=None):
+        """Read-only eligibility snapshot; never disclose another session's work."""
+        now = now or utcnow()
+        conn = self.memory._get_connection()
+        current = self.get_current(session_id)
+        blockers = []
+        next_planning_at = None
+        if not current:
+            if not self.memory.get_interest(session_id):
+                blockers.append('no_saved_interest')
+            if conn.execute("SELECT 1 FROM agent_intentions WHERE status IN ('planning','planned','running')").fetchone():
+                blockers.append('worker_busy')
+            budget = conn.execute('SELECT last_started FROM agent_work_budget WHERE id=1').fetchone()
+            if budget:
+                next_time = datetime.fromisoformat(budget[0]) + PLANNING_INTERVAL
+                if now < next_time:
+                    blockers.append('planning_cooldown')
+                    next_planning_at = stamp(next_time)
+        elif current['status'] == 'planned' and current['due_at'] > stamp(now):
+            blockers.append('reflection_pause')
+        return {'status': current['status'] if current else 'not_scheduled',
+                'blockers': blockers, 'next_planning_at': next_planning_at,
+                'observed_at': stamp(now)}
+
     def pending_emotion(self, identifier=None):
         row = self.memory._get_connection().execute("""SELECT a.* FROM agent_intentions a
             JOIN messages m ON m.id=a.source_message_id AND m.session_id=a.session_id AND m.role='user'
@@ -349,10 +373,10 @@ def intention_context(intention):
     )
 
 
-def research_status(intention):
+def research_status(intention, availability=None, emotion=None):
     """A factual report that does not depend on another model call."""
     if not intention:
-        return 'Сохранённого исследования для текущей темы пока нет. Обсуди со мной гипотезу и пришли ссылку на репозиторий, папку или файл GitHub.'
+        return 'Сохранённого исследования для текущей темы пока нет.\n' + availability_text(availability, emotion)
     names = {'planning': 'Выбираю источники и план', 'planned': 'План сохранён',
              'running': 'Проверка выполняется', 'completed': 'Проверка завершена',
              'declined': 'Подходящая проверка не выбрана', 'failed': 'Проверка прервана',
@@ -377,7 +401,62 @@ def research_status(intention):
                 lines.append(f"{case['value']}: формат={case['format_valid']}, календарь={case['calendar_valid']}")
     elif intention['reason']:
         lines.append('Подтверждённого результата нет. Причина: ' + intention['reason'])
+    if intention['status'] in ('planning', 'planned', 'running'):
+        lines.append(availability_text(availability, emotion))
     return '\n'.join(lines)
+
+
+def availability_text(availability, emotion=None):
+    if availability is None:
+        return 'Состояние фонового цикла не получено; время запуска неизвестно.'
+    states = {
+        'completed': 'Проверка завершена; выводы доступны в сохранённом результате.',
+        'failed': 'Попытка завершилась ошибкой; автоматический повтор для этой версии темы не запланирован.',
+        'declined': 'Подходящий эксперимент не выбран; активного задания для этой темы нет.',
+        'cancelled': 'Замысел отменён; результата этой попытки нет.',
+        'planning': 'Фоновый цикл уже выбирает источники и план; результата пока нет.',
+        'running': 'Фиксированный runner уже запущен; результат ещё не сохранён.',
+    }
+    if availability['status'] in states:
+        return states[availability['status']]
+    reasons = {
+        'no_saved_interest': 'Тема для самостоятельной проверки ещё не сохранена.',
+        'worker_busy': 'Фоновый исполнитель сейчас занят.',
+        'planning_cooldown': 'Действует лимит: не более одного нового замысла за шесть часов.',
+        'reflection_pause': 'План сохранён, ещё идёт пауза перед проверкой.',
+        'source_changing': 'Источник или тема меняется в этом сообщении; новый замысел ещё не сохранён.',
+    }
+    lines = [reasons[reason] for reason in availability['blockers'] if reason in reasons]
+    if availability.get('next_planning_at'):
+        lines.append('Следующее планирование возможно не раньше ' + availability['next_planning_at'] + '.')
+    if emotion and availability['status'] in ('not_scheduled', 'planned'):
+        if emotion['is_night']:
+            lines.append('Ночью новые шаги эксперимента не запускаются.')
+        if emotion['state']['energy'] < .45:
+            lines.append('Сейчас энергии недостаточно для следующего шага эксперимента.')
+        if emotion['state']['curiosity'] < .65:
+            lines.append('Сейчас любопытства недостаточно для следующего шага эксперимента.')
+    if not lines:
+        lines.append('Ожидается следующий шаг фонового цикла; точное время не обещано. '
+                     'Отсутствие препятствий само по себе не означает, что задание поставлено.')
+    return '\n'.join(lines)
+
+
+def research_runtime_context(availability=None, emotion=None, action='not_run'):
+    return (
+        '\nФактическое состояние инструментов на момент ответа: '
+        + json.dumps({'repository_action': action, 'research': availability}, ensure_ascii=False)
+        + '\n' + availability_text(availability, emotion)
+        + '\nЧтение для текущей реплики уже закончено, пропущено либо завершилось ошибкой. '
+        'После отправки ответа отдельного отложенного поиска файлов нет. '
+        'Не заменяй результат словами «пошла искать», «дай пару минут», «вернусь с результатом». '
+        'Если чтение не выполнено — скажи об этом; если выполнено — сообщи найденное и границы выборки. '
+        'not_scheduled означает, что фонового задания ещё нет, а не что инструмент недоступен. '
+        'Наличие FormatChecker и календарного runner не означает, что они уже запускались. '
+        'Прошлые собственные обещания и заявления о невозможности проверки не описывают текущие инструменты.\n'
+        'Обсуждай эти ограничения и статус только если это относится к текущей теме; '
+        'не вставляй технический отчёт в бытовой разговор.\n'
+    )
 
 
 def research_capabilities(target=None):
@@ -387,6 +466,10 @@ def research_capabilities(target=None):
         'date/date-time поле JSON Schema с FormatChecker и без него и сравнивать с календарным парсером. '
         'Поиск путей не означает чтение содержимого. Можно самой выбрать гипотезу и до восьми '
         'синтетических примеров. Замысел выполняется фоновым циклом после паузы, если интерес сохранён. '
+        'Для Python jsonschema format по умолчанию не проверяется, но включённый FormatChecker '
+        'проверяет и календарную корректность поддерживаемых date/date-time. '
+        'Не утверждай, что невозможная дата обязательно проходит FormatChecker. '
+        'Календарно корректная дата всё ещё может нарушать бизнес-правило (например, быть в прошлом). '
         'Текущий статус доступен по /research. Отправленная GitHub-ссылка сохраняется в этой беседе. '
         'Сейчас нет запуска кода репозитория, установки его зависимостей, записи файлов на GitHub, '
         'создания PR, деплоя или подключения ZIP к эксперименту. Не обещай эти действия. '

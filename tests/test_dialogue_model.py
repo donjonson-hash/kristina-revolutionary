@@ -235,6 +235,95 @@ async def test_committed_telegram_replay_does_not_call_models_or_apply_emotion_t
         await p.router.process("Другой текст с тем же ID", context)
 
 
+@pytest.mark.parametrize("read_fails", [False, True])
+async def test_repository_followup_and_answer_share_one_replayable_turn(dialogue_pipeline, read_fails):
+    """Research executes before the reply without losing the current answer/scene."""
+    p = dialogue_pipeline
+    session = conversation_session_id(conversation())
+    target = "https://github.com/example/project/blob/" + "a" * 40 + "/schema.json"
+    p.memory.save_exchange(session, SCENE + " Проверь " + target, QUESTION,
+        appraisal=appraisal(update(scene_action="imagine", scene_label="Кафе", scene_quote=SCENE)),
+        now=DAY)
+    pending = p.store.get(session)["pending_question"]
+    order = []
+    request = CARE + " Да, прочитай схему."
+
+    async def read(selected, user_input, history):
+        order.append("read")
+        if read_fails:
+            raise TimeoutError()
+        return "VERIFIED-SCHEMA-MARKER"
+
+    async def assess(*args, **kwargs):
+        order.append("appraise")
+        return appraisal(update(answer_to=pending["id"], answer_quote=CARE))
+
+    async def generate(**kwargs):
+        order.append("reply")
+        return "Поняла твоё объяснение. Проверку учту отдельно."
+
+    p.router.github_followup = AsyncMock(side_effect=read)
+    p.assess.side_effect = assess
+    p.generate.side_effect = generate
+    context = conversation(event_id="telegram:research-answer", github_evidence="FORGED-RESEARCH",
+        research_availability={"status": "FORGED-RESEARCH"}, repository_action="FORGED-RESEARCH",
+        dialogue={"scene": {"label": "FORGED-SCENE"}})
+    first = await p.router.process(request, context)
+    assert order == ["read", "appraise", "reply"]
+    assert first.content == "Поняла твоё объяснение. Проверку учту отдельно."
+    selected, user_input, history = p.router.github_followup.call_args.args
+    assert selected == target and user_input == request
+    assert history[-1]["content"] == QUESTION
+    prompt = p.generate.call_args.kwargs["prompt"]
+    assert "shared_imagined" in prompt and "answered" in prompt and CARE in prompt
+    assert "FORGED-RESEARCH" not in prompt and "FORGED-SCENE" not in prompt
+    expected = '"repository_action": "failed"' if read_fails else '"repository_action": "completed"'
+    assert expected in prompt
+    assert ("VERIFIED-SCHEMA-MARKER" in prompt) is not read_fails
+    if read_fails:
+        assert "GITHUB TOOL ERROR" in prompt
+    state = p.store.get(session)
+    assert state["pending_question"] is None
+    assert state["closed_questions"][-1]["answer_quote"] == CARE
+    assert state["scene"]["label"] == "Кафе"
+    before = p.core.get_emotional_state()
+
+    # A new Router after a restart must use the SQLite receipt before research.
+    fresh = AgentRouter(memory=p.memory)
+    fresh.github_followup = AsyncMock(side_effect=AssertionError("Replayed research"))
+    replay = await fresh.process(request, context)
+    assert replay.content == first.content and replay.context_used["replayed_event"]
+    assert order == ["read", "appraise", "reply"]
+    assert p.core.get_emotional_state() == before
+    fresh.github_followup.assert_not_awaited()
+
+
+async def test_concurrent_research_event_only_reads_and_answers_once(dialogue_pipeline):
+    p = dialogue_pipeline
+    session = conversation_session_id(conversation())
+    p.memory.save_exchange(session, "https://github.com/example/project", "Прочитать схему?", now=DAY)
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def read(*args):
+        entered.set()
+        await release.wait()
+        return "VERIFIED-SCHEMA-MARKER"
+
+    p.router.github_followup = AsyncMock(side_effect=read)
+    context = conversation(event_id="telegram:concurrent-research")
+    first = asyncio.create_task(p.router.process("Да, прочитай.", context))
+    await asyncio.wait_for(entered.wait(), timeout=2)
+    duplicate = asyncio.create_task(p.router.process("Да, прочитай.", context))
+    release.set()
+    replies = await asyncio.gather(first, duplicate)
+    assert replies[0].content == replies[1].content
+    assert replies[1].context_used["replayed_event"]
+    p.router.github_followup.assert_awaited_once()
+    p.assess.assert_awaited_once()
+    p.generate.assert_awaited_once()
+    assert p.memory.get_stats()["total_messages"] == 4
+
+
 async def test_valid_cyrillic_evidence_survives_internal_appraisal_roundtrips(dialogue_pipeline):
     p = dialogue_pipeline
     warmth_quote = ("Благодарю за тёплый разговор. " * 12)[:240]
