@@ -68,6 +68,8 @@ class PersistentMemory:
         
         from intention_cycle import init_tables
         init_tables(conn)
+        from dialogue_state import init_tables as init_dialogue_tables
+        init_dialogue_tables(conn)
         conn.commit()
         conn.close()
         print(f"✅ База данных готова: {self.db_path}")
@@ -103,27 +105,45 @@ class PersistentMemory:
         return [dict(row) for row in reversed(rows)]
 
     def save_exchange(self, session_id: str, user_input: str, response: str,
-                      channel: str = 'unknown', appraisal=None) -> None:
-        """Commit the turn and its source-linked interest in one transaction."""
+                      channel: str = 'unknown', appraisal=None, event_id=None,
+                      expected_revision=None, now=None, speaker=None):
+        """Commit turn, dialogue receipt and source-linked interest atomically.
+
+        Stable transport event IDs replay committed replies without new writes.
+        The caller should also check get_exchange before invoking a model.
+        """
+        from dialogue_state import _get_exchange, _now, apply_exchange
         conn = self._get_connection()
-        timestamp = datetime.now().isoformat()
-        if appraisal is not None:
-            from dataclasses import asdict
-            from cognitive_appraisal import Appraisal
-            if not isinstance(appraisal, Appraisal):
-                raise ValueError("Interest update requires a validated appraisal")
-            Appraisal.parse(json.dumps(asdict(appraisal)), user_input)
+        now = _now(now)
+        timestamp = now.isoformat()
         with conn:
+            conn.execute("BEGIN IMMEDIATE")
+            previous = _get_exchange(conn, session_id, event_id, user_input)
+            if previous is not None:
+                return previous
+            if appraisal is not None:
+                from dataclasses import asdict
+                from cognitive_appraisal import Appraisal
+                if not isinstance(appraisal, Appraisal):
+                    raise ValueError("Interest update requires a validated appraisal")
+                Appraisal.parse(json.dumps(asdict(appraisal), ensure_ascii=False), user_input)
             user_row = conn.execute(
                 """INSERT INTO messages (session_id, role, content, channel, timestamp)
                    VALUES (?, 'user', ?, ?, ?)""",
                 (session_id, user_input, channel, timestamp),
             )
-            conn.execute(
-                """INSERT INTO messages (session_id, role, content, channel, timestamp)
-                   VALUES (?, 'assistant', ?, ?, ?)""",
-                (session_id, response, channel, timestamp),
+            assistant_row = conn.execute(
+                """INSERT INTO messages (session_id, role, content, channel, timestamp, speaker)
+                   VALUES (?, 'assistant', ?, ?, ?, ?)""",
+                (session_id, response, channel, timestamp, speaker),
             )
+            receipt = apply_exchange(
+                conn, session_id, user_input, response, user_row.lastrowid,
+                assistant_row.lastrowid,
+                update=getattr(appraisal, "dialogue", None), event_id=event_id,
+                expected_revision=expected_revision, now=now,
+            )
+            receipt["agent_name"] = speaker or "Kristina"
             if appraisal is not None and appraisal.interest_action in ("clear", "replace"):
                 conn.execute("""UPDATE agent_intentions SET status='cancelled', reason='source_changed',
                     updated_at=? WHERE session_id=? AND status IN ('planning','planned','running')""",
@@ -138,6 +158,11 @@ class PersistentMemory:
                     (session_id, appraisal.topic, appraisal.reflection, appraisal.source_quote,
                      user_row.lastrowid, datetime.now(timezone.utc).isoformat()),
                 )
+            return receipt
+
+    def get_exchange(self, session_id, event_id, user_input):
+        from dialogue_state import DialogueStore
+        return DialogueStore(self).get_exchange(session_id, event_id, user_input)
 
     def get_interest(self, session_id: str) -> Optional[Dict]:
         """One interpretation per conversation, anchored to an actual user message."""
@@ -218,6 +243,8 @@ class PersistentMemory:
         """Удалить все сообщения сессии"""
         conn = self._get_connection()
         with conn:
+            from dialogue_state import clear_session
+            clear_session(conn, session_id)
             conn.execute("DELETE FROM agent_intentions WHERE session_id = ?", (session_id,))
             conn.execute("DELETE FROM cognitive_interests WHERE session_id = ?", (session_id,))
             conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
