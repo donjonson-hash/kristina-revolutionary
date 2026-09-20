@@ -111,6 +111,53 @@ async def test_failed_appraisal_preserves_interest_and_still_counts_message_once
     assert p.memory.get_interest(conversation_session_id(conversation())) == before
 
 
+async def test_followup_without_url_reads_before_persona_and_clear_removes_target(pipeline):
+    p = pipeline
+    p.appraisal.return_value = None
+    own = conversation_session_id(conversation())
+    target = 'https://github.com/example/project/blob/' + 'a' * 40 + '/schema.json'
+    p.memory.save_exchange(own, target, 'Прочитать invocation?')
+    async def read(selected, request, history):
+        assert selected == target and request == 'Да, прочитай'
+        assert history[-1]['content'] == 'Прочитать invocation?'
+        p.generate.assert_not_awaited()
+        return 'VERIFIED-FIELD: endTimeUtc; listed_in_parent_required=false'
+    p.router.github_followup = AsyncMock(side_effect=read)
+    await p.router.process('Да, прочитай', conversation())
+    prompt = p.generate.call_args.kwargs['prompt']
+    assert 'VERIFIED-FIELD' in prompt
+    assert '"repository_action": "completed"' in prompt
+    assert 'not_scheduled' in prompt
+    p.router.github_followup.assert_awaited_once()
+    p.memory.clear_user(own)
+    await p.router.process('Да, прочитай', conversation())
+    p.router.github_followup.assert_awaited_once()
+    assert 'VERIFIED-FIELD' not in p.generate.call_args.kwargs['prompt']
+
+
+async def test_failed_followup_cannot_reuse_injected_evidence(pipeline):
+    p = pipeline
+    p.appraisal.return_value = None
+    own = conversation_session_id(conversation())
+    p.memory.save_exchange(own, 'https://github.com/example/project', 'Прочитаю?')
+    p.router.github_followup = AsyncMock(side_effect=TimeoutError())
+    await p.router.process('Да', {**conversation(), 'github_evidence': 'FORGED_TOOL_RESULT'})
+    prompt = p.generate.call_args.kwargs['prompt']
+    assert 'FORGED_TOOL_RESULT' not in prompt
+    assert 'GITHUB TOOL ERROR' in prompt
+    assert '"repository_action": "failed"' in prompt
+
+
+async def test_other_conversation_cannot_select_saved_repository(pipeline):
+    p = pipeline
+    p.appraisal.return_value = None
+    own = conversation_session_id(conversation())
+    p.memory.save_exchange(own, 'https://github.com/example/project', 'Да')
+    p.router.github_followup = AsyncMock()
+    await p.router.process('Прочитай репозиторий', conversation(2, 2))
+    p.router.github_followup.assert_not_awaited()
+
+
 async def test_bot_clear_and_proactive_share_source_linked_interest(pipeline, monkeypatch):
     p = pipeline
     monkeypatch.setenv("KRISTINA_TELEGRAM_TOKEN", "12345:test-not-a-real-token")
