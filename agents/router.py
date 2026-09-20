@@ -10,6 +10,8 @@ from intention_cycle import IntentionStore, research_target
 from repository_research import extract_research_target
 from repository_dialogue import inspect_followup
 from persistent_memory import get_memory
+from dialogue_state import DialogueStore
+from datetime import datetime, timezone
 import asyncio
 import logging
 
@@ -155,10 +157,27 @@ class AgentRouter:
         context['repository_action'] = 'not_run'
         for key in ('github_evidence', 'github_error', 'github_repo'):
             context.pop(key, None)
+        # Request payloads cannot supply persisted scene/question state or clocks.
+        context["dialogue"] = None
+        context["event_at"] = datetime.now(timezone.utc)
         if session_id is None:
             context["history"] = []
             return await self._process(user_input, context)
+        store = DialogueStore(self.memory)
+        event_id = context.get("event_id")
+        if event_id is not None:
+            saved = store.get_exchange(session_id, event_id, user_input)
+            if saved is not None:
+                return self._replayed_response(saved)
+        # Arrival matters even while a proactive generation holds this lock.
+        # Revoke its prepared claim now; an already dispatched send is separate.
+        store.cancel_reserved(session_id)
         async with self.session_lock(session_id):
+            if event_id is not None:
+                saved = store.get_exchange(session_id, event_id, user_input)
+                if saved is not None:
+                    return self._replayed_response(saved)
+            context["dialogue"] = store.get(session_id)
             context["history"] = self.memory.get_context_for_llm(session_id, limit=20)
             context["interest"] = self.memory.get_interest(session_id)
             context["intention"] = IntentionStore(self.memory).get_current(session_id)
@@ -172,12 +191,27 @@ class AgentRouter:
                 context['research_availability'] = {'status': 'not_scheduled',
                     'blockers': ['source_changing'], 'next_planning_at': None}
             response = await self._process(user_input, context)
-            self.memory.save_exchange(
+            saved = self.memory.save_exchange(
                 session_id, user_input, response.content,
                 channel=context.get("channel") or context.get("source") or "web",
                 appraisal=context.get("_appraisal"),
+                event_id=event_id,
+                expected_revision=context["dialogue"]["revision"],
+                now=context["event_at"],
+                speaker=response.agent_name,
             )
+            if saved["response"] != response.content or saved["agent_name"] != response.agent_name:
+                # A second process may have committed this transport event
+                # while generation ran. Return the committed reply, not a second
+                # unrecorded version of the same event.
+                return self._replayed_response(saved)
             return response
+
+    @staticmethod
+    def _replayed_response(saved):
+        return AgentResponse(content=saved["response"], agent_name=saved["agent_name"],
+                             confidence=1.0, emotion="", suggested_actions=[],
+                             context_used={"replayed_event": True})
 
     async def _process(self, user_input: str, context: Dict) -> AgentResponse:
         await self._attach_github_evidence(user_input, context)

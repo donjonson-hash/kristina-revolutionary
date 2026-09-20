@@ -21,6 +21,7 @@ from telegram.error import NetworkError
 from telegram_utils import split_message, parse_admin_ids, parse_report_days, next_weekly_run
 from kristina_identity import build_system_prompt
 from cognitive_appraisal import cognitive_context
+from dialogue_state import DialogueStore, dialogue_context, proactive_block_reason, repeated_question
 from intention_cycle import (IntentionStore, IntentionWorker, intention_context,
                              research_status, research_capabilities, research_target, research_runtime_context)
 from conversation_context import (
@@ -341,6 +342,7 @@ async def generate_autonomous_message(
     recent_messages: Iterable[str] = (),
     dialog_history: str = "",
     cognition: str = "",
+    dialogue: Dict | None = None,
 ) -> str:
     """Generate a proactive message with short-term memory of recent phrasing."""
     mood = emotional_state.get("mood_description", "спокойная")
@@ -356,6 +358,7 @@ async def generate_autonomous_message(
 Твой внутренний импульс: {intention}.
 
 {cognition or cognitive_context()}
+{dialogue_context(dialogue)}
 
 Последние proactive-сообщения:
 {recent_text}
@@ -381,6 +384,9 @@ async def generate_autonomous_message(
         return response.strip().strip('"').strip("'")
 
     message = await _generate()
+    if dialogue is not None and repeated_question(message, dialogue):
+        logger.info("Proactive question already asked; no retry")
+        return ""
     if message and recent and is_opening_too_similar(message, recent):
         logger.info("♻️ Proactive opening too similar; regenerating once")
         retry = await _generate(
@@ -388,7 +394,8 @@ async def generate_autonomous_message(
         )
         if retry:
             message = retry
-
+    if dialogue is not None and repeated_question(message, dialogue):
+        return ""
     return message
 
 
@@ -410,49 +417,70 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
         # Schedule the next opportunity before deciding. Silence remains a valid outcome.
         next_due = _schedule_next_opportunity(chat_id, now)
 
-        last_seen = last_user_activity.get(chat_id, now)
-        hours_since_contact = max(0.0, (now - last_seen).total_seconds() / 3600.0)
-        decision_context = {
-            "hours_since_contact": hours_since_contact,
-            "last_proactive": last_proactive.get(chat_id),
-        }
-        desires = desire_engine.calculate(emotional_state, decision_context)
-        decision = decision_engine.decide(desires, decision_context, now=now)
-
-        logger.info(
-            "🧠 Autonomous decision chat=%s action=%s intention=%s score=%.2f reason=%s next=%s",
-            chat_id, decision.action, decision.intention, decision.score, decision.reason,
-            next_due.isoformat(),
-        )
-
-        if decision.action != "message":
-            continue
-
+        claim = None
+        store = DialogueStore(router.memory)
         try:
             session_id = conversation_session_id({
                 "channel": "telegram", "chat_id": chat_id, "user_id": chat_id,
             })
             async with router.session_lock(session_id):
+                dialogue = store.get(session_id)
+                blocked = proactive_block_reason(dialogue, now)
+                if blocked:
+                    logger.info("Proactive held chat=%s reason=%s", chat_id, blocked)
+                    continue
+                # Durable contact history survives restarts; silence has an
+                # unknown cause and does not create another emotional event.
+                last_seen = (datetime.fromisoformat(dialogue["last_user_at"])
+                             if dialogue["last_user_at"] else last_user_activity.get(chat_id, now))
+                last_sent = (datetime.fromisoformat(dialogue["last_proactive_at"])
+                             if dialogue["last_proactive_at"] else last_proactive.get(chat_id))
+                decision_context = {
+                    "hours_since_contact": max(0.0, (now - last_seen).total_seconds() / 3600.0),
+                    "last_proactive": last_sent,
+                }
+                desires = desire_engine.calculate(emotional_state, decision_context)
+                decision = decision_engine.decide(desires, decision_context, now=now)
+                logger.info(
+                    "Autonomous decision chat=%s action=%s intention=%s score=%.2f reason=%s next=%s",
+                    chat_id, decision.action, decision.intention, decision.score, decision.reason,
+                    next_due.isoformat(),
+                )
+                if decision.action != "message":
+                    continue
+                claim = store.claim_proactive(session_id, now=now)
+                if claim is None:
+                    continue
                 history = router.memory.get_context_for_llm(session_id, limit=20)
                 message = await generate_autonomous_message(
                     decision.intention,
                     emotional_state,
                     recent_proactive[chat_id],
                     dialog_history=format_conversation_history(history),
-                    cognition=(cognitive_context(router.memory.get_interest(session_id), history)
+                    cognition=(cognitive_context(router.memory.get_interest(session_id), history, now)
                                + intention_context(IntentionStore(router.memory).get_current(session_id))
                                + research_runtime_context(IntentionStore(router.memory).availability(session_id), emotional_state)
                                + research_capabilities(research_target(router.memory, session_id))),
+                    dialogue=dialogue,
                 )
-                if not message:
+                if not message or repeated_question(message, dialogue):
+                    continue
+                if not store.mark_sending(claim, now=datetime.now(timezone.utc)):
                     continue
                 await context.bot.send_message(chat_id=chat_id, text=message)
-                router.memory.save_message(session_id, "assistant", message, channel="telegram")
+                if not store.finish_proactive(claim, message, now=datetime.now(timezone.utc), channel="telegram"):
+                    logger.warning("Proactive delivered but dialogue commit unavailable chat=%s", chat_id)
+                    continue
                 last_proactive[chat_id] = now
                 recent_proactive[chat_id].append(message)
             logger.info(f"📤 Autonomous proactive sent to {chat_id}: {decision.intention}")
         except Exception as e:
             logger.error(f"Autonomous proactive failed for {chat_id}: {e}")
+        finally:
+            if claim is not None:
+                # Only pre-dispatch claims are released. An uncertain network
+                # send or failed DB commit must not cause automatic redelivery.
+                store.release_proactive(claim)
 
 
 async def autonomous_work_tick(context: ContextTypes.DEFAULT_TYPE):
