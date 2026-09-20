@@ -191,6 +191,12 @@ class LinkReplay:
         event = {"id": _identifier(event_id), "at": at.isoformat(),
                  "before": _state(before), "after": _state(after),
                  "source_kind": source_kind, "source_ref": _identifier(source_ref)}
+        return self._observe_event(event)
+
+    def _observe_event(self, event):
+        """Shared numerical kernel; source adapters validate their own envelopes."""
+        event_id = event["id"]
+        at = _utc(datetime.fromisoformat(event["at"]))
         event_hash = digest(event)
         if event_id in self._receipts:
             saved = self._receipts[event_id]

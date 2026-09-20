@@ -94,11 +94,14 @@ class CortexAgent(BaseBrainAgent):
             BrainRegion.MOTOR: 0.5,
         }
     
-    async def appraise(self, user_input, history, interest, now=None):
+    async def appraise(self, user_input, history, interest, now=None, dialogue=None):
         """Assess one conversation event without making a second public reply."""
         from cognitive_appraisal import assess_event
 
-        return await assess_event(user_input, history, interest, now=now)
+        kwargs = {"now": now}
+        if dialogue is not None:
+            kwargs["dialogue"] = dialogue
+        return await assess_event(user_input, history, interest, **kwargs)
 
     async def process(self, signal: NeuralSignal) -> Dict[str, Any]:
         """Обработка сигнала и принятие решения"""
@@ -136,10 +139,12 @@ class EmotionalAgent(BaseBrainAgent):
             BrainRegion.MEMORY: 0.6,
         }
     
-    def react(self, appraisal=None, user_message=True) -> Dict[str, Any]:
+    def react(self, appraisal=None, user_message=True, *, observation=None) -> Dict[str, Any]:
         """Apply one event through the shared, persistent emotional core."""
         from mood_engine import MoodEngine
-        return MoodEngine(self.emotional_core).snapshot(user_message=user_message, appraisal=appraisal)
+        return MoodEngine(self.emotional_core).snapshot(
+            user_message=user_message, appraisal=appraisal, observation=observation,
+        )
 
     async def update_mood(self, context: Dict[str, Any]) -> str:
         """Compatibility entry point; only explicit events affect emotions."""
