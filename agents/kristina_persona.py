@@ -16,6 +16,7 @@ from cognitive_appraisal import Appraisal, cognitive_context
 from intention_cycle import intention_context, research_capabilities
 from mood_engine import mood_engine
 from night_mode import night_mode
+from dialogue_state import dialogue_context, preview_user
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,8 @@ class KristinaPersonaAgent(BaseAgent):
                         "session_id": context.get("session_id"),
                         "history": context.get("history", []),
                         "interest": context.get("interest"),
+                        "dialogue": context.get("dialogue"),
+                        "event_at": context.get("event_at"),
                         "appraise_event": True,
                     },
                 )
@@ -77,6 +80,12 @@ class KristinaPersonaAgent(BaseAgent):
         emotional_state = brain_snapshot.get("emotion") or mood_engine.snapshot(user_message=True)
         interest = appraisal.interest(context.get("interest")) if appraisal else context.get("interest")
         cognitive_prompt = cognitive_context(interest, context.get("history", []))
+        # A source-linked explanation is visible in THIS reply, not one turn later.
+        projected_dialogue = preview_user(
+            context.get("dialogue"), appraisal.dialogue if appraisal else None, user_input,
+            context.get("event_at") or datetime.datetime.now(datetime.timezone.utc),
+        )
+        cognitive_prompt += "\n" + dialogue_context(projected_dialogue)
         if appraisal is None or appraisal.interest_action == "keep":
             cognitive_prompt += intention_context(context.get("intention"))
         cognitive_prompt += research_capabilities(context.get("research_target"))
@@ -175,6 +184,7 @@ class KristinaPersonaAgent(BaseAgent):
                 "appraisal_reaction": appraisal.reaction if appraisal else None,
                 "history_len": len(context.get("history", [])),
                 "github_grounded": bool(github_evidence),
+                "dialogue": projected_dialogue,
             },
         )
 
