@@ -1,0 +1,664 @@
+{
+  "arms": {
+    "control": {
+      "events": [
+        {
+          "actions": 0,
+          "id": "curiosity",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.0,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.3,
+            "creativity": 0.6,
+            "curiosity": 0.88,
+            "energy": 0.7,
+            "happiness": 0.6,
+            "irritation": 0.1,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 0,
+          "id": "concern",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.0,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.36,
+            "creativity": 0.6,
+            "curiosity": 0.8751530450250781,
+            "energy": 0.6830293468593261,
+            "happiness": 0.6,
+            "irritation": 0.1,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 0,
+          "id": "frustration",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.0,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.35636478376880854,
+            "creativity": 0.6,
+            "curiosity": 0.8505997522067676,
+            "energy": 0.6870868936145007,
+            "happiness": 0.6,
+            "irritation": 0.16,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 0,
+          "id": "success",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.0,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.3529498141550757,
+            "creativity": 0.6,
+            "curiosity": 0.8475340681981626,
+            "energy": 0.6908986060392881,
+            "happiness": 0.63,
+            "irritation": 0.15636478376880855,
+            "loneliness": 0.4
+          }
+        }
+      ],
+      "idle": {
+        "at": "2026-09-20T14:45:00+00:00",
+        "baseline": {
+          "anxiety": 0.31947914804150096,
+          "creativity": 0.6,
+          "curiosity": 0.8174868064453453,
+          "energy": 0.6536825489129212,
+          "happiness": 0.6110363832351433,
+          "irritation": 0.12073544515461848,
+          "loneliness": 0.4
+        },
+        "decay_factor": 0.1353352832366127,
+        "elapsed_seconds": 14400.0,
+        "offset": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "offset_clipping": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "raw_offset": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "state": {
+          "anxiety": 0.31947914804150096,
+          "creativity": 0.6,
+          "curiosity": 0.8174868064453453,
+          "energy": 0.6536825489129212,
+          "happiness": 0.6110363832351433,
+          "irritation": 0.12073544515461848,
+          "loneliness": 0.4
+        },
+        "state_clipping": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        }
+      },
+      "trajectory_sha256": "e8e22674c3836225fdba0c24836b4c2c4d3dd6eddd882588d2898285b2879cde"
+    },
+    "linked": {
+      "events": [
+        {
+          "actions": 1,
+          "id": "curiosity",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.03999999999999998,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.3,
+            "creativity": 0.6399999999999999,
+            "curiosity": 0.88,
+            "energy": 0.7,
+            "happiness": 0.6,
+            "irritation": 0.1,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 1,
+          "id": "concern",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.0352998761033838,
+            "curiosity": -0.024,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.36,
+            "creativity": 0.6352998761033838,
+            "curiosity": 0.851153045025078,
+            "energy": 0.6830293468593261,
+            "happiness": 0.6,
+            "irritation": 0.1,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 2,
+          "id": "frustration",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.021152031322856174,
+            "curiosity": -0.02117992566203029,
+            "energy": 0.0,
+            "happiness": -0.018,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.35636478376880854,
+            "creativity": 0.6211520313228561,
+            "curiosity": 0.8294198265447373,
+            "energy": 0.6870868936145007,
+            "happiness": 0.582,
+            "irritation": 0.16,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 1,
+          "id": "success",
+          "offset": {
+            "anxiety": -0.007500000000000007,
+            "creativity": 0.018666602125792915,
+            "curiosity": -0.01869121879371372,
+            "energy": 0.0,
+            "happiness": -0.015884944246522717,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.3454498141550757,
+            "creativity": 0.6186666021257929,
+            "curiosity": 0.8288428494044489,
+            "energy": 0.6908986060392881,
+            "happiness": 0.6141150557534772,
+            "irritation": 0.15636478376880855,
+            "loneliness": 0.4
+          }
+        }
+      ],
+      "idle": {
+        "at": "2026-09-20T14:45:00+00:00",
+        "baseline": {
+          "anxiety": 0.31947914804150096,
+          "creativity": 0.6,
+          "curiosity": 0.8174868064453453,
+          "energy": 0.6536825489129212,
+          "happiness": 0.6110363832351433,
+          "irritation": 0.12073544515461848,
+          "loneliness": 0.4
+        },
+        "decay_factor": 0.1353352832366127,
+        "elapsed_seconds": 14400.0,
+        "offset": {
+          "anxiety": -0.0010150146242745963,
+          "creativity": 0.002526249885759341,
+          "curiosity": -0.0025295813894847447,
+          "energy": 0.0,
+          "happiness": -0.002149793428800953,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "offset_clipping": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "raw_offset": {
+          "anxiety": -0.0010150146242745963,
+          "creativity": 0.002526249885759341,
+          "curiosity": -0.0025295813894847447,
+          "energy": 0.0,
+          "happiness": -0.002149793428800953,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "state": {
+          "anxiety": 0.31846413341722635,
+          "creativity": 0.6025262498857593,
+          "curiosity": 0.8149572250558605,
+          "energy": 0.6536825489129212,
+          "happiness": 0.6088865898063424,
+          "irritation": 0.12073544515461848,
+          "loneliness": 0.4
+        },
+        "state_clipping": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        }
+      },
+      "trajectory_sha256": "1d9e26075dfa100ed8e448ef6639b5e32ed7b4595040bbe5d2ee6c37f3ff5cda"
+    },
+    "mutant": {
+      "events": [
+        {
+          "actions": 1,
+          "id": "curiosity",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.03999999999999998,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.3,
+            "creativity": 0.6399999999999999,
+            "curiosity": 0.88,
+            "energy": 0.7,
+            "happiness": 0.6,
+            "irritation": 0.1,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 0,
+          "id": "concern",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.0352998761033838,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.36,
+            "creativity": 0.6352998761033838,
+            "curiosity": 0.8751530450250781,
+            "energy": 0.6830293468593261,
+            "happiness": 0.6,
+            "irritation": 0.1,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 2,
+          "id": "frustration",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.021152031322856174,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": -0.018,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.35636478376880854,
+            "creativity": 0.6211520313228561,
+            "curiosity": 0.8505997522067676,
+            "energy": 0.6870868936145007,
+            "happiness": 0.582,
+            "irritation": 0.16,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 1,
+          "id": "success",
+          "offset": {
+            "anxiety": -0.007500000000000007,
+            "creativity": 0.018666602125792915,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": -0.015884944246522717,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.3454498141550757,
+            "creativity": 0.6186666021257929,
+            "curiosity": 0.8475340681981626,
+            "energy": 0.6908986060392881,
+            "happiness": 0.6141150557534772,
+            "irritation": 0.15636478376880855,
+            "loneliness": 0.4
+          }
+        }
+      ],
+      "idle": {
+        "at": "2026-09-20T14:45:00+00:00",
+        "baseline": {
+          "anxiety": 0.31947914804150096,
+          "creativity": 0.6,
+          "curiosity": 0.8174868064453453,
+          "energy": 0.6536825489129212,
+          "happiness": 0.6110363832351433,
+          "irritation": 0.12073544515461848,
+          "loneliness": 0.4
+        },
+        "decay_factor": 0.1353352832366127,
+        "elapsed_seconds": 14400.0,
+        "offset": {
+          "anxiety": -0.0010150146242745963,
+          "creativity": 0.002526249885759341,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": -0.002149793428800953,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "offset_clipping": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "raw_offset": {
+          "anxiety": -0.0010150146242745963,
+          "creativity": 0.002526249885759341,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": -0.002149793428800953,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "state": {
+          "anxiety": 0.31846413341722635,
+          "creativity": 0.6025262498857593,
+          "curiosity": 0.8174868064453453,
+          "energy": 0.6536825489129212,
+          "happiness": 0.6088865898063424,
+          "irritation": 0.12073544515461848,
+          "loneliness": 0.4
+        },
+        "state_clipping": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        }
+      },
+      "trajectory_sha256": "6174d6ffc8aa54ccc23f06e5912935ea7e3a7240ce3fee1d0c1a97a1df4682c9"
+    },
+    "restored": {
+      "events": [
+        {
+          "actions": 1,
+          "id": "curiosity",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.03999999999999998,
+            "curiosity": 0.0,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.3,
+            "creativity": 0.6399999999999999,
+            "curiosity": 0.88,
+            "energy": 0.7,
+            "happiness": 0.6,
+            "irritation": 0.1,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 1,
+          "id": "concern",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.0352998761033838,
+            "curiosity": -0.024,
+            "energy": 0.0,
+            "happiness": 0.0,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.36,
+            "creativity": 0.6352998761033838,
+            "curiosity": 0.851153045025078,
+            "energy": 0.6830293468593261,
+            "happiness": 0.6,
+            "irritation": 0.1,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 2,
+          "id": "frustration",
+          "offset": {
+            "anxiety": 0.0,
+            "creativity": 0.021152031322856174,
+            "curiosity": -0.02117992566203029,
+            "energy": 0.0,
+            "happiness": -0.018,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.35636478376880854,
+            "creativity": 0.6211520313228561,
+            "curiosity": 0.8294198265447373,
+            "energy": 0.6870868936145007,
+            "happiness": 0.582,
+            "irritation": 0.16,
+            "loneliness": 0.4
+          }
+        },
+        {
+          "actions": 1,
+          "id": "success",
+          "offset": {
+            "anxiety": -0.007500000000000007,
+            "creativity": 0.018666602125792915,
+            "curiosity": -0.01869121879371372,
+            "energy": 0.0,
+            "happiness": -0.015884944246522717,
+            "irritation": 0.0,
+            "loneliness": 0.0
+          },
+          "state": {
+            "anxiety": 0.3454498141550757,
+            "creativity": 0.6186666021257929,
+            "curiosity": 0.8288428494044489,
+            "energy": 0.6908986060392881,
+            "happiness": 0.6141150557534772,
+            "irritation": 0.15636478376880855,
+            "loneliness": 0.4
+          }
+        }
+      ],
+      "idle": {
+        "at": "2026-09-20T14:45:00+00:00",
+        "baseline": {
+          "anxiety": 0.31947914804150096,
+          "creativity": 0.6,
+          "curiosity": 0.8174868064453453,
+          "energy": 0.6536825489129212,
+          "happiness": 0.6110363832351433,
+          "irritation": 0.12073544515461848,
+          "loneliness": 0.4
+        },
+        "decay_factor": 0.1353352832366127,
+        "elapsed_seconds": 14400.0,
+        "offset": {
+          "anxiety": -0.0010150146242745963,
+          "creativity": 0.002526249885759341,
+          "curiosity": -0.0025295813894847447,
+          "energy": 0.0,
+          "happiness": -0.002149793428800953,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "offset_clipping": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "raw_offset": {
+          "anxiety": -0.0010150146242745963,
+          "creativity": 0.002526249885759341,
+          "curiosity": -0.0025295813894847447,
+          "energy": 0.0,
+          "happiness": -0.002149793428800953,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        },
+        "state": {
+          "anxiety": 0.31846413341722635,
+          "creativity": 0.6025262498857593,
+          "curiosity": 0.8149572250558605,
+          "energy": 0.6536825489129212,
+          "happiness": 0.6088865898063424,
+          "irritation": 0.12073544515461848,
+          "loneliness": 0.4
+        },
+        "state_clipping": {
+          "anxiety": 0.0,
+          "creativity": 0.0,
+          "curiosity": 0.0,
+          "energy": 0.0,
+          "happiness": 0.0,
+          "irritation": 0.0,
+          "loneliness": 0.0
+        }
+      },
+      "trajectory_sha256": "1d9e26075dfa100ed8e448ef6639b5e32ed7b4595040bbe5d2ee6c37f3ff5cda"
+    }
+  },
+  "checks": {
+    "all_arms_received_identical_events": true,
+    "anxiety_inhibits_curiosity": true,
+    "bounded_states_and_work": true,
+    "control_equals_existing_core": true,
+    "curiosity_excites_creativity": true,
+    "four_hour_idle_only_decays_offset": true,
+    "happiness_inhibits_anxiety": true,
+    "irritation_inhibits_happiness": true,
+    "mutant_loses_exactly_selected_inhibition": true,
+    "restored_graph_and_entire_trajectory_match": true
+  },
+  "fixtures_sha256": "c02367e513720a2e034f2959a4c3b3167b37739737a9cb163619ed304834957b",
+  "mutation": {
+    "baseline_weight": -0.4,
+    "edge": "anxiety-curiosity",
+    "mutant_weight": 0.0,
+    "restored_weight": -0.4
+  },
+  "rules": [
+    {
+      "id": "anxiety-curiosity",
+      "source": "anxiety",
+      "target": "curiosity",
+      "weight": -0.4
+    },
+    {
+      "id": "curiosity-creativity",
+      "source": "curiosity",
+      "target": "creativity",
+      "weight": 0.5
+    },
+    {
+      "id": "irritation-happiness",
+      "source": "irritation",
+      "target": "happiness",
+      "weight": -0.3
+    },
+    {
+      "id": "happiness-anxiety",
+      "source": "happiness",
+      "target": "anxiety",
+      "weight": -0.25
+    }
+  ],
+  "scope": "synthetic_offline_shadow",
+  "sources": {
+    "drydock_design_reference": "405cc1f6dc47cecc2c2671ced9aad10ede644500",
+    "kristina_base": "89f455ce0182d25f010faf4e7e7dd9530dba356d"
+  },
+  "status": "supported_on_cases",
+  "version": 1
+}

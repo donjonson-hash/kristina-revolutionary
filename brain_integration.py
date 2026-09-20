@@ -9,6 +9,7 @@ import asyncio
 import json
 import datetime
 from dataclasses import asdict
+from uuid import uuid4
 from dialogue_state import preview_user
 
 try:
@@ -63,7 +64,19 @@ class BrainBridge:
                 except Exception as exc:
                     appraisal = None
                     logger.warning("Cortex appraisal failed: %s", type(exc).__name__)
-            emotion = self.emotional_agent.react(appraisal, user_message=True) if self.emotional_agent else {}
+            observation = None
+            if appraisal is not None and getattr(self.emotional, "appraisal_observer", None) is not None:
+                try:
+                    from experiments.appraisal_observer import AppraisalSource
+                    observation = AppraisalSource.from_validated(
+                        appraisal, user_input=signal.content, session_id=context.get("session_id"),
+                        event_id=context.get("event_id") if context.get("event_id") is not None else uuid4().hex,
+                    )
+                except Exception as exc:
+                    logger.warning("Appraisal shadow source unavailable: %s", type(exc).__name__)
+            emotion = self.emotional_agent.react(
+                appraisal, user_message=True, observation=observation,
+            ) if self.emotional_agent else {}
             return {
                 "cortex": {"status": "appraised" if appraisal else "unavailable"},
                 "appraisal": appraisal,

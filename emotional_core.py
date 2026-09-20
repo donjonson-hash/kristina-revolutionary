@@ -21,7 +21,7 @@ STOCKHOLM = ZoneInfo("Europe/Stockholm")
 class EmotionalCore:
     """Эмоциональное ядро Кристины — эволюционирует со временем"""
     
-    def __init__(self, db_path=None, clock=None):
+    def __init__(self, db_path=None, clock=None, *, appraisal_observer=None):
         self.traits = {
             "extraversion": 0.7,
             "neuroticism": 0.4,
@@ -46,6 +46,7 @@ class EmotionalCore:
         self.db_path = db_path
         self._lock = threading.RLock()
         self._experiment_ids = set()
+        self.appraisal_observer = appraisal_observer
         if db_path is not None:
             with closing(sqlite3.connect(db_path)) as conn, conn:
                 conn.execute("""CREATE TABLE IF NOT EXISTS emotional_state (
@@ -63,30 +64,48 @@ class EmotionalCore:
             raise ValueError("EmotionalCore clock must return an aware datetime")
         return now.astimezone(timezone.utc)
 
-    def evolve(self, context: Dict = None) -> Dict:
+    def evolve(self, context: Dict = None, *, observation=None) -> Dict:
         """Advance by elapsed time, then apply one observed event; persist atomically."""
         with self._lock:
-            if self.db_path is None:
-                self._advance(self._now(), context)
-            else:
-                # Reload under a write lock so bot/web processes cannot overwrite
-                # each other's events with an old in-memory snapshot.
-                previous = self._payload()
-                try:
+            previous = self._payload()
+            try:
+                if self.db_path is None:
+                    before = self._advance(self._now(), context)
+                else:
+                    # Reload under a write lock so bot/web processes cannot overwrite
+                    # each other's events with an old in-memory snapshot.
                     with closing(sqlite3.connect(self.db_path, timeout=5)) as conn, conn:
                         conn.execute("BEGIN IMMEDIATE")
                         row = conn.execute("SELECT payload FROM emotional_state WHERE id = 1").fetchone()
                         if row:
                             self._restore(json.loads(row[0]))
-                        self._advance(self._now(), context)
+                        before = self._advance(self._now(), context)
                         conn.execute(
                             "INSERT OR REPLACE INTO emotional_state (id, payload) VALUES (1, ?)",
                             (json.dumps(self._payload()),),
                         )
-                except Exception:
-                    self._restore(previous)
-                    raise
-            return self.get_emotional_state()
+            except Exception:
+                self._restore(previous)
+                raise
+            snapshot = self.get_emotional_state()
+            # Both snapshots are from this one event under the core lock and,
+            # when persistent, after reload under BEGIN IMMEDIATE. Notify only
+            # AFTER commit; a rejected database write must leave no shadow trace.
+            if self.appraisal_observer is not None and observation is not None:
+                try:
+                    from experiments.appraisal_observer import AppraisalSource
+                    if (not isinstance(observation, AppraisalSource)
+                            or not context or not observation.matches(context.get("appraisal"))):
+                        raise ValueError("observation does not match applied appraisal")
+                    self.appraisal_observer.observe(
+                        observation, at=self.last_update,
+                        before=before.copy(), after=self.state.copy(),
+                    )
+                except Exception as exc:
+                    # Shadow failure cannot change the successful ordinary event.
+                    # Never log message text, model output, or source identifiers.
+                    logger.warning("Appraisal shadow observation unavailable: %s", type(exc).__name__)
+            return snapshot
 
     def record_experiment(self, experiment_id: str, outcome: str) -> bool:
         """Apply a completed experiment once, atomically with its durable receipt."""
@@ -172,9 +191,13 @@ class EmotionalCore:
             )
             cursor = end
         self.last_update = now
+        # Circadian change precedes this snapshot; only this event's ordinary
+        # message + appraisal effects become the observer's direct impulse.
+        before = self.state.copy()
         if context:
             self._apply_context_effects(context)
         self._normalize_state()
+        return before
 
     def _apply_circadian_rhythm(self, hour: int, elapsed_hours: float):
         """Relax toward hourly targets; the result does not depend on tick frequency."""
@@ -278,5 +301,10 @@ _emotional_core = None
 def get_emotional_core():
     global _emotional_core
     if _emotional_core is None:
-        _emotional_core = EmotionalCore(db_path=os.getenv("KRISTINA_STATE_DB", "kristina_state.db"))
+        observer = None
+        if os.getenv("KRISTINA_EMOTIONAL_LINKS_OBSERVER") == "1":
+            from experiments.appraisal_observer import AppraisalLinkObserver
+            observer = AppraisalLinkObserver()
+        _emotional_core = EmotionalCore(db_path=os.getenv("KRISTINA_STATE_DB", "kristina_state.db"),
+                                        appraisal_observer=observer)
     return _emotional_core

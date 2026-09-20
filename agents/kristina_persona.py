@@ -66,6 +66,7 @@ class KristinaPersonaAgent(BaseAgent):
                         "interest": context.get("interest"),
                         "dialogue": context.get("dialogue"),
                         "event_at": context.get("event_at"),
+                        "event_id": context.get("event_id"),
                         "appraise_event": True,
                     },
                 )
