@@ -94,11 +94,14 @@ class CortexAgent(BaseBrainAgent):
             BrainRegion.MOTOR: 0.5,
         }
     
-    async def appraise(self, user_input, history, interest, now=None):
+    async def appraise(self, user_input, history, interest, now=None, dialogue=None):
         """Assess one conversation event without making a second public reply."""
         from cognitive_appraisal import assess_event
 
-        return await assess_event(user_input, history, interest, now=now)
+        kwargs = {"now": now}
+        if dialogue is not None:
+            kwargs["dialogue"] = dialogue
+        return await assess_event(user_input, history, interest, **kwargs)
 
     async def process(self, signal: NeuralSignal) -> Dict[str, Any]:
         """Обработка сигнала и принятие решения"""
