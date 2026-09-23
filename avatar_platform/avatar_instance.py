@@ -66,6 +66,18 @@ class AvatarInstance:
     def skills(self) -> List[str]:
         return self.profession.core_skills
 
+    def reconcile_lists(self, left: bytes, right: bytes, **rules) -> Dict[str, Any]:
+        """Execute an offline CSV reconciliation through the professional tool.
+
+        This explicit entry point does not call a model or consult mood/autonomy.
+        The existing chat and task proposal paths are unchanged.
+        """
+        if self.profession.role_id != "reconciliation_specialist":
+            raise PermissionError("reconcile_lists requires reconciliation_specialist")
+        from .reconciliation import run_reconciliation
+
+        return run_reconciliation(left, right, **rules)
+
     # ── Построение промпта ────────────────────────────────
 
     def build_system_prompt(self) -> str:
