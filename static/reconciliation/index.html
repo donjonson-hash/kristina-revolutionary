@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кристина — сверка списков</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Кристина — начать заново"><span class="brand-icon">К</span><span>Кристина <small>Рабочие инструменты</small></span></a>
+    <span class="local-badge"><span aria-hidden="true">●</span> На вашем компьютере</span>
+  </header>
+  <main>
+    <section class="hero">
+      <div><p class="eyebrow">ПОМОЩНИК ПО СВЕРКЕ ДАННЫХ</p><h1>Два списка.<br><span>Все расхождения.</span></h1><p class="intro">Что изменилось, чего не хватает и что появилось.<br>Сверьте две таблицы и проверьте каждое отличие по исходным строкам.</p></div>
+      <div class="hero-aside"><span class="example-label">ПЕРВЫЙ РАЗ?</span><p>Попробуйте на заказе<br>и подтверждении поставщика.</p><button type="button" class="button secondary" id="demo">Открыть пример <span aria-hidden="true">↗</span></button><small>Вымышленные данные · 4 строки</small></div>
+    </section>
+    <ol class="steps" aria-label="Порядок работы"><li id="step-input" class="current"><b>01</b> Добавьте списки</li><li id="step-rules"><b>02</b> Настройте сверку</li><li id="step-result"><b>03</b> Проверьте результат</li></ol>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <section class="section" aria-labelledby="sources-heading">
+      <div class="section-heading"><div><p class="eyebrow">01 / ИСХОДНИКИ</p><h2 id="sources-heading">Что сравниваем?</h2></div><label class="delimiter">Разделитель CSV<select id="delimiter"><option value=",">Запятая (,)</option><option value=";">Точка с запятой (;)</option><option value="tab">Табуляция</option></select></label></div>
+      <div class="sources">
+        <article class="source-card" id="left-card"><div class="source-heading"><span class="letter">A</span><div><h3>Исходный список</h3><p>Например, ваш заказ или старый прайс</p></div></div><label class="dropzone" id="left-drop"><input type="file" id="left-file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"><span class="upload-mark" aria-hidden="true">↑</span><strong id="left-filename">Выберите файл или перетащите сюда</strong><span class="file-meta" id="left-meta">CSV · UTF-8 · до 2 MiB</span></label><div class="preview" id="left-preview" hidden></div></article>
+        <article class="source-card" id="right-card"><div class="source-heading"><span class="letter right">B</span><div><h3>Второй список</h3><p>Например, подтверждение или новый прайс</p></div></div><label class="dropzone" id="right-drop"><input type="file" id="right-file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values"><span class="upload-mark" aria-hidden="true">↑</span><strong id="right-filename">Выберите файл или перетащите сюда</strong><span class="file-meta" id="right-meta">CSV · UTF-8 · до 2 MiB</span></label><div class="preview" id="right-preview" hidden></div></article>
+      </div>
+      <p class="privacy">Файлы обрабатываются локально и не отправляются в LLM. До 5 000 строк в каждом списке.</p>
+    </section>
+    <section class="section rules-section" aria-labelledby="rules-heading">
+      <div class="section-heading"><div><p class="eyebrow">02 / ПРАВИЛА</p><h2 id="rules-heading">По чему сопоставлять строки?</h2></div></div>
+      <p id="rules-empty" class="empty-note">Добавьте оба списка — здесь появятся их столбцы.</p>
+      <fieldset id="rules" disabled hidden>
+        <legend class="sr-only">Правила сверки</legend>
+        <p class="hint">Выберите уникальный ключ — например, артикул, email или номер заказа. Названия столбцов могут различаться.</p>
+        <div class="key-row"><label>Ключ в списке A<select id="left-key" aria-label="Ключ в списке A"></select></label><span class="key-link" aria-hidden="true">↔</span><label>Ключ в списке B<select id="right-key" aria-label="Ключ в списке B"></select></label></div>
+        <label class="checkline"><input type="checkbox" id="membership"> Сравнить только наличие строк, без значений в других столбцах</label>
+        <div id="mapping-panel"><h3 class="mapping-title">Какие значения проверить?</h3><p class="hint">Одинаковые названия сопоставлены как текст. Проверьте пары и явно выберите «Число», если нужно сравнивать числовые значения.</p><div class="table-scroll"><table class="mapping"><thead><tr><th>Столбец в A</th><th>Столбец в B</th><th>Как сравнивать</th></tr></thead><tbody id="field-mapping"></tbody></table></div></div>
+        <label class="checkline"><input type="checkbox" id="strip"> Игнорировать пробелы в начале и конце значений</label>
+        <div class="run-row"><p class="hint">Регистр учитывается. Валюты и единицы не пересчитываются.<br>Повторяющиеся ключи потребуют уточнения.</p><button id="compare" class="button primary" type="button">Сверить списки <span aria-hidden="true">→</span></button></div>
+      </fieldset>
+    </section>
+    <section class="section results-section" id="results" aria-labelledby="result-heading" hidden>
+      <div class="section-heading result-heading"><div><p class="eyebrow">03 / РЕЗУЛЬТАТ</p><h2 id="result-heading" tabindex="-1">Сверка завершена</h2><p id="result-context" class="hint"></p></div><div class="downloads"><button class="button secondary" id="download-html" type="button">Скачать HTML</button><button class="button plain" id="download-json" type="button">JSON ↓</button></div></div>
+      <div id="clarification" class="clarification" hidden></div>
+      <div id="complete-result"><div id="totals" class="totals" aria-label="Категории результата"></div><div class="results-toolbar"><h3 id="category-heading">Изменённые записи</h3><label class="search-label"><span class="sr-only">Поиск по ключу</span><input id="search" type="search" placeholder="Найти ключ…" autocomplete="off"></label></div><p id="record-range" class="hint"></p><div id="result-rows"></div><div class="pagination"><button id="previous" class="button secondary" type="button">← Назад</button><span id="page-info" aria-live="polite"></span><button id="next" class="button secondary" type="button">Далее →</button></div></div>
+      <details class="audit"><summary>Источники и применённые правила</summary><pre id="audit-details"></pre></details>
+    </section>
+    <footer><span>Кристина <span aria-hidden="true">/</span> Сверка данных</span><span>Точные различия. Исходные строки. Проверяемый результат.</span></footer>
+  </main>
+</body>
+</html>
