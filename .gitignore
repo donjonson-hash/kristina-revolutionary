@@ -32,3 +32,6 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Built browser extension packages
+dist/extension/

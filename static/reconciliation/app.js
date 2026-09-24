@@ -38,6 +38,7 @@
   }
   async function api(path, payload) {
     controller = new AbortController();
+    if (window.KristinaTransport) return window.KristinaTransport.request(path, payload, {signal: controller.signal});
     const response = await fetch(path, {method: 'POST', signal: controller.signal,
       headers: {'Content-Type': 'application/json', 'X-Kristina-Reconcile': '1'}, body: JSON.stringify(payload)});
     const result = await response.json();
