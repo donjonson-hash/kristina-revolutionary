@@ -5,7 +5,7 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def build(output):
@@ -18,9 +18,9 @@ def build(output):
     html = html.replace('Сейчас доступны таблицы CSV.', 'Сейчас доступны таблицы CSV и TSV.')
     manifest = {
         "manifest_version": 3,
-        "name": "Кристина — сверка документов",
+        "name": "Кристина — офисный помощник",
         "version": VERSION,
-        "description": "Загрузите два CSV или TSV и увидьте отличия прямо в документах. Обработка внутри браузера, без сервера.",
+        "description": "Проверю два CSV/TSV, объясню отличия и помогу подготовить письмо. Документы обрабатываются внутри браузера.",
         "icons": {"128": "icon.png"},
         "action": {"default_title": "Кристина — сравнить документы", "default_popup": "launcher.html", "default_icon": {"128": "icon.png"}},
         "content_security_policy": {"extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; connect-src 'none'; worker-src 'self'; base-uri 'none'; form-action 'none'"},
@@ -30,6 +30,7 @@ def build(output):
         directory.mkdir(parents=True, exist_ok=True)
         # Write only the explicit package allowlist, including in reused directories.
         files = {"index.html": html.encode(), "app.js": (assets / "app.js").read_bytes(), "style.css": (assets / "style.css").read_bytes()}
+        files["office.js"] = (assets / "office.js").read_bytes()
         for name in ("transport.js", "worker.mjs", "engine.mjs", "report.mjs", "launcher.html", "launcher.css", "launcher.js", "icon.png"):
             files[name] = (ROOT / "extension" / name).read_bytes()
         target_manifest = dict(manifest)
