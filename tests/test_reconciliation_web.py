@@ -194,3 +194,51 @@ def test_static_files_are_allowlisted_and_secure(client, tmp_path, monkeypatch):
     for path in ("/reconciliation_web.py", "/.env", "/docs", "/openapi.json"):
         response = client.get(path)
         assert response.status_code == 404 and response.json()["error"]
+
+
+def test_prepare_then_compare_uses_inferred_rules(client):
+    payload = example()
+    payload["delimiter"] = "auto"
+    prepared_response = client.post("/api/prepare", json=payload)
+    assert prepared_response.status_code == 200
+    prepared = prepared_response.json()
+    assert prepared["ready"] and prepared["question"] is None
+    assert prepared["delimiter"] == ","
+    assert prepared["unmatched"] == {"left": [], "right": []}
+    compared = client.post("/api/compare", json={
+        **payload, **prepared["rules"], "delimiter": prepared["delimiter"],
+    }).json()["report"]
+    assert compared["status"] == "complete"
+    assert compared["summary"] == {
+        "left_rows": 4, "right_rows": 4, "matched": 1,
+        "changed": 2, "only_left": 1, "only_right": 1,
+    }
+
+
+def test_prepare_reports_unmatched_headers_and_defaults_to_auto(client):
+    payload = {
+        "left": source(b"sku;quantity;notes\nA;1;check\n"),
+        "right": source(b"sku;quantity\nA;1\n"),
+    }
+    result = client.post("/api/prepare", json=payload).json()
+    assert result["delimiter"] == ";"
+    assert not result["ready"] and result["question"]
+    assert result["unmatched"] == {"left": ["notes"], "right": []}
+
+
+def test_prepare_separator_ambiguity_is_actionable_and_explicit_choice_works(client):
+    raw = b"sku,name;unit\nA,book;piece\n"
+    payload = {"left": source(raw), "right": source(raw), "delimiter": "auto"}
+    response = client.post("/api/prepare", json=payload)
+    assert response.status_code == 400 and "разделитель" in response.json()["error"]
+    payload["delimiter"] = ","
+    assert client.post("/api/prepare", json=payload).json()["ready"]
+
+
+def test_prepare_obeys_response_budget_and_local_request_guard(client, monkeypatch):
+    response = client.post("/api/prepare", json=example(), headers={"Origin": "https://attacker.example"})
+    assert response.status_code == 403
+    monkeypatch.setattr(reconcile_lists, "MAX_REPORT_BYTES", 64)
+    response = client.post("/api/prepare", json=example())
+    assert response.status_code == 400 and "exceeds" in response.json()["error"]
+    assert "rules" not in response.json()

@@ -21,6 +21,7 @@ from starlette.exceptions import HTTPException
 from avatar_platform.avatar_factory import AvatarFactory
 # The pilot deliberately shares the engine's parser; no second CSV interpretation.
 from avatar_platform.reconciliation import MAX_SOURCE_BYTES, _source
+from avatar_platform.reconciliation_setup import prepare_reconciliation
 from reconcile_lists import NoModelAdapter, render_html, render_json
 
 MAX_REQUEST_BYTES = 6 * 1024 * 1024
@@ -126,15 +127,16 @@ def _invalid_constant(value):
     raise ValueError(f"Non-JSON number: {value}")
 
 
-def _inputs(body: bytes):
+def _inputs(body: bytes, *, allow_auto=False):
     try:
         payload = json.loads(body, parse_constant=_invalid_constant)
     except (ValueError, UnicodeError, RecursionError) as exc:
         raise ValueError("Expected a valid JSON object") from exc
     if not isinstance(payload, dict):
         raise ValueError("Expected a JSON object")
-    delimiter = payload.get("delimiter", ",")
-    if not isinstance(delimiter, str) or delimiter not in (",", ";", "\t"):
+    delimiter = payload.get("delimiter", "auto" if allow_auto else ",")
+    allowed = (",", ";", "\t", "auto") if allow_auto else (",", ";", "\t")
+    if not isinstance(delimiter, str) or delimiter not in allowed:
         raise ValueError("delimiter must be comma, semicolon, or tab")
     sources = {}
     for side in ("left", "right"):
@@ -164,8 +166,13 @@ def _inputs(body: bytes):
 
 def _process(body: bytes, operation: str):
     try:
-        payload, delimiter, sources = _inputs(body)
-        if operation == "inspect":
+        payload, delimiter, sources = _inputs(body, allow_auto=operation == "prepare")
+        if operation == "prepare":
+            output = prepare_reconciliation(sources, delimiter)
+            # Long headers are repeated in previews/rules a bounded number of
+            # times; still enforce the same serialized output budget as reports.
+            render_json(output)
+        elif operation == "inspect":
             output = {}
             for side, (raw, name) in sources.items():
                 source, rows = _source(raw, name, delimiter)
@@ -189,6 +196,11 @@ def _process(body: bytes, operation: str):
 @app.post("/api/inspect")
 async def inspect_sources(request: Request):
     return await anyio.to_thread.run_sync(partial(_process, request.scope["reconciliation_body"], "inspect"), limiter=_WORKERS)
+
+
+@app.post("/api/prepare")
+async def prepare_sources(request: Request):
+    return await anyio.to_thread.run_sync(partial(_process, request.scope["reconciliation_body"], "prepare"), limiter=_WORKERS)
 
 
 @app.post("/api/compare")
