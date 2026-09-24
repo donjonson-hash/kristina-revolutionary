@@ -2,7 +2,7 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0}
-button,input,select{font:inherit}
+button,input,select,textarea{font:inherit}
 button,a,input,select,summary{touch-action:manipulation}
 button,summary,select{cursor:pointer}
 button:disabled{opacity:.45;cursor:default}
@@ -10,7 +10,7 @@ a{color:inherit}
 h1,h2,h3,p{margin:0}
 h2{font-size:24px;letter-spacing:-.6px}
 h3{font-size:16px}
-button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:3px solid #6c93db;outline-offset:4px}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:3px solid #6c93db;outline-offset:4px}
 .topbar{max-width:1440px;margin:auto;padding:24px 42px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-size:22px;font-weight:650}
 .brand small{font-size:13px;font-weight:400;color:var(--muted);margin-left:14px}
@@ -65,7 +65,7 @@ select,input[type=search]{padding:10px;border:1px solid #c4cec5;background:white
 .results{margin-top:40px}
 .result-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:22px}
 .result-heading .eyebrow{margin-bottom:8px}
-.downloads{display:flex;gap:6px;flex-shrink:0}
+.downloads{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:52%}
 .totals{display:flex;flex-wrap:wrap;gap:8px}
 .total{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:30px;background:transparent;padding:9px 15px;font-size:12px;color:var(--muted)}
 .total strong{font-size:14px;color:var(--ink)}
@@ -148,3 +148,52 @@ main{padding:0 18px}
 .absent{font-size:11px}
 .intro{font-size:15px}
 }
+
+/* The assistant sits beside the complete documents, never inside their columns. */
+.workspace-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
+.workspace-main,.office-sidebar{min-width:0}
+.office-panel{border:1px solid #cbd6c9;border-radius:14px;background:#edf2e9;overflow:hidden}
+.office-header{display:flex;align-items:center;gap:12px;list-style:none;padding:18px;cursor:pointer}
+.office-header::-webkit-details-marker{display:none}
+.office-header>span:nth-child(2){flex:1;min-width:0}
+.office-header strong{font-family:Georgia,"Times New Roman",serif;font-size:21px;font-weight:400}
+.office-subtitle{display:block;margin-top:3px;font-size:11px;color:var(--muted)}
+.office-avatar{display:grid;place-items:center;width:42px;height:42px;flex-shrink:0;border-radius:50%;background:#216349;color:#fffefa;font-family:Georgia,"Times New Roman",serif;font-size:24px}
+.office-toggle{font-size:21px;transition:transform .15s}
+.office-panel[open] .office-toggle{transform:rotate(180deg)}
+.office-body{padding:0 18px 18px}
+.office-greeting{font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.office-scope{font-size:11px;line-height:1.65;color:var(--muted);margin:12px 0 16px}
+.office-suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.office-suggestions button,.office-action{border:1px solid #cbd6c9;background:#fffefa;border-radius:7px;padding:7px 9px;font-size:11px;color:var(--green);text-align:left;overflow-wrap:anywhere;max-width:100%}
+.office-transcript{display:grid;gap:12px;max-height:460px;overflow:auto;overscroll-behavior:contain}
+.office-transcript:empty{display:none}
+.office-message{padding:12px;border:1px solid #d6dfd0;border-radius:9px;background:#fffefa;min-width:0}
+.office-message.user{background:#e2eadc;margin-left:14px}
+.office-message .office-speaker{display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.office-message p{font-size:12px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.office-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
+.office-form{margin-top:16px;padding-top:16px;border-top:1px solid #cbd6c9}
+.office-form>label{display:block;font-size:12px;font-weight:600;margin-bottom:8px}
+.office-body textarea{display:block;width:100%;min-width:0;resize:vertical;padding:11px;border:1px solid #bfccbb;border-radius:8px;background:#fffefa;color:var(--ink);font-size:12px;line-height:1.6}
+.office-body textarea:disabled{background:#edf0e8}
+.office-compose-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+.office-compose-footer>span{font-size:10px;color:var(--muted)}
+.office-compose-footer .button{font-size:12px;padding:8px 13px}
+.office-draft-section{margin-top:20px;border-top:1px solid #cbd6c9;padding-top:18px}
+.office-draft-section h3{font-size:15px}
+.office-draft-note{font-size:11px;line-height:1.6;margin:8px 0 12px;color:#785d2c}
+.office-draft-buttons{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px}
+.office-draft-buttons .button{font-size:11px;padding:8px 10px}
+@media(min-width:1380px){
+  main,.topbar{max-width:1780px}
+  .workspace-layout{grid-template-columns:minmax(0,1fr) 320px;gap:28px}
+  .workspace-main{grid-column:1;grid-row:1}
+  .office-sidebar{grid-column:2;grid-row:1;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;scrollbar-width:thin}
+  .document-values{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){.workspace-layout{gap:18px}.office-header{padding:14px}.office-body{padding:0 14px 14px}.office-transcript{max-height:360px}}
+
+.document-field.office-target{outline:2px solid #668669;outline-offset:5px;border-radius:2px}
+
+@media(max-width:700px){.downloads{max-width:100%;justify-content:flex-start}}

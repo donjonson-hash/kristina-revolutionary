@@ -183,9 +183,10 @@ def test_output_size_guard_returns_no_partial_report(client, monkeypatch, render
 def test_static_files_are_allowlisted_and_secure(client, tmp_path, monkeypatch):
     monkeypatch.setattr(web, "STATIC_ROOT", tmp_path)
     for name, content in [("index.html", "<!doctype html><title>Local</title>"),
-                          ("app.js", "'use strict';"), ("style.css", "body{color:black}")]:
+                          ("app.js", "'use strict';"), ("office.js", "'use strict';"),
+                          ("style.css", "body{color:black}")]:
         (tmp_path / name).write_text(content)
-    for path in ("/", "/assets/app.js", "/assets/style.css"):
+    for path in ("/", "/assets/app.js", "/assets/office.js", "/assets/style.css"):
         response = client.get(path)
         assert response.status_code == 200
         assert "script-src 'self'" in response.headers["content-security-policy"]
