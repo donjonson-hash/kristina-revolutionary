@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -93,3 +95,58 @@ def test_wide_diff_does_not_repeat_full_evidence_per_field():
     assert len(result["changed"][0]["changes"]) == 199
     assert page.count("<summary>Исходная запись") == 2
     assert len(page.encode()) < 4 * (len(left) + len(right))
+
+
+@pytest.mark.parametrize("format_name", ["JSON", "HTML"])
+def test_amplified_reports_are_rejected_before_either_file_is_created(tmp_path, format_name):
+    left, right = tmp_path / "a.csv", tmp_path / "b.csv"
+    if format_name == "JSON":
+        # A small CSV can repeat a long header in thousands of evidence objects.
+        header = "h" * 10000
+        raw = (f"id,{header}\n" + "".join(f"{i},x\n" for i in range(1000))).encode()
+        left.write_bytes(raw)
+        right.write_bytes(raw)
+        rules = ["--membership-only"]
+    else:
+        # JSON stays small, but the HTML repeats the long key for every change.
+        columns = [f"f{i}" for i in range(199)]
+        header = ",".join(["id", *columns]) + "\n"
+        key = "k" * 100000
+        left.write_text(header + ",".join([key, *(["a"] * 199)]) + "\n")
+        right.write_text(header + ",".join([key, *(["b"] * 199)]) + "\n")
+        rules = [arg for column in columns for arg in ("--field", column)]
+    originals = [p.read_bytes() for p in (left, right)]
+    output, page = tmp_path / "result.json", tmp_path / "result.html"
+    proc = run_cli("--left", left, "--right", right, "--key", "id", *rules,
+                   "--output", output, "--html", page)
+    assert proc.returncode == 1, proc.stderr
+    error = json.loads(proc.stderr)
+    assert error["status"] == "invalid_input"
+    assert f"{format_name} report exceeds 16 MiB" in error["error"]
+    assert not output.exists() and not page.exists()
+    assert [p.read_bytes() for p in (left, right)] == originals
+
+
+def test_json_budget_counts_utf8_bytes_and_trailing_newline(monkeypatch):
+    import reconcile_lists as cli
+
+    report = {"value": "Я🙂"}
+    expected = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
+    monkeypatch.setattr(cli, "MAX_REPORT_BYTES", len(expected.encode("utf-8")))
+    assert cli.render_json(report) == expected
+    monkeypatch.setattr(cli, "MAX_REPORT_BYTES", len(expected.encode("utf-8")) - 1)
+    with pytest.raises(ValueError, match="JSON report exceeds"):
+        cli.render_json(report)
+
+
+def test_html_budget_includes_document_wrapper(monkeypatch):
+    import reconcile_lists as cli
+    from avatar_platform.reconciliation import run_reconciliation
+
+    report = run_reconciliation(b"id\nx\n", b"id\nx\n", key=("id", "id"), fields=[])
+    expected = cli.render_html(report)
+    monkeypatch.setattr(cli, "MAX_REPORT_BYTES", len(expected.encode("utf-8")))
+    assert cli.render_html(report) == expected
+    monkeypatch.setattr(cli, "MAX_REPORT_BYTES", len(expected.encode("utf-8")) - 1)
+    with pytest.raises(ValueError, match="HTML report exceeds"):
+        cli.render_html(report)

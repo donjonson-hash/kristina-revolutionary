@@ -4,12 +4,46 @@ from __future__ import annotations
 
 import argparse
 import html
+import io
 import json
 from pathlib import Path
 import sys
 
 from avatar_platform.avatar_factory import AvatarFactory
 from avatar_platform.llm_adapter import BaseLLMAdapter
+
+
+MAX_REPORT_BYTES = 16 * 1024 * 1024
+
+
+class _ReportBuffer:
+    """Bound UTF-8 output while building it, before any report file is opened."""
+
+    def __init__(self, format_name):
+        self.format_name = format_name
+        self.size = 0
+        self.stream = io.StringIO()
+
+    def append(self, text):
+        size = len(text.encode("utf-8"))
+        if self.size + size > MAX_REPORT_BYTES:
+            raise ValueError(f"{self.format_name} report exceeds 16 MiB; split the input lists")
+        self.size += size
+        self.stream.write(text)
+
+    def extend(self, chunks):
+        for chunk in chunks:
+            self.append(chunk)
+
+    def getvalue(self):
+        return self.stream.getvalue()
+
+
+def render_json(report: dict) -> str:
+    output = _ReportBuffer("JSON")
+    output.extend(json.JSONEncoder(ensure_ascii=False, indent=2).iterencode(report))
+    output.append("\n")
+    return output.getvalue()
 
 
 class NoModelAdapter(BaseLLMAdapter):
@@ -33,8 +67,9 @@ def render_html(report: dict) -> str:
     esc = lambda value: html.escape(str(value), quote=True)
     complete = report["status"] == "complete"
     title = "Сверка завершена" if complete else "Нужно уточнение — сравнение не выполнено"
-    parts = [f"<h1>{title}</h1>",
-             "<p>Кристина · помощник по сверке данных. Расчёт выполнен локальным кодом, без LLM.</p>"]
+    parts = _ReportBuffer("HTML")
+    parts.extend([f"<h1>{title}</h1>",
+                  "<p>Кристина · помощник по сверке данных. Расчёт выполнен локальным кодом, без LLM.</p>"])
     parts.append("<h2>Источники</h2><table><thead><tr><th>Список</th><th>Файл</th>"
                  "<th>Строк данных</th><th>SHA-256 исходных байтов</th></tr></thead><tbody>")
     for side, label in (("left", "A"), ("right", "B")):
@@ -91,7 +126,7 @@ def render_html(report: dict) -> str:
         parts.extend(f"<li><strong>{esc(item['key'])}</strong>A: {evidence(item['left'])}"
                      f"B: {evidence(item['right'])}</li>" for item in report["matched"])
         parts.append("</ul></details>")
-    return ("<!doctype html><html lang='ru'><meta charset='utf-8'>"
+    prefix = ("<!doctype html><html lang='ru'><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
             "<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\">"
             f"<title>{title} — Кристина</title><style>"
@@ -104,7 +139,11 @@ def render_html(report: dict) -> str:
             ".totals div{background:#eaf1f4;border-radius:8px;padding:14px;flex:1;min-width:150px}"
             ".totals strong{display:block;font-size:26px}.totals span{display:block}summary{cursor:pointer}"
             "li{margin-bottom:12px}@media(max-width:650px){body{padding:8px}main{padding:12px}th,td{padding:5px;font-size:13px}}"
-            "</style><main>" + "".join(parts) + "</main></html>")
+            "</style><main>")
+    suffix = "</main></html>"
+    if parts.size + len(prefix.encode("utf-8")) + len(suffix) > MAX_REPORT_BYTES:
+        raise ValueError("HTML report exceeds 16 MiB; split the input lists")
+    return prefix + parts.getvalue() + suffix
 
 
 def main(argv=None) -> int:
@@ -143,7 +182,7 @@ def main(argv=None) -> int:
             left, right, left_name=args.left.name, right_name=args.right.name,
             key=args.key, fields=fields if fields or args.membership_only else None,
             strip=args.strip, delimiter="\t" if args.delimiter == "tab" else args.delimiter)
-        payloads = [(args.output, json.dumps(report, ensure_ascii=False, indent=2) + "\n")]
+        payloads = [(args.output, render_json(report))]
         if args.html:
             payloads.append((args.html, render_html(report)))
         written = []
