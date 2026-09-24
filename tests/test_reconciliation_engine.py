@@ -137,7 +137,7 @@ def test_explicit_delimiters_and_header_only_empty_lists(delimiter):
     (b"x" * (MAX_SOURCE_BYTES + 1), "2 MiB"),
     (b"id\n" + b"x\n" * 5001, "5000"),
     ((",".join(f"h{i}" for i in range(201))).encode(), "200"),
-])
+], ids=["source-bytes", "record-count", "column-count"])
 def test_source_limits_rejected(raw, message):
     with pytest.raises(ValueError, match=message):
         run_reconciliation(raw, b"id\nx", key=("id", "id"), fields=[])
