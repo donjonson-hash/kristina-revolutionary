@@ -1,5 +1,6 @@
 """Exercise actual avatar -> executor -> report, including fail-closed paths."""
 import hashlib
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
@@ -69,7 +70,9 @@ def test_html_escapes_untrusted_cells(tmp_path):
     assert proc.returncode == 0, proc.stderr
     text = page.read_text()
     assert "<script>" not in text and "<img src=x" not in text
-    assert "&lt;script&gt;" in text and "&lt;img src=x" in text
+    visible = _ReportText(text)
+    assert "<script>alert(1)</script>" in visible.values
+    assert "<img src=x onerror=alert(1)>" in visible.values
     assert "default-src 'none'" in text
 
 
@@ -108,12 +111,11 @@ def test_amplified_reports_are_rejected_before_either_file_is_created(tmp_path, 
         right.write_bytes(raw)
         rules = ["--membership-only"]
     else:
-        # JSON stays small, but the HTML repeats the long key for every change.
-        columns = [f"f{i}" for i in range(199)]
+        # JSON stays below its limit; HTML escaping amplifies both source values.
+        columns = [f"f{i}" for i in range(100)]
         header = ",".join(["id", *columns]) + "\n"
-        key = "k" * 100000
-        left.write_text(header + ",".join([key, *(["a"] * 199)]) + "\n")
-        right.write_text(header + ",".join([key, *(["b"] * 199)]) + "\n")
+        left.write_text(header + ",".join(["x", *(["&" * 18000 + "a"] * 100)]) + "\n")
+        right.write_text(header + ",".join(["x", *(["&" * 18000 + "b"] * 100)]) + "\n")
         rules = [arg for column in columns for arg in ("--field", column)]
     originals = [p.read_bytes() for p in (left, right)]
     output, page = tmp_path / "result.json", tmp_path / "result.html"
@@ -150,3 +152,81 @@ def test_html_budget_includes_document_wrapper(monkeypatch):
     monkeypatch.setattr(cli, "MAX_REPORT_BYTES", len(expected.encode("utf-8")) - 1)
     with pytest.raises(ValueError, match="HTML report exceeds"):
         cli.render_html(report)
+
+
+class _ReportText(HTMLParser):
+    """Read the visible source values even when a mark splits their text nodes."""
+
+    def __init__(self, page):
+        super().__init__(convert_charrefs=True)
+        self.values = []
+        self.marks = []
+        self._value = None
+        self._mark = None
+        self.feed(page)
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "dd":
+            self._value = ""
+        if tag == "mark":
+            self._mark = ""
+
+    def handle_data(self, data):
+        if self._value is not None:
+            self._value += data
+        if self._mark is not None:
+            self._mark += data
+
+    def handle_endtag(self, tag):
+        if tag == "dd":
+            self.values.append(self._value)
+            self._value = None
+        if tag == "mark":
+            self.marks.append(self._mark)
+            self._mark = None
+
+
+def test_document_view_preserves_values_and_marks_only_differing_span():
+    from avatar_platform.reconciliation import run_reconciliation
+    from reconcile_lists import render_html
+
+    report = run_reconciliation(
+        b"sku,text,amount,note\nx,Delivery 15 days,10,unreviewed A\nleft,only left,1,a\nsame,ok,2,a\n",
+        b"code,description,qty,note\nx,Delivery 20 days,10.00,unreviewed B\nright,only right,1,b\nsame,ok,2.0,b\n",
+        key=("sku", "code"), fields=[("text", "description", "text"), ("amount", "qty", "number")])
+    page = render_html(report)
+    parsed = _ReportText(page)
+    assert parsed.marks == ["15", "20"]
+    assert "Delivery 15 days" in parsed.values and "Delivery 20 days" in parsed.values
+    assert "10" in parsed.values and "10.00" in parsed.values
+    assert "unreviewed A" in parsed.values and "unreviewed B" in parsed.values
+    assert "only left" in parsed.values and "only right" in parsed.values
+    assert "Не сравнивалось" in page and "Совпадает как число" in page
+    assert page.count("Запись с этим ключом отсутствует.") == 2
+    assert "<table" not in page and "<script" not in page
+    assert "A — sku; B — code" in page
+    assert len(parsed.values) == 24  # Every original field from all six records, once.
+
+
+def test_highlight_keeps_empty_multiline_and_escaped_values():
+    from reconcile_lists import _highlight_value
+
+    for left, right in [("", "added"), ("a\nb<>&", "a\nc<>&"), ("abc", "abcd"), ("same", "same")]:
+        for value, other in ((left, right), (right, left)):
+            parsed = _ReportText("<dd>" + _highlight_value(value, other) + "</dd>")
+            assert parsed.values == [value]
+
+
+def test_long_key_is_not_repeated_for_each_difference():
+    from avatar_platform.reconciliation import run_reconciliation
+    from reconcile_lists import render_html
+
+    columns = [f"f{i}" for i in range(199)]
+    header = ",".join(["id", *columns]) + "\n"
+    key = "k" * 100000
+    left = (header + ",".join([key, *(["a"] * 199)]) + "\n").encode()
+    right = (header + ",".join([key, *(["b"] * 199)]) + "\n").encode()
+    report = run_reconciliation(left, right, key=("id", "id"), fields=[(c, c, "text") for c in columns])
+    page = render_html(report)
+    assert page.count(key) == 3  # Pair heading and one original key on each side.
+    assert len(page.encode()) < 500000
