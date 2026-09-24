@@ -1,0 +1,10 @@
+{
+  "name": "kristina-reconciliation-ui-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test reconciliation.test.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.1"
+  }
+}
