@@ -41,3 +41,14 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm test
+
+      - name: Offline extension parity and integration
+        run: node --test tests/extension/*.test.mjs
+
+      - name: Build browser extensions
+        run: python scripts/build_reconciliation_extension.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kristina-browser-extensions
+          path: dist/extension/*.zip
