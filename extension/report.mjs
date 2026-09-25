@@ -68,7 +68,7 @@ export function renderHtml(report) {
   } else {
     append('<div class="totals">');
     for (const [key, label] of Object.entries(LABELS)) append(`<div><strong>${escape(report.summary[key])}</strong><span>${label}</span></div>`);
-    append('</div><p>Записи двух CSV показаны рядом и сопоставлены по ключу. Это представление исходных данных, а не исходная вёрстка документа. Подсветка отмечает изменившуюся часть значения; подписи указывают вид отличия.</p>');
+    append('</div><p>Записи двух файлов показаны рядом и сопоставлены по ключу. Это представление исходных данных, а не исходная вёрстка документа. Подсветка отмечает изменившуюся часть значения; подписи указывают вид отличия.</p>');
     append(`<p><strong>Ключ сопоставления:</strong> A — ${escape(report.rules.key[0])}; B — ${escape(report.rules.key[1])}.</p>`);
     append('<p>Порядок соответствует записям A; позиции только в B добавлены в конце в порядке B. Номер записи в каждой панели относится к исходному файлу.</p>');
     if (report.summary.left_rows && report.summary.right_rows && !report.summary.matched && !report.summary.changed) append('<p><strong>Нет сопоставленных позиций.</strong> Проверьте ключи: отсутствие пар не означает совпадение документов.</p>');
@@ -77,12 +77,12 @@ export function renderHtml(report) {
       const index = side === 'left' ? 0 : 1, label = index === 0 ? 'A' : 'B';
       append(`<article class="paper ${side}${!row ? ' absent' : only ? (index === 0 ? ' removed' : ' added') : ''}"><header>${label} · ${escape(report.sources[side].name)}</header>`);
       if (!row) { append('<p class="empty">Запись с этим ключом отсутствует.</p></article>'); return; }
-      append(`<details open><summary>Исходная запись ${escape(row.record)}</summary><dl>`);
+      append(`<details open><summary>${row.sheet ? 'Лист «' + escape(row.sheet) + '» · строка ' : 'Исходная запись '}${escape(row.record)}</summary><dl>`);
       const changed = new Map(changes.map(change => [change[index === 0 ? 'left_column' : 'right_column'], change]));
       // Preserve original column order, including numeric and prototype-like names.
       for (const column of report.sources[side].headers) {
         const value = row.values[column], change = changed.get(column);
-        append(`<div class="field${change ? ' changed' : ''}"><dt>${escape(column)}</dt><dd>`);
+        append(`<div class="field${change ? ' changed' : ''}"><dt>${escape(column)}${row.cells?.[column] ? ' · ' + escape(row.cells[column]) : ''}</dt><dd>`);
         if (only || change?.mode === 'number') append(`<mark>${escape(value)}</mark>`);
         else append(change ? highlight(value, change[index === 0 ? 'after' : 'before']) : escape(value));
         append('</dd>');
@@ -117,6 +117,8 @@ export function renderHtml(report) {
   for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
     const source = report.sources[side];
     append(`<div class="source"><strong>${label} · ${escape(source.name)}</strong><p>Строк данных: ${escape(source.row_count)}</p><p class="hash">SHA-256 исходных байтов: ${escape(source.sha256)}</p></div>`);
+    if (source.sheet) append(`<p>Проверен только лист «${escape(source.sheet)}».</p>`);
+    for (const note of source.notes || []) append(`<p>${escape(note)}</p>`);
   }
   append('<h2>Правила сравнения</h2><pre>' + escape(renderJson(report.rules)) + '</pre><p>Сравниваются только выбранные столбцы. Текст сравнивается с учётом регистра. Числа — только в выбранных числовых столбцах; единицы и валюты не пересчитываются. Номер записи включает заголовок: первая строка данных — запись 2. При переносах внутри CSV-ячейки это не номер физической строки файла.</p></details></main></body></html>');
   return output.finish();

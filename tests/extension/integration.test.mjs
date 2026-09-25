@@ -11,6 +11,7 @@ import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {Worker as NodeWorker} from 'node:worker_threads';
 import {setTimeout as delay} from 'node:timers/promises';
+import {xlsx} from './xlsx-fixture.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(new URL('../browser/package.json', import.meta.url));
@@ -207,6 +208,43 @@ async function page(t, target) {
   }
   return {$, dom, requests, downloads, clipboard, result, file};
 }
+
+for (const target of ['firefox', 'chrome']) test(`${target}: XLSX worksheet choice, switch, mixed CSV, cell evidence and reset through real Worker`, async t => {
+  const p = await page(t, target), {$} = p;
+  const rows = [['Артикул', 'Количество'], ['00123', 10]];
+  const book = xlsx([{name: 'Заказ', rows}, {name: 'Архив', rows: [['Артикул', 'Количество'], ['00123', 8]], hidden: true}]);
+  await p.file('left', book, 'order.xlsx');
+  await p.file('right', 'Артикул,Количество\n00123,10', 'answer.csv');
+  await until(() => !$('left-sheet').parentElement.hidden && !$('left-sheet').disabled);
+  assert.equal($('results').hidden, true);
+  assert.match($('left-sheet').textContent, /Архив \(скрытый\)/);
+  $('left-sheet').value = '1'; $('left-sheet').dispatchEvent(new p.dom.window.Event('change'));
+  await p.result();
+  assert.match($('result-rows').textContent, /Архив/);
+  assert.match($('result-rows').textContent, /B2/);
+  assert.equal($('result-rows').querySelectorAll('.document-pair.changed').length, 1);
+  $('office-suggestions').querySelector('[data-question="Подготовь письмо"]').click();
+  assert.match($('office-draft').value, /Архив.*!B2/);
+  $('download-html').click();
+  assert.match(await p.downloads.at(-1).blob.text(), /Количество · B2/);
+  $('left-sheet').value = '0'; $('left-sheet').dispatchEvent(new p.dom.window.Event('change'));
+  assert.equal($('results').hidden, true);
+  assert.equal($('office-draft').value, '');
+  await p.result();
+  assert.equal($('result-rows').querySelectorAll('.document-pair.matched').length, 1);
+  await p.file('right', xlsx([{name: 'Ответ', rows}]), 'answer.xlsx');
+  await p.result();
+  assert.match($('right-meta').textContent, /Ответ/);
+  assert.equal($('right-sheet').parentElement.hidden, true);
+  await p.file('left', 'Артикул,Количество\n00123,10', 'plain.csv');
+  await p.result();
+  assert.equal($('left-sheet').parentElement.hidden, true);
+  const bad = xlsx([{name: 'Формула', rows: [['Артикул', 'Количество'], ['00123', {f: '1+1', t: 'n'}]]}]);
+  await p.file('right', bad, 'formula.xlsx');
+  await until(() => !$('compare').disabled && /формул/.test($('notice').textContent));
+  assert.equal($('results').hidden, true);
+  assert.equal($('office-draft').value, '');
+});
 
 for (const target of ['firefox', 'chrome']) {
   test(`${target}: real worker demo, control CSV uploads, evidence and offline downloads`, async t => {
