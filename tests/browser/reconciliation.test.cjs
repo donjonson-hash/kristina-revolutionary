@@ -95,13 +95,15 @@ test('demo -> real comparison -> evidence, categories, search and both downloads
   $('demo').click();
   await until(() => !$('results').hidden && !$('compare').disabled);
   assert.equal($('settings').open, false, 'demo needs no settings');
+  assert.equal($('commercial-summary').hidden, true, 'Legacy Python report has no commercial calculation');
+  assert.equal($('office-impact-question').hidden, true);
   assert.deepEqual([...$('totals').querySelectorAll('strong')].map((n) => n.textContent), ['5', '2', '1', '1', '1']);
   assert.match($('result-rows').textContent, /DS-200/);
   assert.match($('result-rows').textContent, /LP-300/);
   assert.equal($('result-rows').querySelector('table'), null);
   assert.match($('result-rows').textContent, /равно как число/);
   const changed = $('result-rows').querySelector('[data-category=changed]');
-  assert.deepEqual([...changed.querySelectorAll('mark')].map(n => n.textContent), ['5', '4']);
+  assert.deepEqual([...changed.querySelectorAll('mark')].map(n => n.textContent), ['5', '20', '4', '22']);
   $('next-change').click();
   assert.equal(p.window.document.activeElement.dataset.index, changed.dataset.index);
   $('download-json').click();
