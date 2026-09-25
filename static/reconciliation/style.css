@@ -66,6 +66,10 @@ select,input[type=search]{padding:10px;border:1px solid #c4cec5;background:white
 .result-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:22px}
 .result-heading .eyebrow{margin-bottom:8px}
 .downloads{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:52%}
+.download-formats{display:flex;gap:4px;flex-wrap:wrap;justify-content:inherit}
+.download-formats .button{padding:9px 12px}
+.export-status{flex-basis:100%;margin-top:2px;text-align:right}
+.export-status.export-error{color:#8b4931}
 .totals{display:flex;flex-wrap:wrap;gap:8px}
 .total{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:30px;background:transparent;padding:9px 15px;font-size:12px;color:var(--muted)}
 .total strong{font-size:14px;color:var(--ink)}
@@ -196,7 +200,7 @@ main{padding:0 18px}
 
 .document-field.office-target{outline:2px solid #668669;outline-offset:5px;border-radius:2px}
 
-@media(max-width:700px){.downloads{max-width:100%;justify-content:flex-start}}
+@media(max-width:700px){.downloads{max-width:100%;justify-content:flex-start}.export-status{text-align:left}}
 /* Worksheet selection stays next to its source, outside advanced settings. */
 .sheet-choice{display:grid;gap:8px;margin-top:14px;overflow-wrap:anywhere}
 .sheet-choice[hidden]{display:none}
