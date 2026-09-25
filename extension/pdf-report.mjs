@@ -25,15 +25,9 @@ function contents(report) {
   add('Сравнение выполнено локально. Исходная вёрстка документов не воспроизводится.', {muted: true});
   add(`Изменились: ${report.summary.changed}; только в A: ${report.summary.only_left}; только в B: ${report.summary.only_right}; совпали: ${report.summary.matched}.`);
   add('Совпавшие пары опущены. Полное извлечённое содержимое доступно в HTML/JSON-отчёте. Исходные файлы следует хранить отдельно.', {muted: true});
-  add('Красная подсветка — значение A; зелёная — значение B. Неподдерживаемые символы и управляющие коды обозначаются [U+XXXX], табуляция — \\t, возврат каретки — \\r. Точные исходные символы сохраняются в JSON.', {muted: true});
-  heading('Источники');
-  for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
-    const source = report.sources[side];
-    add(`${label}: ${source.name}`);
-    add(`SHA-256: ${source.sha256}`, {size: 10, muted: true});
-    add(report.kind === 'text' ? `Формат: ${source.format}; текстовых блоков: ${source.block_count}.` : `Строк данных: ${source.row_count}.${source.sheet ? ' Проверен только лист «' + source.sheet + '».' : ''}`, {muted: true});
-    for (const note of source.notes || []) add(`${label}: ${note}`, {muted: true});
-  }
+  add('Красная подсветка — значение A; зелёная — значение B.', {muted: true});
+  add(`A: ${report.sources.left.name}`);
+  add(`B: ${report.sources.right.name}`);
   if (report.commercial) {
     const summary = report.commercial;
     heading('Количество, цена и сумма');
@@ -43,23 +37,6 @@ function contents(report) {
     add(summary.scope, {muted: true});
     for (const total of summary.totals) add(`${total.currency}: A ${money(total.before)} → B ${money(total.after)}; B − A: ${money(total.delta)}.${summary.status === 'partial' ? ' Это не итог всех позиций.' : ''}`, {fill: 'neutral'});
     for (const message of summary.messages) add(message, {muted: true});
-    for (const item of summary.items) {
-      add(`${item.key}: A ${money(item.before)} → B ${money(item.after)}; B − A: ${money(item.delta)} ${item.currency}.`, {context: 'Расчёт по позициям'});
-      add(`A: ${location(item.left)}; B: ${location(item.right)}.`, {muted: true, context: 'Расчёт по позициям'});
-    }
-    for (const item of summary.excluded) add(`${item.key} — исключено: ${item.reasons.join(' ')}`, {context: 'Исключённые позиции'});
-  }
-  heading('Правила и границы проверки');
-  if (report.kind === 'text') {
-    add('Режим: сравнение извлечённого текста. Переводы строк приведены к единому виду; пробелы и регистр учитываются. Это не оценка юридического смысла, достоверности или орфографии. Отсутствие блока означает отсутствие сопоставленного текста, а не установленную причину изменения.');
-  } else {
-    add(`Ключ: A «${report.rules.key[0]}» ↔ B «${report.rules.key[1]}».`);
-    for (const [a, b, mode] of report.rules.fields) add(`A «${a}» ↔ B «${b}» — ${mode === 'number' ? 'число' : 'текст'}.`);
-    add(report.rules.strip ? 'Пробелы по краям значений и ключей удалялись перед сравнением.' : 'Пробелы по краям значений и ключей учитывались.');
-    const delimiter = report.rules.delimiter;
-    const delimiterName = delimiter === '\t' ? 'табуляция' : delimiter === ',' ? 'запятая' : delimiter === ';' ? 'точка с запятой' : `«${delimiter}»`;
-    add(`Разделитель CSV/TSV: ${delimiterName}. Текст сравнивается с учётом регистра. Числовые поля сравниваются как десятичные числа; единицы и валюты не пересчитываются.`);
-    add('Поля вне правил не проверялись. Номер записи CSV включает заголовок и может отличаться от физической строки при переносах внутри ячейки.');
   }
   heading('Обнаруженные различия');
   const rows = ['changed', 'only_left', 'only_right'].flatMap(category => report[category].map(item => ({item, category})));
@@ -96,6 +73,49 @@ function contents(report) {
       for (const column of report.sources[side].headers) add(`${column}${item.row.cells?.[column] ? ' [' + item.row.cells[column] + ']' : ''}: ${item.row.values[column] === '' ? '(пустое значение)' : item.row.values[column]}`, {fill: side, context});
     }
   }
+  if (report.commercial) {
+    const summary = report.commercial;
+    heading('Расчёт по позициям');
+    for (const item of summary.items) {
+      add(`${item.key}: A ${money(item.before)} → B ${money(item.after)}; B − A: ${money(item.delta)} ${item.currency}.`, {context: 'Расчёт по позициям'});
+      add(`A: ${location(item.left)}; B: ${location(item.right)}.`, {muted: true, context: 'Расчёт по позициям'});
+    }
+    for (const item of summary.excluded) add(`${item.key} — исключено: ${item.reasons.join(' ')}`, {context: 'Исключённые позиции'});
+  }
+  heading('Правила и границы проверки');
+  if (report.kind === 'text') {
+    add('Режим: сравнение извлечённого текста. Переводы строк приведены к единому виду; пробелы и регистр учитываются. Это не оценка юридического смысла, достоверности или орфографии. Отсутствие блока означает отсутствие сопоставленного текста, а не установленную причину изменения.');
+  } else {
+    add(`Ключ: A «${report.rules.key[0]}» ↔ B «${report.rules.key[1]}».`);
+    for (const [a, b, mode] of report.rules.fields) add(`A «${a}» ↔ B «${b}» — ${mode === 'number' ? 'число' : 'текст'}.`);
+    add(report.rules.strip ? 'Пробелы по краям значений и ключей удалялись перед сравнением.' : 'Пробелы по краям значений и ключей учитывались.');
+    const delimiter = report.rules.delimiter;
+    const delimiterName = delimiter === '\t' ? 'табуляция' : delimiter === ',' ? 'запятая' : delimiter === ';' ? 'точка с запятой' : `«${delimiter}»`;
+    add(`Разделитель CSV/TSV: ${delimiterName}. Текст сравнивается с учётом регистра. Числовые поля сравниваются как десятичные числа; единицы и валюты не пересчитываются.`);
+    add('Поля вне правил не проверялись. Номер записи CSV включает заголовок и может отличаться от физической строки при переносах внутри ячейки.');
+  }
+  heading('Источники');
+  for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
+    const source = report.sources[side];
+    add(`${label}: ${source.name}`);
+    add(`SHA-256: ${source.sha256}`, {size: 10, muted: true});
+    add(report.kind === 'text' ? `Формат: ${source.format}; текстовых блоков: ${source.block_count}.` : `Строк данных: ${source.row_count}.${source.sheet ? ' Проверен только лист «' + source.sheet + '».' : ''}`, {muted: true});
+  }
+  const leftNotes = new Set(report.sources.left.notes || []);
+  const rightNotes = new Set(report.sources.right.notes || []);
+  const commonNotes = [...leftNotes].filter(note => rightNotes.has(note));
+  if (commonNotes.length) {
+    heading('Пояснения для обоих файлов');
+    for (const note of commonNotes) add(note, {muted: true});
+  }
+  for (const [notes, other, label] of [[leftNotes, rightNotes, 'A'], [rightNotes, leftNotes, 'B']]) {
+    const unique = [...notes].filter(note => !other.has(note));
+    if (unique.length) {
+      heading(`Особенности файла ${label}`);
+      for (const note of unique) add(note, {muted: true});
+    }
+  }
+  add('Неподдерживаемые символы и управляющие коды обозначаются [U+XXXX], табуляция — \\t, возврат каретки — \\r. Точные исходные символы сохраняются в JSON.', {muted: true});
   return sections;
 }
 
