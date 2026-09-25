@@ -217,6 +217,7 @@ main{padding:0 18px}
 .text-record.before mark{background:var(--old)}
 .text-record.after mark{background:var(--new)}
 .text-content.is-empty::before{content:"Пустая строка";font-family:Inter,system-ui,sans-serif;font-size:11px;font-style:italic;color:var(--muted)}
+.pdf-page-label{font:11px/1.5 system-ui,sans-serif;color:var(--muted);padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--line)}
 .text-results .search-label input{width:200px}
 @media(max-width:700px){.text-record{padding:16px 11px}.text-content{font-size:15px;line-height:1.8}.text-results .search-label input{width:100%}}
 

@@ -15,7 +15,9 @@ export function renderTextHtml(report) {
     if (bytes > MAX_REPORT_BYTES - size) throw new RangeError('HTML report exceeds 16 MiB; split the input documents');
     size += bytes; parts.push(text);
   }
-  append(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Сверка текста — Кристина</title><style>${style}</style></head><body><main><h1>Различия в тексте документов</h1><p>Кристина сравнила извлечённый текст локально, без LLM. Подсветка показывает текстовые изменения. Это не оценка юридического смысла, достоверности фактов или орфографии.</p><p>Показано содержимое текстовых блоков, а не исходная вёрстка. Различия переводов строк нормализованы; пробелы и регистр учитываются. Места в исходных документах указаны в каждой панели.</p><div class="totals">`);
+  append(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Сверка текста — Кристина</title><style>${style}</style></head><body><main><h1>Различия в тексте документов</h1><p>Кристина сравнила извлечённый текст локально, без LLM. Подсветка показывает текстовые изменения. Это не оценка юридического смысла, достоверности фактов или орфографии.</p><p>Показано содержимое текстовых блоков, а не исходная вёрстка. Различия переводов строк нормализованы; пробелы и регистр учитываются. Места в исходных документах указаны в каждой панели.</p>`);
+  if (Object.values(report.sources).some(source => source.format === 'pdf')) append('<p>PDF: проверен извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении; оформление и нетекстовые элементы не сравнивались.</p>');
+  append('<div class="totals">');
   for (const [category, label] of Object.entries(labels)) append(`<div><strong>${escape(report.summary[category])}</strong><span>${label}</span></div>`);
   append('</div>');
   for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
@@ -48,7 +50,7 @@ export function renderTextHtml(report) {
   append('<details class="metadata"><summary>Источники и правила</summary>');
   for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
     const source = report.sources[side];
-    append(`<div class="source"><strong>${label} · ${escape(source.name)}</strong><p>Формат: ${escape(source.format)}. Текстовых блоков: ${escape(source.block_count)}.</p><p class="hash">SHA-256 исходных байтов: ${escape(source.sha256)}</p></div>`);
+    append(`<div class="source"><strong>${label} · ${escape(source.name)}</strong><p>Формат: ${escape(source.format)}. Текстовых блоков: ${escape(source.block_count)}.${source.page_count ? ' Страниц PDF: ' + escape(source.page_count) + '.' : ''}</p><p class="hash">SHA-256 исходных байтов: ${escape(source.sha256)}</p></div>`);
   }
   append('<h2>Правила сравнения</h2><pre>' + escape(renderJson(report.rules)) + '</pre><p>«Только в A/B» означает отсутствие сопоставленного блока в извлечённом тексте другой стороны. Причины изменения и его смысл не устанавливаются.</p></details></main></body></html>');
   return parts.join('');

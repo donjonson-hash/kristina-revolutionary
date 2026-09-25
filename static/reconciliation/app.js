@@ -156,7 +156,7 @@
     officeReset('Текущая сверка сброшена. Добавьте файлы или примените настройки — разберём новый результат.');
   }
   function dirty() { clearResult(); notice('Настройки изменены. Нажмите «Применить настройки» или «Продолжить».'); }
-  function textSourcesSelected() { return Object.values(state.sources).some(source => source && /\.(txt|docx)$/i.test(source.name)); }
+  function textSourcesSelected() { return Object.values(state.sources).some(source => source && /\.(txt|docx|pdf)$/i.test(source.name)); }
   function delimiter() { return $('delimiter').value === 'tab' ? '\t' : $('delimiter').value; }
   function encode(bytes) {
     let text = '';
@@ -174,7 +174,7 @@
   }
   function sourceLabel(side, file) {
     $(side + '-filename').textContent = file ? file.name : 'Выберите файл или перетащите сюда';
-    $(side + '-meta').textContent = file ? 'Файл выбран · нажмите, чтобы заменить' : (window.KristinaTransport ? 'XLSX, CSV, TXT, DOCX · до 2 MiB' : 'CSV · UTF-8 · до 2 MiB');
+    $(side + '-meta').textContent = file ? 'Файл выбран · нажмите, чтобы заменить' : (window.KristinaTransport ? 'XLSX, CSV, TXT, DOCX, PDF · до 2 MiB' : 'CSV · UTF-8 · до 2 MiB');
   }
   function showSheets(side, sheets = [], selected = null) {
     const select = $(side + '-sheet');
@@ -249,7 +249,7 @@
         $('settings').hidden = true; $('rules-empty').hidden = true;
         for (const side of ['left', 'right']) {
           showSheets(side);
-          $(side + '-meta').textContent = `${metadata[side].block_count} фрагментов · ${String(metadata[side].format).toUpperCase()} · заменить файл`;
+          $(side + '-meta').textContent = `${metadata[side].page_count ? metadata[side].page_count + ' стр. · ' : ''}${metadata[side].block_count} фрагментов · ${String(metadata[side].format).toUpperCase()} · заменить файл`;
         }
         ready = metadata.ready;
       } else {
@@ -288,7 +288,7 @@
     $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
     $('rules').hidden = true; $('rules').disabled = true; $('rules-empty').hidden = false; sourceLabel(side, null);
     if (file.size > MAX_FILE_BYTES) { notice('Файл превышает 2 MiB. Выберите меньший файл.', true); return; }
-    if (/\.(txt|docx)$/i.test(file.name) && !window.KristinaTransport) { notice('TXT и DOCX доступны в расширении Кристины. Здесь загрузите CSV.', true); return; }
+    if (/\.(txt|docx|pdf)$/i.test(file.name) && !window.KristinaTransport) { notice('TXT, DOCX и PDF доступны в расширении Кристины. Здесь загрузите CSV.', true); return; }
     if (/\.(xlsx|xls|xlsm|xlsb|ods)$/i.test(file.name) && !window.KristinaTransport) { notice('Excel доступен в расширении Кристины. Здесь загрузите CSV.', true); return; }
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -361,14 +361,17 @@
     $('result-heading').textContent = complete ? (report.summary.changed + report.summary.only_left + report.summary.only_right ? 'Различия в документах' : 'Проверенные значения совпадают') : 'Нужно уточнить данные';
     $('settings').hidden = textMode; $('text-scope').hidden = !textMode;
     $('results').classList.toggle('text-results', textMode);
+    const pdfMode = textMode && Object.values(report.sources).some(source => source.format === 'pdf');
+    $('text-scope').textContent = pdfMode ? 'PDF: сравнивается извлечённый текстовый слой. Исходная вёрстка, рисунки и юридический смысл не проверяются; пробелы и порядок строк могут зависеть от устройства PDF.' : 'Сравнивается только текст: оформление, орфография и юридический смысл не проверяются.';
     $('search').placeholder = textMode ? 'Найти в тексте…' : 'Найти артикул…';
     $('search-label-text').textContent = textMode ? 'Найти текст в документах' : 'Найти позицию';
     $('totals').setAttribute('aria-label', textMode ? 'Показать фрагменты' : 'Показать позиции');
     const notes = $('text-source-notes'); notes.replaceChildren();
     if (textMode) {
       $('result-context').textContent = `${report.summary.left_blocks} фрагментов в A · ${report.summary.right_blocks} в B. Показан извлечённый текст без исходной вёрстки.`;
-      if (!report.summary.changed && !report.summary.only_left && !report.summary.only_right) $('result-heading').textContent = 'Текст документов совпадает';
+      if (!report.summary.changed && !report.summary.only_left && !report.summary.only_right) $('result-heading').textContent = pdfMode ? 'Извлечённый текст совпадает' : 'Текст документов совпадает';
       $('audit-explanation').textContent = 'Сравнивается извлечённый текст: строки TXT и абзацы DOCX. Сохранены исходные слова, пробелы и порядок; унифицированы переводы строк. Номера и подписи фрагментов относятся к каждому исходному файлу. Фрагменты без пары показаны только с одной стороны. Оформление и вёрстка не сравниваются.';
+      if (pdfMode) $('audit-explanation').textContent = 'Сравнивается текстовый слой PDF: строки связаны с номерами исходных страниц. Вёрстка и номера страниц не являются правилами сравнения. Пробелы и порядок строк восстановлены при извлечении; исходные страницы здесь не воспроизводятся.';
       for (const side of ['left', 'right']) for (const note of (report.sources[side].notes || [])) notes.append(element('li', `${side === 'left' ? 'A' : 'B'}: ${note}`));
     } else {
       $('result-context').textContent = 'Пары строк совмещены по «' + report.rules.key.join('» ↔ «') + '». Номера записей — в исходных файлах.';
@@ -418,6 +421,7 @@
     const title = element('div', undefined, 'record-title');
     const labels = {changed: 'Текст изменён', matched: 'Текст совпадает', only_left: 'Только в A', only_right: 'Только в B'};
     title.append(element('strong', row.location), element('span', labels[item.category], 'record-status')); panel.append(title);
+    if (row.page && row.line === 1) panel.append(element('p', `Страница ${row.page}`, 'pdf-page-label'));
     const content = element('p', undefined, 'text-content');
     if (item.category === 'changed') {
       const segments = item.segments?.[side];
@@ -600,12 +604,12 @@
   if (window.matchMedia?.('(max-width:1379px)').matches) $('office-panel').open = false;
   officeEnable(); exportEnable();
   if (window.KristinaTransport) {
-    $('supported-formats').textContent = 'Таблицы CSV и Excel или текстовые документы TXT и DOCX. Формат определю по файлам.';
+    $('supported-formats').textContent = 'Таблицы CSV/Excel, тексты TXT/DOCX и текстовые PDF без изображений, форм и комментариев.';
     $('source-privacy').textContent = 'Сравнение начнётся автоматически. Файлы обрабатываются локально, без отправки в LLM. До 2 MiB на файл.';
   }
   for (const side of ['left', 'right']) {
     if (window.KristinaTransport) {
-      $(side + '-file').accept += ',.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.txt,text/plain,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      $(side + '-file').accept += ',.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.txt,text/plain,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,application/pdf';
       sourceLabel(side, null);
       const label = element('label', 'Лист для сверки', 'sheet-choice'), select = element('select');
       select.id = side + '-sheet'; select.setAttribute('aria-label', 'Лист для сверки ' + (side === 'left' ? 'A' : 'B'));
