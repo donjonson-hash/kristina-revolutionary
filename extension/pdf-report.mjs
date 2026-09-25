@@ -13,12 +13,12 @@ const money = value => value === null ? 'не рассчитано' : String(val
 const location = row => row ? `${row.sheet ? 'лист «' + row.sheet + '», ' : ''}строка ${row.record}${row.cells ? ', ячейки ' + Object.values(row.cells).join(', ') : ''}` : 'позиции нет';
 
 function contents(report) {
-  const sections = []; let characters = 0, currentContext = '';
+  const sections = []; let characters = 0, currentContext = '', technical = false;
   function add(text, options = {}) {
     const segments = typeof text === 'string' ? [{text, changed: false}] : text;
     characters += segments.reduce((sum, segment) => sum + segment.text.length, 0);
     if (characters > MAX_PDF_CHARACTERS) throw new RangeError(LIMIT);
-    sections.push({segments, size: 10.5, gap: 4, context: currentContext, ...options});
+    sections.push({segments, size: technical ? 10 : 10.5, gap: technical ? 3 : 4, context: currentContext, ...options});
   }
   const heading = text => { currentContext = text; add(text, {size: 14, heading: true, gap: 10}); };
   add('Кристина · отчёт о сверке', {size: 21, gap: 13});
@@ -82,6 +82,7 @@ function contents(report) {
     }
     for (const item of summary.excluded) add(`${item.key} — исключено: ${item.reasons.join(' ')}`, {context: 'Исключённые позиции'});
   }
+  technical = true;
   heading('Правила и границы проверки');
   if (report.kind === 'text') {
     add('Режим: сравнение извлечённого текста. Переводы строк приведены к единому виду; пробелы и регистр учитываются. Это не оценка юридического смысла, достоверности или орфографии. Отсутствие блока означает отсутствие сопоставленного текста, а не установленную причину изменения.');
@@ -211,14 +212,40 @@ export async function renderPdf(report) {
     if (line.length) flush(line.length);
     wrapped.set(index, lines); return lines;
   }
+  // Measure drawing space, excluding the unused gap after the final paragraph.
+  function groupHeight(start, end) {
+    let height = 0;
+    for (let i = start; i <= end; i++) {
+      height += linesFor(i).length * sections[i].size * 1.45;
+      if (i < end) height += sections[i].gap;
+    }
+    return height;
+  }
   newPage();
+  let protectedUntil = -1;
   for (let index = 0; index < sections.length; index++) {
     const section = sections[index], lines = linesFor(index);
-    if (section.heading && y - section.size * 1.45 - 30 < BOTTOM) newPage();
-    if (section.keepNext) {
-      let height = 0;
-      for (let next = index; next <= Math.min(index + section.keepNext, sections.length - 1); next++) height += linesFor(next).length * sections[next].size * 1.45 + sections[next].gap;
-      if (height <= TOP - BOTTOM - 19 && y - height < BOTTOM) newPage(section.context);
+    if (index > protectedUntil) {
+      let end = index;
+      // Follow heading/field groups so a later paragraph cannot strand its heading.
+      for (let i = index; i <= end; i++) {
+        end = Math.min(sections.length - 1, Math.max(end, i + (sections[i].keepNext || (sections[i].heading ? 1 : 0))));
+      }
+      const context = section.heading ? '' : section.context;
+      const capacity = TOP - BOTTOM - (context ? 19 : 0);
+      let height = groupHeight(index, end);
+      protectedUntil = end;
+      if (height > capacity) {
+        height = groupHeight(index, index);
+        protectedUntil = index;
+        if (section.heading && index + 1 < sections.length) {
+          // A very long paragraph may split, but starts beside its heading.
+          const next = sections[index + 1];
+          height += section.gap + Math.min(2, linesFor(index + 1).length) * next.size * 1.45;
+          protectedUntil = index + 1;
+        }
+      }
+      if (height <= capacity && y - height < BOTTOM) newPage(context);
     }
     for (const line of lines) drawLine(line, section);
     wrapped.delete(index);

@@ -38,8 +38,19 @@ async function inspect(bytes) {
       mapping.set(entry[1].toUpperCase(), chars);
     }
   }
-  const text = streams.filter(stream => stream.includes('BT\n')).flatMap(stream => [...stream.matchAll(/<([0-9a-f]+)> Tj/gi)].map(match => match[1].match(/.{4}/g).map(code => mapping.get(code.toUpperCase()) ?? '�').join(''))).join('\n');
-  return {pdf, text, streams};
+  const decodeText = stream => [...stream.matchAll(/<([0-9a-f]+)> Tj/gi)].map(match => match[1].match(/.{4}/g).map(code => mapping.get(code.toUpperCase()) ?? '�').join('')).join('\n');
+  const pageTexts = pdf.getPages().map(page => {
+    const contents = page.node.Contents();
+    const objects = contents instanceof PDFRawStream ? [contents] : contents.asArray().map(ref => pdf.context.lookup(ref));
+    return objects.map(object => decodeText(new TextDecoder().decode(decodePDFRawStream(object).decode()))).join('\n');
+  });
+  return {pdf, text: pageTexts.join('\n'), pageTexts, streams};
+}
+function assertPagesHaveBody(pageTexts) {
+  for (const [index, text] of pageTexts.entries()) {
+    const body = text.replace(/^КРИСТИНА \/ СВЕРКА ДОКУМЕНТОВ$/gm, '').replace(/^Продолжение: .*$/gm, '').replace(/^Кристина · \d+ \/ \d+$/gm, '').trim();
+    assert.ok(body, `Page ${index + 1} contains report content`);
+  }
 }
 
 test('native PDF embeds Cyrillic and preserves partial money, evidence, and all difference categories', async () => {
@@ -96,14 +107,36 @@ test('unsupported glyphs and controls are visibly escaped rather than replaced w
   assert.equal(text.includes('�'), false);
 });
 
+test('a short explanatory note stays complete on one actual PDF page at a page boundary', async () => {
+  const report = textFixture();
+  const note = 'NOTE-BEGIN\nSecond note line.\nThird note line.\nFourth note line.\nNOTE-END';
+  report.sources.left.notes = ['Padding line.\n'.repeat(7), note];
+  report.sources.right.notes = report.sources.left.notes;
+  const {pageTexts} = await inspect(await renderPdf(report));
+  assert.ok(pageTexts.length > 1, 'Fixture reaches a page boundary');
+  assert.equal(pageTexts.filter(text => text.includes(note)).length, 1, 'The complete note occurs on exactly one page');
+  assertPagesHaveBody(pageTexts);
+});
+
+test('an explanatory heading stays with its complete short paragraph at a page boundary', async () => {
+  const report = textFixture('Padding line.\n'.repeat(24), 'After.');
+  const {pageTexts} = await inspect(await renderPdf(report));
+  const headingPage = pageTexts.findIndex(text => text.includes('Правила и границы проверки'));
+  assert.ok(headingPage > 0, 'The heading and paragraph move to a later page');
+  const paragraph = 'Режим: сравнение извлечённого текста. Переводы строк приведены к единому виду; пробелы и регистр учитываются. Это не оценка юридического смысла, достоверности или орфографии. Отсутствие блока означает отсутствие сопоставленного текста, а не установленную причину изменения.';
+  assert.ok(pageTexts[headingPage].replace(/\s+/g, ' ').includes(paragraph));
+  assertPagesHaveBody(pageTexts);
+});
+
 test('long single blocks and unbroken tokens paginate without dropping text', async () => {
   const marker = 'SOURCE-END-0123456789';
   const report = textFixture('Абзац\n'.repeat(100) + 'X'.repeat(4000) + marker, 'Новое');
-  const {pdf, text} = await inspect(await renderPdf(report));
+  const {pdf, text, pageTexts} = await inspect(await renderPdf(report));
   assert.ok(pdf.getPageCount() >= 4);
   assert.ok(text.includes('Продолжение: text-2'));
   assert.ok(text.replaceAll('\n', '').includes(marker));
   assert.equal((text.match(/X/g) || []).length, 4004); // Four X characters in [U+XXXX] explanation.
+  assertPagesHaveBody(pageTexts);
 });
 
 test('incomplete, oversized serialized evidence, rendered text, and page count fail without partial output', async () => {
