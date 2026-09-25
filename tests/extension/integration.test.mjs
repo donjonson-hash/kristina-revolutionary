@@ -102,7 +102,11 @@ for (const target of ['firefox', 'chrome']) {
     }
     for (const name of readdirSync(directory).filter(n => /\.(?:m?js|css)$/.test(n))) {
       const source = readFileSync(path.join(directory, name), 'utf8');
-      for (const match of source.matchAll(/(?:from\s*|import\s*)['"]([^'"]+)['"]/g)) {
+      // Anchor static declarations: vendor strings can contain ordinary prose "from".
+      for (const match of source.matchAll(/^\s*(?:import|export)\s+(?:[^;\n]*?\s+from\s*)?['"]([^'"]+)['"]/gm)) {
+        readFileSync(localAsset(directory, match[1]));
+      }
+      for (const match of source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]/g)) {
         readFileSync(localAsset(directory, match[1]));
       }
       for (const match of source.matchAll(/url\(\s*['"]?([^)'"\s]+)/g)) {
@@ -139,7 +143,7 @@ async function page(t, target) {
         const {parentPort, workerData} = require('node:worker_threads');
         globalThis.fetch = (...args) => { parentPort.postMessage({networkAttempt: String(args[0])}); throw Error('Network forbidden'); };
         globalThis.WebSocket = class { constructor(url) { parentPort.postMessage({networkAttempt: String(url)}); throw Error('Network forbidden'); } };
-        globalThis.self = {postMessage: data => parentPort.postMessage(data)};
+        globalThis.self = {postMessage: (data, transfer) => parentPort.postMessage(data, transfer)};
         import(workerData).then(() => {
           if (typeof self.onmessage !== 'function') throw Error('Worker message handler missing');
           parentPort.on('message', data => self.onmessage({data}));
@@ -167,6 +171,7 @@ async function page(t, target) {
       window.TextEncoder = TextEncoder;
       window.AbortController = AbortController;
       window.Blob = Blob;
+      window.Uint8Array = Uint8Array;
       window.fetch = (...args) => { network.push(String(args[0])); throw Error('Network forbidden'); };
       window.XMLHttpRequest = class { constructor() { network.push('XMLHttpRequest'); throw Error('Network forbidden'); } };
       window.WebSocket = class { constructor(url) { network.push(String(url)); throw Error('Network forbidden'); } };
@@ -732,4 +737,62 @@ test('commercial XLSX → CSV calculation retains exact decimal amounts and sour
   await askOffice(p, 'Подготовь письмо');
   assert.match($('office-draft').value, /\+0,3/);
   assert.match($('office-draft').value, /Заказ.*!D2/);
+});
+
+for (const target of ['firefox', 'chrome']) test(`${target}: binary reports download offline with the full report independent of filters`, async t => {
+  const p = await page(t, target), {$} = p;
+  $('demo').click(); await p.result();
+  assert.equal($('download-xlsx').hidden, false);
+  assert.equal($('download-pdf').hidden, false);
+  $('search').value = 'nothing'; $('search').dispatchEvent(new p.dom.window.Event('input'));
+  assert.equal($('result-rows').children.length, 1, 'Empty filtered result is a placeholder');
+  $('download-xlsx').click();
+  await until(() => p.downloads.some(file => file.name.endsWith('.xlsx')), () => $('export-status').textContent);
+  const xlsxFile = p.downloads.find(file => file.name.endsWith('.xlsx'));
+  assert.equal(xlsxFile.blob.type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  const {read, utils} = await import('../../extension/xlsx-vendor.mjs');
+  const workbook = read(new Uint8Array(await xlsxFile.blob.arrayBuffer()), {type: 'array'});
+  assert.deepEqual(workbook.SheetNames, ['Сводка', 'Различия', 'Данные A', 'Данные B', 'Правила']);
+  const allCells = workbook.SheetNames.map(name => JSON.stringify(utils.sheet_to_json(workbook.Sheets[name], {header: 1}))).join('\n');
+  for (const text of ['CH-100', 'DS-200', 'LP-300', 'OLD-400', 'NEW-500', '2030', '2018', '-12']) assert.ok(allCells.includes(text), text);
+  $('download-pdf').click();
+  await until(() => p.downloads.some(file => file.name.endsWith('.pdf')), () => $('export-status').textContent);
+  const pdfFile = p.downloads.find(file => file.name.endsWith('.pdf'));
+  assert.equal(pdfFile.blob.type, 'application/pdf');
+  assert.match(Buffer.from(await pdfFile.blob.arrayBuffer()).toString('latin1', 0, 8), /^%PDF-/);
+  assert.equal(p.requests.filter(request => request.path === '/api/export').length, 2);
+  assert.equal($('download-pdf').disabled, false);
+  assert.equal($('download-xlsx').disabled, false);
+});
+
+test('text PDF is available, spreadsheet export hidden, and a source change cancels stale export', async t => {
+  const p = await page(t, 'chrome'), {$} = p;
+  $('demo').click(); await p.result();
+  $('download-pdf').click();
+  $('strip').checked = true; $('strip').dispatchEvent(new p.dom.window.Event('change'));
+  assert.equal($('results').hidden, true);
+  await delay(100);
+  assert.equal(p.downloads.length, 0, 'Cancelled report must never be downloaded');
+  await p.file('left', 'Доставка за 5 дней.\nОплата 100 рублей.', 'old.txt');
+  await p.file('right', 'Доставка за 7 дней.\nОплата 120 рублей.', 'new.txt');
+  await p.result();
+  assert.equal($('download-xlsx').hidden, true);
+  assert.equal($('download-pdf').hidden, false);
+  $('download-pdf').click();
+  await until(() => p.downloads.length === 1, () => $('export-status').textContent);
+  assert.equal(p.downloads[0].name, 'kristina-reconciliation.pdf');
+  assert.equal($('download-pdf').disabled, false);
+});
+
+test('XLSX limits report an error without losing the completed reconciliation', async t => {
+  const p = await page(t, 'firefox'), {$} = p;
+  await p.file('left', 'sku,note\nA,' + 'я'.repeat(32768) + '\n', 'long.csv');
+  await p.file('right', 'sku,note\nA,коротко\n', 'short.csv');
+  await p.result();
+  $('download-xlsx').click();
+  await until(() => !$('download-xlsx').disabled && /32767|32.?767|ячейк/i.test($('export-status').textContent), () => $('export-status').textContent);
+  assert.equal(p.downloads.length, 0);
+  assert.equal($('results').hidden, false);
+  $('download-html').click();
+  assert.equal(p.downloads[0].name, 'kristina-reconciliation.html');
 });
