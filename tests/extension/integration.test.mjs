@@ -257,6 +257,11 @@ for (const target of ['firefox', 'chrome']) {
     assert.match($('result-rows').textContent, /равно как число/);
     assert.equal($('settings').open, false);
     assert.deepEqual(p.requests.map(r => r.path), ['/api/prepare', '/api/compare']);
+    assert.match($('commercial-summary').textContent, /Частичный расчёт: 4 из 5/);
+    assert.match($('commercial-summary').textContent, /-12/);
+    $('office-impact-question').click();
+    assert.match($('office-transcript').textContent, /LP-300.*Единицы/s);
+    assert.match($('office-transcript').textContent, /-12/);
 
     await p.file('left', order, 'order_office.csv');
     await p.file('right', confirmation, 'supplier_confirmation.csv');
@@ -281,6 +286,21 @@ for (const target of ['firefox', 'chrome']) {
     }
     assert.equal(report.sources.left.name, 'order_office.csv');
     assert.equal(report.sources.right.name, 'supplier_confirmation.csv');
+    // Independently calculated with Decimal from the original control CSVs.
+    // OFF-004 changes packaging units, so it must not silently enter the total.
+    assert.equal(report.commercial.status, 'partial');
+    assert.deepEqual(report.commercial.coverage, {total: 13, included: 12, excluded: 1});
+    assert.deepEqual(report.commercial.totals, [{currency: 'RUB', before: '34567.8', after: '31376.3', delta: '-3191.5'}]);
+    assert.equal(report.commercial.counts.price_changed, 2);
+    assert.equal(report.commercial.counts.quantity_changed, 2);
+    assert.equal(report.commercial.excluded[0].key, 'OFF-004');
+    assert.equal($('commercial-summary').hidden, false);
+    assert.match($('commercial-summary').textContent, /Частичный расчёт: 12 из 13/);
+    assert.match($('commercial-summary').textContent, /-3 191,5/);
+    const jump = $('commercial-summary').querySelector('[data-key="OFF-004"]');
+    assert.ok(jump, 'Exclusion should link to the original evidence');
+    jump.click();
+    assert.match(p.dom.window.document.activeElement.textContent, /OFF-004/);
     assert.deepEqual(report.only_left.map(r => r.key), ['OFF-012']);
     assert.deepEqual(report.only_right.map(r => r.key), ['OFF-013']);
     assert.deepEqual(Object.fromEntries(report.changed.map(row => [row.key, row.changes.map(c => [c.left_column, c.before, c.after])])), {
@@ -291,6 +311,9 @@ for (const target of ['firefox', 'chrome']) {
     });
     const html = await p.downloads[1].blob.text();
     const saved = new JSDOM(html);
+    assert.match(saved.window.document.querySelector('.commercial').textContent, /Частичный расчёт/);
+    assert.match(saved.window.document.querySelector('.commercial').textContent, /-3191,5/);
+    assert.match(saved.window.document.querySelector('.commercial').textContent, /OFF-004.*Единицы/s);
     assert.match(saved.window.document.body.textContent, /OFF-008/);
     assert.match(saved.window.document.body.textContent, /OFF-012/);
     assert.match(saved.window.document.body.textContent, /OFF-013/);
@@ -411,6 +434,8 @@ for (const target of ['firefox', 'chrome']) {
     assert.equal(mixed.summary.changed, 1);
     assert.equal(mixed.only_right[0].row.text, textAfter[4]);
     assert.equal($('settings').hidden, true);
+    assert.equal($('commercial-summary').hidden, true);
+    assert.equal($('office-impact-question').hidden, true);
   });
 
   test(`${target}: text/table mode changes clear stale context and malformed DOCX leaves no result`, async t => {
@@ -616,7 +641,7 @@ test('changing rules or a source invalidates office answers, drafts and retained
   await askOffice(p, 'Подготовь письмо');
   assert.notEqual($('office-draft').value, '');
   let finishRead;
-  const bytes = Buffer.from('sku,quantity,unit\nCH-100,10,piece\nFRESH-ONLY,2,piece\n');
+  const bytes = Buffer.from('sku,quantity,unit,price_rub\nCH-100,10,piece,189\nFRESH-ONLY,2,piece,20\n');
   Object.defineProperty($('left-file'), 'files', {configurable: true, value: [{
     name: 'fresh.csv', size: bytes.length, arrayBuffer: () => new Promise(resolve => { finishRead = resolve; }),
   }]});
@@ -684,4 +709,27 @@ test('transport cancellation terminates work and rejects before/after worker cre
   assert.equal(workers[0].terminated, 1);
   workers[0].onmessage({data: {ok: true, result: 'late response'}});
   assert.equal(workers[0].terminated, 1, 'Late response cannot settle an aborted request again');
+});
+
+test('commercial XLSX → CSV calculation retains exact decimal amounts and source cells', async t => {
+  const p = await page(t, 'chrome'), {$} = p;
+  const book = xlsx([{name: 'Заказ', rows: [['sku', 'quantity', 'unit', 'price_rub'], ['001', 3, 'pcs', 0.1]]}]);
+  await p.file('left', book, 'order.xlsx');
+  await p.file('right', 'Артикул,Количество,Единица,Цена_руб\n001,3,шт,0.2\n', 'answer.csv');
+  await p.result();
+  const report = await downloadReport(p);
+  assert.equal(report.commercial.status, 'complete');
+  assert.deepEqual(report.commercial.totals, [{currency: 'RUB', before: '0.3', after: '0.6', delta: '0.3'}]);
+  const item = report.commercial.items[0];
+  assert.equal(item.key, '001');
+  assert.equal(item.left.sheet, 'Заказ');
+  assert.equal(item.left.cells.quantity, 'B2');
+  assert.equal(item.left.cells.price_rub, 'D2');
+  assert.equal(item.right.record, 2);
+  assert.match($('commercial-summary').textContent, /Расчёт по всем позициям: 1 из 1/);
+  $('office-impact-question').click();
+  assert.match($('office-transcript').textContent, /\+0,3/);
+  await askOffice(p, 'Подготовь письмо');
+  assert.match($('office-draft').value, /\+0,3/);
+  assert.match($('office-draft').value, /Заказ.*!D2/);
 });

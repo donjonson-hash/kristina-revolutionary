@@ -215,3 +215,13 @@ main{padding:0 18px}
 .text-content.is-empty::before{content:"Пустая строка";font-family:Inter,system-ui,sans-serif;font-size:11px;font-style:italic;color:var(--muted)}
 .text-results .search-label input{width:200px}
 @media(max-width:700px){.text-record{padding:16px 11px}.text-content{font-size:15px;line-height:1.8}.text-results .search-label input{width:100%}}
+
+.commercial-summary{padding:20px;margin-bottom:20px;border:1px solid #cbd6c9;border-radius:12px;background:#edf2e9;overflow-wrap:anywhere}
+.commercial-summary h3{font-size:18px;margin-bottom:12px}
+.commercial-summary p{font-size:13px;line-height:1.7;margin:8px 0;white-space:pre-wrap}
+.commercial-counts{font-weight:600}
+.commercial-summary details{border-top:1px solid #cbd6c9;margin-top:14px;padding-top:12px}
+.commercial-summary summary{cursor:pointer;font-size:13px;font-weight:600}
+.commercial-items{list-style:none;padding:0}
+.commercial-items li{padding:10px 0;border-bottom:1px solid #d6dfd0}
+#office-impact-question{font-size:12px;margin:0 0 16px;max-width:100%}

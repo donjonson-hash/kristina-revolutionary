@@ -181,12 +181,51 @@
     return response(['Этот вопрос не удалось связать с поддерживаемой текстовой проверкой.', 'Можно спросить: «Что изменилось?», «Что добавилось?», «Покажи text-2», «Покажи абзац 3 в A», «Найди «фразу»» или «Подготовь письмо».', textScope]);
   }
 
+  // Decimal amounts stay strings; never round through JavaScript floating point.
+  function commercialMoney(value) {
+    const text = String(value ?? '');
+    const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+    if (!match) return text;
+    return match[1] + match[2].replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + (match[3] ? ',' + match[3] : '');
+  }
+  function commercialTotalLine(total) {
+    const delta = String(total.delta), sign = delta.startsWith('-') || /^0(?:\.0+)?$/.test(delta) ? '' : '+';
+    return `${total.currency}: A ${commercialMoney(total.before)} → B ${commercialMoney(total.after)}; изменение B − A: ${sign}${commercialMoney(delta)}.`;
+  }
+  function commercialLines(report) {
+    const impact = report?.kind !== 'text' && report?.status === 'complete' && report?.commercial;
+    if (!impact) return [];
+    const coverage = impact.coverage;
+    const lines = [impact.status === 'complete' ? `Расчёт по всем позициям: ${coverage.included} из ${coverage.total}.` : impact.status === 'partial' ? `Частичный расчёт: ${coverage.included} из ${coverage.total} позиций; исключено ${coverage.excluded}. Это не итог всего документа.` : `Денежное влияние не рассчитано: недостаточно сопоставимых данных (${coverage.excluded} позиций исключено).`];
+    lines.push(...impact.totals.map(commercialTotalLine));
+    if (impact.totals.length > 1) lines.push('Валюты показаны отдельно; общий итог в одной валюте не рассчитывался.');
+    lines.push('Расчёт: количество × указанная цена за единицу. НДС, доставка и другие начисления отдельно не рассчитываются; это не сумма к оплате.');
+    lines.push(...impact.messages);
+    return lines;
+  }
+  function commercialAnswer(report) {
+    if (!commercialLines(report).length) return response(['Для этой сверки денежное влияние не рассчитывалось. Могу показать изменения цены, количества и отсутствующие позиции.']);
+    const impact = report.commercial, lines = commercialLines(report), actions = [];
+    const changed = impact.items.filter(item => !/^0(?:\.0+)?$/.test(String(item.delta)));
+    for (const item of changed.slice(0, 6)) {
+      lines.push(`${short(item.key)} — ${commercialTotalLine(item)}`);
+      actions.push(action(item, item.category));
+    }
+    if (changed.length > 6) lines.push(`Показано 6 из ${changed.length} денежных изменений; остальные — в полном HTML-отчёте.`);
+    for (const item of impact.excluded.slice(0, 6)) {
+      lines.push(`${short(item.key)} — исключено из расчёта: ${item.reasons.join(' ')}`);
+      actions.push(action(item, item.category));
+    }
+    if (impact.excluded.length > 6) lines.push(`Показано 6 из ${impact.excluded.length} исключённых позиций; остальные — в полном HTML-отчёте.`);
+    return response(lines, actions);
+  }
+
   function describe(report) {
     const missing = unavailable(report); if (missing) return missing;
     if (report.kind === 'text') return describeText(report);
     const lines = ['Я Кристина, ваш офисный помощник. Проверила два файла.',
       `A — ${short(report.sources.left.name)}; B — ${short(report.sources.right.name)}.`, counts(report)];
-    lines.push(...sheetLines(report));
+    lines.push(...commercialLines(report), ...sheetLines(report));
     if (!entries(report).length) lines.push('В обоих файлах нет строк данных; сравнивать позиции пока нечего.');
     if (noOverlap(report)) lines.push('По выбранным ключам общих позиций нет. Сначала проверьте, что ключи в A и B обозначают одно и то же.');
     if (!fields(report).length) lines.push('Проверила только наличие ключей. Значения других столбцов не сравнивались.');
@@ -283,6 +322,8 @@
       append('Здравствуйте!'); append('');
       append(`При сверке файлов A ${quote(report.sources.left.name)} и B ${quote(report.sources.right.name)} получены следующие результаты.`);
       append(counts(report));
+      for (const line of commercialLines(report)) append(line);
+      for (const item of report.commercial?.excluded || []) append(`${quote(item.key)} — исключено из денежного расчёта: ${item.reasons.join(' ')}`);
       if (noOverlap(report)) append('По выбранным ключам общих позиций не найдено. Просьба сначала уточнить корректность ключей сопоставления.');
       if (!entries(report).length) append('В обоих файлах отсутствуют строки данных.');
       append(''); append('Правила выполненной проверки:');
@@ -318,6 +359,7 @@
     }
     if (/письм|черновик/.test(q) && /(?:^|\s)(?:не|без)(?=\s)|отмен/.test(q)) return response(['Черновик не создаю. Можно продолжить обсуждение результатов сверки.']);
     if (/письм|черновик/.test(q) && /подготов|состав|напиш|сдела|черновик/.test(q)) return draftLetter(report);
+    if (/^(?:как изменилась сумма|что с суммой|влияние на сумму|покажи влияние на сумму|на сколько(?: (?:стало|стали|в b|в б|второй файл))? (?:дороже|дешевле)|на сколько изменилась сумма)[?!. ]*$/.test(q)) return commercialAnswer(report);
     if (/почему.*(?:равн|совпал|одинаков|эквивалент)|как.*(?:сравнив|сопостав)|правил|что проверял/.test(q)) return explainRules(report);
     const fieldRequest = question.trim().match(/^(?:что с|проверял(?:ось|ась|ся|и) ли|сравнивал(?:ось|ась|ся|и) ли)\s+(?:полем |поле |столбцом |столбец )?(.+?)[?!.]*$/iu);
     if (fieldRequest) {
@@ -337,7 +379,7 @@
     const kind = /цен|стоимост|\bprice\b/.test(q) ? 'price' : /количеств|\bqty\b|\bquantity\b/.test(q) ? 'quantity' : /единиц|\bunit\b/.test(q) ? 'unit' : null;
     const fieldIntent = /^(?:что|как) (?:с|по) (?:цен|количеств|единиц)/.test(q) || /^(?:где|какие|есть ли|покажи|проверь).*(?:измен|разниц|различ|совпа|отлич)/.test(q) || /^(?:покажи |проверь )?(?:цен[аыуе]|количество|единиц[аыуе](?: измерения)?)[?!. ]*$/.test(q);
     if (kind && !/прогноз|завтра|погод|анекдот|будет|ожида|через|совет/.test(q) && (fieldIntent || /почему|причин|винов|потер|убыт|правильн|справедлив/.test(q))) {
-      if (/почему|причин|винов|потер|убыт|правильн|справедлив/.test(q)) return response(['Причины, виновника и денежные последствия по двум файлам установить нельзя. Я могу показать только различия в проверенных значениях.'], [{label: 'Открыть изменённые позиции', category: 'changed'}]);
+      if (/почему|причин|винов|потер|убыт|правильн|справедлив/.test(q)) return response(['Причины, виновника и фактические убытки по двум файлам установить нельзя. Я могу показать только различия в проверенных значениях.'], [{label: 'Открыть изменённые позиции', category: 'changed'}]);
       return changedFields(report, kind);
     }
     if (/^что не подтвердил поставщик[?!. ]*$/.test(q)) return membership(report, 'only_left');
@@ -348,5 +390,5 @@
     if (/^(?:покажи|найди|открой)\s+(?:позици(?:ю|я)|артикул|ключ)\s+/iu.test(question.trim())) return response(['Точного ключа с таким написанием в текущем отчёте не найдено. Скопируйте ключ из документа; регистр и ведущие нули имеют значение.']);
     return response(['Я отвечаю по результатам текущей сверки. Этот вопрос не удалось связать с поддерживаемой проверкой.', 'Можно спросить: «Что изменилось?», «Что с ценами?», «Что отсутствует?», «Почему совпали?», «Покажи [точный ключ]» или «Подготовь письмо». Для оценки содержания договора, доклада или книги эта версия пока не предназначена.']);
   }
-  return Object.freeze({describe, answer, draftLetter});
+  return Object.freeze({describe, answer, draftLetter, commercialLines, commercialMoney, commercialTotalLine});
 });
