@@ -73,8 +73,117 @@
     return !report.changed.length && !report.matched.length && report.only_left.length && report.only_right.length;
   }
 
+
+  const textTitle = {changed: 'Текст изменился', only_left: 'Текст есть только в A', only_right: 'Текст есть только в B', matched: 'Текст совпал'};
+  const textEntries = report => entries(report).sort((a, b) => Number(a.item.key.slice(5)) - Number(b.item.key.slice(5)));
+  const textScope = 'Сравнивался извлечённый текст. Юридический смысл, достоверность фактов и орфография не оценивались.';
+  function textCounts(report) {
+    return `Изменённых блоков: ${report.changed.length}; только в A: ${report.only_left.length}; только в B: ${report.only_right.length}; совпавших: ${report.matched.length}.`;
+  }
+  function textSources(report, full = false) {
+    const show = full ? quote : short, lines = [];
+    for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
+      const source = report.sources[side];
+      lines.push(`${label} — ${show(source.name)}; текстовых блоков: ${source.block_count}.`);
+      for (const note of source.notes || []) lines.push(`${label}: ${show(note)}`);
+    }
+    return lines;
+  }
+  function textLines(item, category, full = false) {
+    const show = full ? quote : short;
+    const lines = [`${show(item.key)}. ${textTitle[category]}.`];
+    for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
+      const block = item[side] || (category === `only_${side}` ? item.row : null);
+      if (block) lines.push(`${label} · ${show(block.location)} (блок ${block.record}): ${show(block.text)}`);
+      else lines.push(`${label}: сопоставленного текстового блока нет.`);
+    }
+    return lines;
+  }
+  function textSelection(found, heading) {
+    if (!found.length) return response([heading, 'Подходящих блоков в текущем отчёте не найдено.']);
+    const lines = [heading];
+    for (const {item, category} of found) lines.push(...textLines(item, category));
+    return response(lines, found.map(({item, category}) => action(item, category)));
+  }
+  function describeText(report) {
+    const lines = ['Я Кристина, ваш офисный помощник. Сравнила текст двух файлов.', ...textSources(report), textCounts(report), textScope];
+    if (!textEntries(report).length) lines.push('В обоих файлах нет извлечённых текстовых блоков.');
+    const changed = textEntries(report).filter(entry => entry.category !== 'matched');
+    for (const {item, category} of changed.slice(0, 2)) lines.push(...textLines(item, category));
+    if (changed.length > 2) lines.push(`Примеры: показано 2 из ${changed.length} различий. Полный текст — в документах и HTML-отчёте.`);
+    if (!changed.length && textEntries(report).length) lines.push('Извлечённый текст совпал по правилам сравнения.');
+    lines.push('Можно открыть блок по номеру или фразе, показать добавления и удаления либо подготовить черновик письма.');
+    return response(lines, categories.filter(category => report[category].length).map(category => ({label: `${textTitle[category]}: ${report[category].length}`, category})));
+  }
+  function draftTextLetter(report) {
+    const encoder = new TextEncoder(), parts = []; let size = 0;
+    function append(line) {
+      const text = line + '\n';
+      if (text.length > MAX_DRAFT_BYTES - size) throw new RangeError('draft_size');
+      const bytes = encoder.encode(text).length;
+      if (bytes > MAX_DRAFT_BYTES - size) throw new RangeError('draft_size');
+      parts.push(text); size += bytes;
+    }
+    try {
+      append('Здравствуйте!'); append('');
+      append('При сравнении извлечённого текста двух файлов получены следующие результаты.');
+      for (const line of textSources(report, true)) append(line);
+      append(textCounts(report));
+      append('Нормализованы переводы строк. Пробелы и регистр учитывались; исходная вёрстка не сравнивалась.');
+      append(textScope); append('');
+      append('Ниже перечислены все обнаруженные текстовые различия. Значения в кавычках — точные исходные фрагменты; переносы строк записаны как \\n.');
+      for (const {item, category} of textEntries(report).filter(entry => entry.category !== 'matched')) {
+        for (const line of textLines(item, category, true)) append(line);
+      }
+      if (!report.changed.length && !report.only_left.length && !report.only_right.length) append('Текстовых различий по указанным правилам не обнаружено.');
+      append(''); append('Просьба проверить перечисленные текстовые различия и уточнить, какую редакцию следует использовать.');
+      return response(['Черновик готов: в нём перечислены все текстовые различия, без оценки их смысла. Текст можно отредактировать. Письмо не отправлено.'], [], parts.join(''));
+    } catch (error) {
+      if (!(error instanceof RangeError) || error.message !== 'draft_size') throw error;
+      return response(['Полный черновик превышает лимит 1 МиБ. Я не сформировала сокращённое письмо: скачайте полный HTML-отчёт и приложите его к сообщению.']);
+    }
+  }
+  function answerText(report, question) {
+    if (typeof question !== 'string' || !question.trim()) return response(['Можно спросить: «Что изменилось?», «Что добавилось?», «Что удалено?», «Покажи абзац 3 в A», «Найди «фразу»» или «Подготовь письмо».']);
+    const raw = question.trim(), q = normalize(raw), all = textEntries(report);
+    let key = raw.match(/^(?:покажи|найди|открой|расскажи про|что с)\s+(?:(?:позици[яю]|блок|ключ)\s+)?(text-\d+)[?!.]*$/iu)?.[1] || raw;
+    const direct = all.find(({item}) => item.key === key);
+    if (direct) return textSelection([direct], 'Текстовый блок из текущей сверки:');
+    if (/письм|черновик/.test(q) && /(?:^|\s)(?:не|без)(?=\s)|отмен/.test(q)) return response(['Черновик не создаю. Можно продолжить обсуждение текстовых различий.']);
+    if (/письм|черновик/.test(q) && /подготов|состав|напиш|сдела|черновик/.test(q)) return draftTextLetter(report);
+    const position = raw.match(/(?:абзац|строк[ауи]?|блок|позици[яю])\s*№?\s*(\d+)/iu);
+    if (position) {
+      const number = Number(position[1]);
+      const sideMatch = raw.match(/(?:в|из|стороне|файле|документе)\s+([abаб])(?=$|[\s?.!,])/iu) || raw.match(/^([abаб])\s*:/iu);
+      const side = sideMatch ? (/^[aа]$/iu.test(sideMatch[1]) ? 'left' : 'right') : null;
+      const found = all.filter(({item, category}) => (side ? [side] : ['left', 'right']).some(s => (item[s] || (category === `only_${s}` ? item.row : null))?.record === number));
+      return textSelection(found, `Исходная позиция ${number}${side ? ' в ' + (side === 'left' ? 'A' : 'B') : ' (поиск в A и B; номера могут относиться к разным парам)'}.`);
+    }
+    const phraseRequest = raw.match(/^(?:найди|покажи|где|что с)\s+(?:(?:фразу|фраза|текст)\s+)?(.+?)\??$/iu);
+    if (phraseRequest) {
+      let phrase = phraseRequest[1];
+      if ((phrase.startsWith('«') && phrase.endsWith('»')) || (phrase.startsWith('"') && phrase.endsWith('"'))) phrase = phrase.slice(1, -1);
+      const query = normalize(phrase);
+      if (query) {
+        const found = all.filter(({item, category}) => ['left', 'right'].some(side => {
+          const block = item[side] || (category === `only_${side}` ? item.row : null);
+          return block && normalize(block.text).includes(query);
+        }));
+        if (found.length || /[«"]/.test(phraseRequest[1])) return textSelection(found, `Поиск фразы ${short(phrase)} в извлечённом тексте (без учёта регистра, е/ё).`);
+      }
+    }
+    if (/юрид|законн|правомер|орфограф|пунктуац|граммат|достовер|факт|смысл|правильн|вычит|риск|обязательств|винов|причин/.test(q)) return response([textScope, 'Могу показать точные текстовые отличия и места в исходных документах.']);
+    if (/почему.*(?:равн|совпал|одинаков)|как.*(?:сравнив|сопостав)|правил|что проверял/.test(q)) return response(['Сравнивался извлечённый текст блоков. Нормализованы только переводы строк; пробелы и регистр учитываются. Подсветка показывает изменённые фрагменты, а не оценку их смысла.', ...textSources(report), textScope]);
+    if (/добав|только\s+(?:в\s+)?[bб](?=$|[\s?!.])/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_right'), 'Текстовые блоки только в B:');
+    if (/удал|только\s+(?:в\s+)?[aа](?=$|[\s?!.])/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_left'), 'Текстовые блоки только в A:');
+    if (/отсутств|без пары/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_left' || entry.category === 'only_right'), 'Текстовые блоки без пары:');
+    if (/^(?:что изменилось|что поменялось|какие (?:есть )?(?:различия|изменения|расхождения)|итог|результат|сводка|что получилось|объясни (?:результат|сверку))[?.! ]*$/.test(q)) return describeText(report);
+    return response(['Этот вопрос не удалось связать с поддерживаемой текстовой проверкой.', 'Можно спросить: «Что изменилось?», «Что добавилось?», «Покажи text-2», «Покажи абзац 3 в A», «Найди «фразу»» или «Подготовь письмо».', textScope]);
+  }
+
   function describe(report) {
     const missing = unavailable(report); if (missing) return missing;
+    if (report.kind === 'text') return describeText(report);
     const lines = ['Я Кристина, ваш офисный помощник. Проверила два файла.',
       `A — ${short(report.sources.left.name)}; B — ${short(report.sources.right.name)}.`, counts(report)];
     lines.push(...sheetLines(report));
@@ -163,6 +272,7 @@
 
   function draftLetter(report) {
     const missing = unavailable(report); if (missing) return missing;
+    if (report.kind === 'text') return draftTextLetter(report);
     const encoder = new TextEncoder(), parts = []; let size = 0;
     function append(line) {
       const text = line + '\n', bytes = encoder.encode(text).length;
@@ -195,6 +305,7 @@
 
   function answer(report, question) {
     const missing = unavailable(report); if (missing) return missing;
+    if (report.kind === 'text') return answerText(report, question);
     if (typeof question !== 'string') return response(['Напишите вопрос о текущей сверке: цены, количество, отсутствующие позиции, правила сравнения или конкретный ключ.']);
     const direct = lookup(report, question) || lookup(report, question.trim());
     if (direct) return direct;
