@@ -5,7 +5,16 @@
   const state = {sources: {left: null, right: null}, metadata: null, suggested: [], delimiter: ',',
     report: null, html: null, records: [], busy: false, revision: 0, filter: 'all', page: 0, active: -1};
   const loads = {left: 0, right: 0}, selectColumns = new WeakMap();
-  let controller = null, exportController = null;
+  let controller = null, exportController = null, changePage = 0;
+  const officeHome = $('office-sidebar').parentElement;
+  const officeNext = $('office-sidebar').nextElementSibling;
+  function reviewMode(enabled, textMode = false) {
+    document.body.classList.toggle('review-mode', enabled);
+    document.body.classList.toggle('document-mode', enabled && textMode);
+    if (enabled) $('review-sidebar').append($('office-sidebar'));
+    else officeHome.insertBefore($('office-sidebar'), officeNext);
+    $('zoom-control').hidden = !textMode;
+  }
   const categories = [['all', 'Все позиции'], ['changed', 'Изменились'], ['only_left', 'Только в A'], ['only_right', 'Только в B'], ['matched', 'Совпали']];
   function element(tag, text, className) {
     const node = document.createElement(tag);
@@ -41,7 +50,7 @@
       const index = state.records.findIndex(item => item.key === action.key);
       if (index < 0) return;
       $('search').value = ''; state.filter = 'all'; state.active = index; state.page = Math.floor(index / PAGE_SIZE);
-      renderRows();
+      renderRows(true);
       // Keys can contain any CSV text. Only a numeric row index selects the DOM node.
       const pair = Array.from($('result-rows').children).find(node => node.dataset.index === String(index));
       if (!pair) return;
@@ -51,7 +60,7 @@
         if (field) { field.classList.add('office-target'); setTimeout(() => field.classList.remove('office-target'), 2500); }
       }
     } else if (categories.some(([category]) => category === action.category)) {
-      $('search').value = ''; state.filter = action.category; state.active = -1; state.page = 0; renderRows();
+      $('search').value = ''; state.filter = action.category; state.active = -1; state.page = 0; changePage = 0; renderRows();
       const target = $('result-rows').querySelector('.document-pair') || $('result-heading');
       target.focus({preventScroll: true}); target.scrollIntoView({behavior: 'smooth', block: 'center'});
     }
@@ -142,6 +151,8 @@
     state.report = null; state.html = null; state.records = [];
     exportStatus(); exportEnable();
     $('results').hidden = true; $('result-rows').replaceChildren();
+    $('change-list').replaceChildren(); changePage = 0;
+    reviewMode(false);
     officeReset('Текущая сверка сброшена. Добавьте файлы или примените настройки — разберём новый результат.');
   }
   function dirty() { clearResult(); notice('Настройки изменены. Нажмите «Применить настройки» или «Продолжить».'); }
@@ -342,6 +353,8 @@
   }
   function renderResult() {
     const report = state.report, complete = report.status === 'complete', textMode = report.kind === 'text';
+    reviewMode(complete, textMode);
+    changePage = 0;
     exportEnable();
     renderCommercial();
     $('results').hidden = false; $('complete-result').hidden = !complete; $('clarification').hidden = complete;
@@ -353,7 +366,7 @@
     $('totals').setAttribute('aria-label', textMode ? 'Показать фрагменты' : 'Показать позиции');
     const notes = $('text-source-notes'); notes.replaceChildren();
     if (textMode) {
-      $('result-context').textContent = `${report.summary.left_blocks} фрагментов в A · ${report.summary.right_blocks} в B. Сопоставленные фрагменты показаны рядом; изменённые слова выделены цветом.`;
+      $('result-context').textContent = `${report.summary.left_blocks} фрагментов в A · ${report.summary.right_blocks} в B. Показан извлечённый текст без исходной вёрстки.`;
       if (!report.summary.changed && !report.summary.only_left && !report.summary.only_right) $('result-heading').textContent = 'Текст документов совпадает';
       $('audit-explanation').textContent = 'Сравнивается извлечённый текст: строки TXT и абзацы DOCX. Сохранены исходные слова, пробелы и порядок; унифицированы переводы строк. Номера и подписи фрагментов относятся к каждому исходному файлу. Фрагменты без пары показаны только с одной стороны. Оформление и вёрстка не сравниваются.';
       for (const side of ['left', 'right']) for (const note of (report.sources[side].notes || [])) notes.append(element('li', `${side === 'left' ? 'A' : 'B'}: ${note}`));
@@ -365,6 +378,7 @@
       $('audit-explanation').textContent = 'Показано содержимое выбранных таблиц. Пары выровнены по идентификатору, номера записей относятся к исходным файлам (заголовок — запись 1). Подсветка относится только к проверенным полям; остальные помечены отдельно. Единицы и валюты не пересчитываются.';
     }
     notes.hidden = !notes.children.length;
+    $('source-notes-details').hidden = !notes.children.length;
     $('audit-details').textContent = JSON.stringify({sources: report.sources, rules: report.rules}, null, 2);
     $('search').value = ''; state.active = -1;
     if (!complete) {
@@ -382,7 +396,7 @@
     for (const [key, label] of categories) {
       const button = element('button', undefined, 'total'); button.type = 'button'; button.dataset.category = key;
       button.append(element('strong', key === 'all' ? state.records.length : report.summary[key]), element('span', textMode && key === 'all' ? 'Все фрагменты' : label));
-      button.addEventListener('click', () => { state.filter = key; state.page = 0; state.active = -1; renderRows(); }); $('totals').append(button);
+      button.addEventListener('click', () => { state.filter = key; state.page = 0; state.active = -1; changePage = 0; renderRows(); }); $('totals').append(button);
     }
     $('document-left-name').textContent = report.sources.left.name; $('document-right-name').textContent = report.sources.right.name;
     $('no-overlap').hidden = textMode || !(report.summary.left_rows && report.summary.right_rows && report.summary.matched + report.summary.changed === 0);
@@ -457,7 +471,47 @@
     const query = $('search').value.toLocaleLowerCase();
     return state.records.filter(item => (state.filter === 'all' || item.category === state.filter) && (state.report?.kind === 'text' ? [item.left?.text, item.right?.text, item.row?.text, item.left?.location, item.right?.location, item.row?.location].some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)) : item.key.toLocaleLowerCase().includes(query)));
   }
-  function renderRows() {
+  function changeEntries(records) {
+    return records.flatMap((item, index) => item.category === 'matched' ? [] : [{item, index}]);
+  }
+  function renderChanges(records, followActive = false) {
+    const changes = changeEntries(records), active = changes.findIndex(entry => entry.index === state.active);
+    const pages = Math.max(1, Math.ceil(changes.length / PAGE_SIZE));
+    if (followActive && active >= 0) changePage = Math.floor(active / PAGE_SIZE);
+    changePage = Math.max(0, Math.min(changePage, pages - 1));
+    $('change-count').textContent = String(changes.length);
+    $('change-position').textContent = active < 0 ? `Отличий: ${changes.length}` : `Отличие ${active + 1} из ${changes.length}`;
+    const list = $('change-list'); list.replaceChildren(); list.start = changePage * PAGE_SIZE + 1;
+    const labels = {changed: 'Изменено', only_left: 'Только в A', only_right: 'Только в B'};
+    const textMode = state.report.kind === 'text';
+    for (const [offset, {item, index}] of changes.slice(changePage * PAGE_SIZE, (changePage + 1) * PAGE_SIZE).entries()) {
+      const li = element('li'), button = element('button', undefined, 'change-item');
+      button.type = 'button'; button.dataset.index = String(index);
+      if (index === state.active) button.setAttribute('aria-current', 'true');
+      button.append(element('span', `${changePage * PAGE_SIZE + offset + 1}. ${labels[item.category]}`, 'change-item-title'));
+      const locations = [];
+      for (const side of ['left', 'right']) {
+        const left = side === 'left', row = item[side] || (item.category === (left ? 'only_left' : 'only_right') ? item.row : null);
+        if (!row) continue;
+        locations.push(`${left ? 'A' : 'B'}: ${textMode ? row.location : (row.sheet ? `«${row.sheet}» · строка ${row.record}` : `запись ${row.record}`)}`);
+        let value;
+        if (textMode) value = row.text;
+        else value = item.key + (item.changes?.length ? ' · ' + item.changes.map(change => `${left ? change.left_column : change.right_column}: ${left ? change.before : change.after}`).join('; ') : '');
+        // Only this navigation preview is shortened; the evidence keeps every character.
+        const preview = Array.from(value);
+        button.append(element('span', `${left ? 'A' : 'B'}: ${preview.slice(0, 160).join('')}${preview.length > 160 ? '…' : ''}` + (!value ? ' (пустой текст)' : ''), 'change-excerpt ' + (left ? 'before' : 'after')));
+      }
+      button.append(element('span', locations.join(' · '), 'change-location'));
+      const revision = state.revision;
+      button.addEventListener('click', () => { if (revision === state.revision) selectChange(index); });
+      li.append(button); list.append(li);
+    }
+    $('change-empty').hidden = changes.length > 0;
+    $('change-empty').textContent = state.filter !== 'all' || $('search').value ? 'В выбранных результатах отличий нет. Сбросьте фильтр или поиск, чтобы увидеть остальные.' : 'Отличий не найдено по правилам этой сверки.';
+    $('changes-page').textContent = changes.length ? `${changePage * PAGE_SIZE + 1}–${Math.min((changePage + 1) * PAGE_SIZE, changes.length)} из ${changes.length}` : '0';
+    $('changes-previous').disabled = changePage === 0; $('changes-next').disabled = changePage >= pages - 1;
+  }
+  function renderRows(followActive = false) {
     if (!state.report || state.report.status !== 'complete') return;
     for (const button of $('totals').children) button.setAttribute('aria-pressed', String(button.dataset.category === state.filter));
     const records = filtered(), pages = Math.max(1, Math.ceil(records.length / PAGE_SIZE)); state.page = Math.min(state.page, pages - 1);
@@ -466,6 +520,7 @@
     const root = $('result-rows'); root.replaceChildren();
     for (const [offset, item] of records.slice(start, start + PAGE_SIZE).entries()) {
       const pair = element('article', undefined, 'document-pair ' + item.category.replace('_', '-')); pair.tabIndex = -1; pair.dataset.index = String(start + offset); pair.dataset.category = item.category;
+      pair.classList.toggle('active-change', start + offset === state.active && item.category !== 'matched');
       const panel = textMode ? textPanel : recordPanel;
       pair.append(panel(item, 'left'), panel(item, 'right')); root.append(pair);
     }
@@ -473,13 +528,20 @@
     $('page-info').textContent = `Страница ${state.page + 1} из ${pages}`;
     $('previous').disabled = state.page === 0; $('next').disabled = state.page >= pages - 1;
     const hasChanges = records.some(item => item.category !== 'matched'); $('next-change').disabled = !hasChanges; $('previous-change').disabled = !hasChanges;
+    $('document-scroll').scrollTop = 0;
+    renderChanges(records, followActive);
+  }
+  function selectChange(index) {
+    const records = filtered();
+    if (!records[index] || records[index].category === 'matched') return;
+    state.active = index; state.page = Math.floor(index / PAGE_SIZE); renderRows(true);
+    const pair = $('result-rows').querySelector(`[data-index="${index}"]`);
+    pair.focus({preventScroll: true}); pair.scrollIntoView({behavior: 'smooth', block: 'center', inline: 'nearest'});
   }
   function jumpChange(direction) {
     const records = filtered(), indexes = records.flatMap((item, i) => item.category !== 'matched' ? [i] : []);
     if (!indexes.length) return;
-    state.active = direction > 0 ? (indexes.find(i => i > state.active) ?? indexes[0]) : (indexes.findLast(i => i < state.active) ?? indexes[indexes.length - 1]);
-    state.page = Math.floor(state.active / PAGE_SIZE); renderRows();
-    const pair = $('result-rows').querySelector(`[data-index="${state.active}"]`); pair.focus({preventScroll: true}); pair.scrollIntoView({behavior: 'smooth', block: 'center'});
+    selectChange(direction > 0 ? (indexes.find(i => i > state.active) ?? indexes[0]) : (indexes.findLast(i => i < state.active) ?? indexes[indexes.length - 1]));
   }
   function download(format) {
     if (!state.report) return;
@@ -572,9 +634,14 @@
   $('delimiter').addEventListener('change', prepare);
   $('membership').addEventListener('change', () => { dirty(); $('mapping-panel').hidden = $('membership').checked; });
   $('strip').addEventListener('change', dirty); $('compare').addEventListener('click', compare); $('answer').addEventListener('click', compare);
-  $('search').addEventListener('input', () => { state.page = 0; state.active = -1; renderRows(); });
-  $('previous').addEventListener('click', () => { state.page--; state.active = state.page * PAGE_SIZE - 1; renderRows(); });
-  $('next').addEventListener('click', () => { state.page++; state.active = state.page * PAGE_SIZE - 1; renderRows(); });
+  $('search').addEventListener('input', () => { state.page = 0; state.active = -1; changePage = 0; renderRows(); });
+  $('changes-previous').addEventListener('click', () => { changePage--; renderChanges(filtered()); });
+  $('changes-next').addEventListener('click', () => { changePage++; renderChanges(filtered()); });
+  $('document-zoom').addEventListener('change', () => {
+    for (const size of ['85', '100', '115', '130']) $('document-scroll').classList.toggle('zoom-' + size, $('document-zoom').value === size);
+  });
+  $('previous').addEventListener('click', () => { state.page--; state.active = -1; renderRows(); });
+  $('next').addEventListener('click', () => { state.page++; state.active = -1; renderRows(); });
   $('next-change').addEventListener('click', () => jumpChange(1)); $('previous-change').addEventListener('click', () => jumpChange(-1));
   $('download-html').addEventListener('click', () => download('html')); $('download-json').addEventListener('click', () => download('json'));
   $('download-xlsx').addEventListener('click', () => downloadExport('xlsx')); $('download-pdf').addEventListener('click', () => downloadExport('pdf'));
