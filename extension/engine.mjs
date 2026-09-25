@@ -1,4 +1,5 @@
-/** Deterministic, offline CSV engine. No network, storage, or model access. */
+/** Deterministic, offline tabular engine. No network, storage, or model access. */
+import {readWorkbook} from './xlsx-source.mjs';
 export const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 export const MAX_REPORT_BYTES = 16 * 1024 * 1024;
 const MAX_RECORDS = 5000, MAX_COLUMNS = 200, MAX_FIELD_CHARS = 131072, MAX_ISSUES = 100;
@@ -70,17 +71,26 @@ async function inputs(payload, auto = false) {
     try { binary = atob(data); } catch { fail(`${side}: invalid base64 data`); }
     const raw = Uint8Array.from(binary, ch => ch.charCodeAt(0));
     if (raw.length > MAX_SOURCE_BYTES) fail(`${side}: source exceeds 2 MiB`);
+    const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', raw))].map(n => n.toString(16).padStart(2, '0')).join('');
+    if (/\.xlsx$/i.test(name)) {
+      sources[side] = {name, sha256, workbook: await readWorkbook(raw, {name, sha256, sheet: item.sheet})};
+      continue;
+    }
+    if (/\.(xls|xlsm|xlsb|ods)$/i.test(name) || raw[0] === 0x50 && raw[1] === 0x4b) fail(`${name}: поддерживаются CSV, TSV и XLSX. Сохраните книгу в формате XLSX.`);
     let text;
     try { text = new TextDecoder('utf-8', {fatal: true}).decode(raw); }
     catch { fail(`${name}: expected UTF-8 CSV`); }
     if (!text || text.includes('\0')) fail(`${name}: empty source or NUL character in CSV`);
-    const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', raw))].map(n => n.toString(16).padStart(2, '0')).join('');
     sources[side] = {name, text, sha256};
   }
   return {delimiter, sources};
 }
 
 function source(input, delimiter) {
+  if (input.workbook) {
+    if (!input.workbook.parsed) fail(`${input.name}: выберите лист для сверки.`);
+    return input.workbook.parsed;
+  }
   const {name, text, sha256} = input;
   let headers, cells = [], chars = [], state = 'start', touched = false;
   const rows = [];
@@ -136,6 +146,7 @@ function source(input, delimiter) {
 
 function parseSources(sources, delimiter) {
   const parse = d => Object.fromEntries(Object.entries(sources).map(([side, input]) => [side, source(input, d)]));
+  if (Object.values(sources).every(input => input.workbook)) return {delimiter: delimiter === 'auto' ? ',' : delimiter, parsed: parse(',')};
   if (delimiter !== 'auto') return {delimiter, parsed: parse(delimiter)};
   const candidates = [];
   for (const d of DELIMITERS) {
@@ -183,7 +194,13 @@ export async function inspect(payload) {
 }
 
 export async function prepare(payload) {
-  const input = await inputs(payload, true), {parsed, delimiter} = parseSources(input.sources, input.delimiter);
+  const input = await inputs(payload, true);
+  if (Object.values(input.sources).some(s => s.workbook && !s.workbook.parsed)) {
+    return bounded({needs_sheet: true, ready: false,
+      sheets: Object.fromEntries(Object.entries(input.sources).map(([side, s]) => [side, s.workbook?.sheets || []])),
+      selected: Object.fromEntries(Object.entries(input.sources).map(([side, s]) => [side, s.workbook?.selected ?? null]))});
+  }
+  const {parsed, delimiter} = parseSources(input.sources, input.delimiter);
   const {left, right} = parsed, {pairs, unmatched} = mapHeaders(left.meta.headers, right.meta.headers);
   const candidates = pairs.filter(([a, b]) => meaning(a)?.startsWith('identifier_') && meaning(a) === meaning(b));
   let key = null, invalidNumeric = false;
