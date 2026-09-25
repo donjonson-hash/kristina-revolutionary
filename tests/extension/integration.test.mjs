@@ -12,6 +12,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 import {Worker as NodeWorker} from 'node:worker_threads';
 import {setTimeout as delay} from 'node:timers/promises';
 import {xlsx} from './xlsx-fixture.mjs';
+import {docx} from './text-fixture.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(new URL('../browser/package.json', import.meta.url));
@@ -313,6 +314,178 @@ async function askOffice(p, question) {
   await until(() => p.$('office-transcript').textContent !== before);
   return p.$('office-transcript').textContent.slice(before.length);
 }
+
+const textBefore = [
+  'Соглашение о поставке канцелярских товаров.',
+  'Оплата производится в течение 10 дней после получения счёта.',
+  'Доставка осуществляется по рабочим дням.',
+  'Прежнее приложение утратило силу.',
+  'Контактное лицо: Мария Иванова.',
+];
+const textAfter = [
+  textBefore[0],
+  'Оплата производится в течение 30 дней после получения счёта.',
+  textBefore[2], textBefore[4],
+  '<img src=x onerror=window.textInjected=true> Новый пункт.',
+];
+
+async function downloadReport(p) {
+  p.$('download-json').click();
+  return JSON.parse(await p.downloads.at(-1).blob.text());
+}
+
+for (const target of ['firefox', 'chrome']) {
+  test(`${target}: text TXT and DOCX preserve word edits, additions/removals and safe downloadable evidence through Worker`, async t => {
+    const p = await page(t, target), {$} = p;
+    await p.file('left', textBefore.join('\n'), 'agreement-a.txt');
+    await p.file('right', textAfter.join('\n'), 'agreement-b.txt');
+    await p.result();
+    assert.equal($('settings').hidden, true, 'Text comparison needs no table key/field controls');
+    const comparison = p.requests.filter(r => r.path === '/api/compare').at(-1).payload;
+    assert.equal(comparison.key, undefined);
+    assert.equal(comparison.fields, undefined);
+    const report = await downloadReport(p);
+    assert.equal(report.kind, 'text');
+    assert.equal(report.status, 'complete');
+    for (const [category, count] of Object.entries({matched: 3, changed: 1, only_left: 1, only_right: 1})) {
+      assert.equal(report[category].length, count, category);
+      assert.equal(report.summary[category], count, category);
+    }
+    const change = report.changed[0];
+    assert.match(change.key, /^text-\d+$/);
+    assert.equal(change.left.text, textBefore[1]);
+    assert.equal(change.right.text, textAfter[1]);
+    assert.equal(change.left.record, 2);
+    assert.equal(change.right.record, 2);
+    for (const side of ['left', 'right']) {
+      assert.equal(change.segments[side].map(segment => segment.text).join(''), change[side].text);
+      assert.ok(change.segments[side].some(segment => segment.changed));
+      assert.ok(change.segments[side].some(segment => !segment.changed), 'Word-level diff retains unchanged context');
+      assert.ok(change[side].location, 'Evidence identifies its source location');
+    }
+    assert.ok(change.segments.left.filter(s => s.changed).map(s => s.text).join('').includes('10'));
+    assert.ok(change.segments.right.filter(s => s.changed).map(s => s.text).join('').includes('30'));
+    assert.equal(report.only_left[0].row.text, textBefore[3]);
+    assert.equal(report.only_right[0].row.text, textAfter[4]);
+    assert.equal($('result-rows').querySelector('img,script,iframe'), null);
+    assert.deepEqual([...$('result-rows').querySelectorAll('.before .text-content')].map(node => node.textContent), textBefore);
+    assert.deepEqual([...$('result-rows').querySelectorAll('.after .text-content')].map(node => node.textContent), textAfter);
+    assert.ok($('result-rows').textContent.includes(textAfter[4]));
+    assert.equal(p.dom.window.textInjected, undefined);
+    $('download-html').click();
+    const saved = new JSDOM(await p.downloads.at(-1).blob.text());
+    assert.ok(saved.window.document.body.textContent.includes(textBefore[1]));
+    assert.ok(saved.window.document.body.textContent.includes(textAfter[1]));
+    assert.ok(saved.window.document.body.textContent.includes(textAfter[4]));
+    assert.equal(saved.window.document.querySelector('script,img,iframe,link[href]'), null);
+    assert.ok(saved.window.document.querySelectorAll('mark').length >= 2);
+    saved.window.close();
+    const explanation = await askOffice(p, 'Объясни результат');
+    assert.match(explanation, /текст|абзац|блок/i);
+    $('office-suggestions').querySelector('[data-question="Подготовь письмо"]').click();
+    const draft = $('office-draft').value;
+    assert.ok(draft.includes('agreement-a.txt'));
+    assert.ok(draft.includes('agreement-b.txt'));
+    assert.ok(draft.includes(textBefore[1]));
+    assert.ok(draft.includes(textAfter[1]));
+    assert.ok(draft.includes(textBefore[3]));
+    assert.ok(draft.includes(textAfter[4]));
+    assert.deepEqual(p.clipboard, [], 'Draft is not copied or sent automatically');
+
+    // DOCX/TXT and TXT/DOCX must compare the extracted paragraph contents using
+    // the same worker path, without treating DOCX bytes as plain text.
+    await p.file('left', docx(textBefore), 'agreement-a.docx');
+    await p.result();
+    assert.equal($('office-draft').value, '', 'A new source invalidates the previous draft');
+    let mixed = await downloadReport(p);
+    assert.equal(mixed.kind, 'text');
+    assert.equal(mixed.changed[0].left.text, textBefore[1]);
+    assert.equal(mixed.changed[0].right.text, textAfter[1]);
+    assert.equal(mixed.summary.matched, 3);
+    await p.file('right', docx(textAfter), 'agreement-b.docx');
+    await p.result();
+    await p.file('left', textBefore.join('\n'), 'agreement-a.txt');
+    await p.result();
+    mixed = await downloadReport(p);
+    assert.equal(mixed.kind, 'text');
+    assert.equal(mixed.summary.changed, 1);
+    assert.equal(mixed.only_right[0].row.text, textAfter[4]);
+    assert.equal($('settings').hidden, true);
+  });
+
+  test(`${target}: text/table mode changes clear stale context and malformed DOCX leaves no result`, async t => {
+    const p = await page(t, target), {$} = p;
+    await p.file('left', 'Первый абзац.\nСрок 10 дней.', 'first.txt');
+    await p.file('right', 'Первый абзац.\nСрок 20 дней.', 'second.txt');
+    await p.result();
+    $('office-suggestions').querySelector('[data-question="Подготовь письмо"]').click();
+    assert.notEqual($('office-draft').value, '');
+    await p.file('left', 'Артикул,Количество\nA-001,5\n', 'table.csv');
+    assert.equal($('results').hidden, true, 'Text and table sources cannot yield a partial comparison');
+    assert.ok($('notice').classList.contains('error'));
+    assert.match($('notice').textContent, /текст|таблиц|формат/i);
+    assert.equal($('office-draft').value, '');
+    assert.equal($('office-transcript').querySelector('.office-action'), null);
+    await p.file('right', xlsx([{name: 'Данные', rows: [['Артикул', 'Количество'], ['A-001', 4]]}]), 'table.xlsx');
+    await p.result();
+    assert.equal($('settings').hidden, false, 'Table key and mapping controls are restored');
+    assert.match($('result-rows').textContent, /A-001/);
+    assert.equal($('result-rows').querySelectorAll('.document-pair.changed').length, 1);
+    const table = await downloadReport(p);
+    assert.notEqual(table.kind, 'text');
+    assert.deepEqual(table.rules.key, ['Артикул', 'Артикул']);
+    await p.file('right', 'Первый абзац.\nСрок 20 дней.', 'second.txt');
+    assert.equal($('results').hidden, true);
+    assert.ok($('notice').classList.contains('error'));
+    await p.file('left', docx(['Первый абзац.', 'Срок 10 дней.']), 'first.docx');
+    await p.result();
+    assert.equal($('settings').hidden, true);
+    assert.equal($('left-sheet').parentElement.hidden, true);
+    assert.equal($('right-sheet').parentElement.hidden, true);
+    assert.doesNotMatch($('result-rows').textContent, /A-001/);
+    assert.equal((await downloadReport(p)).kind, 'text');
+    const downloaded = p.downloads.length;
+    await p.file('left', Buffer.from('This is not a ZIP or DOCX document.'), 'broken.docx');
+    assert.equal($('results').hidden, true);
+    assert.ok($('notice').classList.contains('error'));
+    assert.match($('notice').textContent, /DOCX|ZIP|архив|документ/i);
+    assert.equal($('office-draft').value, '');
+    assert.equal($('office-transcript').querySelector('.office-action'), null);
+    $('download-json').click();
+    $('download-html').click();
+    assert.equal(p.downloads.length, downloaded, 'Failed source cannot export an earlier report');
+  });
+}
+
+test('text office evidence jump across pagination clears filters and focuses the changed paragraph', async t => {
+  const p = await page(t, 'firefox'), {$} = p;
+  const before = Array.from({length: 31}, (_, index) => `Раздел ${index + 1}. Обязательства сторон действуют весь год.`);
+  const after = before.map((text, index) => index === 29 ? text.replace('весь год', 'два года') : text);
+  await p.file('left', docx(before), 'long.docx');
+  await p.file('right', after.join('\n'), 'long.txt');
+  await p.result();
+  const report = await downloadReport(p);
+  assert.equal(report.kind, 'text');
+  assert.equal(report.changed.length, 1);
+  const key = report.changed[0].key;
+  $('totals').querySelector('[data-category="matched"]').click();
+  $('search').value = 'nothing-here';
+  $('search').dispatchEvent(new p.dom.window.Event('input'));
+  assert.equal($('record-range').textContent, '0 фрагментов');
+  await askOffice(p, `Покажи ${key}`);
+  const action = [...$('office-transcript').querySelectorAll('.office-action')].find(button => button.dataset.key === key);
+  assert.ok(action, 'Text answer offers source evidence navigation');
+  action.click();
+  assert.equal($('search').value, '');
+  assert.equal($('totals').querySelector('[data-category="all"]').getAttribute('aria-pressed'), 'true');
+  assert.equal($('page-info').textContent, 'Страница 2 из 2');
+  const evidence = p.dom.window.document.activeElement;
+  assert.equal(evidence.dataset.index, '29');
+  assert.equal(evidence.dataset.category, 'changed');
+  assert.ok(evidence.textContent.includes(before[29]));
+  assert.ok(evidence.textContent.includes(after[29]));
+  assert.ok(evidence.querySelectorAll('mark').length >= 2);
+});
 
 for (const target of ['firefox', 'chrome']) {
   test(`${target}: office explains actual demo/control results and exports only a requested draft`, async t => {
