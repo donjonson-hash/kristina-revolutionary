@@ -43,7 +43,7 @@ jobs:
           npm test
 
       - name: Offline extension parity and integration
-        run: node --test tests/extension/*.test.mjs
+        run: node --test tests/extension/*.test.*
 
       - name: Build browser extensions
         run: python scripts/build_reconciliation_extension.py

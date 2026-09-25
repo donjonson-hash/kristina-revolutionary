@@ -223,6 +223,11 @@ async def stylesheet():
     return FileResponse(STATIC_ROOT / "style.css", media_type="text/css")
 
 
+@app.get("/assets/office.js")
+async def office_javascript():
+    return FileResponse(STATIC_ROOT / "office.js", media_type="text/javascript")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Локальный браузерный интерфейс Кристины")
     parser.add_argument("--port", type=int, default=8765)
