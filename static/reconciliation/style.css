@@ -202,3 +202,16 @@ main{padding:0 18px}
 .sheet-choice[hidden]{display:none}
 .sheet-choice select{max-width:100%;min-width:0}
 .cell-address{font:12px ui-monospace,monospace;color:#52645a}
+
+/* Text documents keep the same two-column evidence layout as tables. */
+.text-scope{font-size:12px;line-height:1.7;color:var(--muted);padding:12px 15px;border-left:3px solid #a9bca6;background:#edf2e9;margin-bottom:16px}
+.text-record{padding:22px 24px}
+.text-record .record-title{margin-bottom:12px}
+.text-record .record-title strong{font-size:11px;color:var(--muted);font-weight:500}
+.text-content{font-family:Georgia,"Times New Roman",serif;font-size:17px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4}
+.text-content mark{color:inherit;padding:2px 0;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.text-record.before mark{background:var(--old)}
+.text-record.after mark{background:var(--new)}
+.text-content.is-empty::before{content:"Пустая строка";font-family:Inter,system-ui,sans-serif;font-size:11px;font-style:italic;color:var(--muted)}
+.text-results .search-label input{width:200px}
+@media(max-width:700px){.text-record{padding:16px 11px}.text-content{font-size:15px;line-height:1.8}.text-results .search-label input{width:100%}}

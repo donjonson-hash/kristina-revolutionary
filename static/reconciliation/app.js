@@ -21,8 +21,10 @@
     const enabled = officeAvailable();
     $('office-question').disabled = !enabled; $('office-send').disabled = !enabled;
     $('office-form').hidden = !enabled; $('office-suggestions').hidden = !enabled;
-    $('office-question').placeholder = enabled ? 'Например: почему эти строки совпали?' : 'Сначала добавьте два файла';
-    for (const button of $('office-suggestions').children) button.disabled = !enabled;
+    const textMode = state.report?.kind === 'text';
+    $('office-question').placeholder = enabled ? (textMode ? 'Например: что изменилось в тексте?' : 'Например: почему эти строки совпали?') : 'Сначала добавьте два файла';
+    const questions = textMode ? ['Что изменилось?', 'Что добавлено?', 'Что удалено?', 'Подготовь письмо'] : ['Объясни результат', 'Где изменилась цена?', 'Что отсутствует?', 'Подготовь письмо'];
+    Array.from($('office-suggestions').children).forEach((button, index) => { button.disabled = !enabled; button.dataset.question = questions[index]; button.textContent = questions[index]; });
   }
   function officeReset(message = 'Добавьте два файла. Я помогу разобраться в различиях и подготовить письмо по результату.') {
     officeDraftGeneration++;
@@ -126,7 +128,7 @@
     officeEnable();
     for (const id of ['demo', 'left-file', 'right-file', 'delimiter', 'left-key', 'right-key', 'answer']) $(id).disabled = value;
     for (const side of ['left', 'right']) if ($(side + '-sheet')) $(side + '-sheet').disabled = value;
-    $('rules').disabled = value || !state.metadata;
+    $('rules').disabled = value || !state.metadata || state.metadata.kind === 'text';
     $('compare').disabled = value;
     $('compare').textContent = value ? 'Обрабатываю…' : 'Применить настройки';
   }
@@ -138,6 +140,7 @@
     officeReset('Текущая сверка сброшена. Добавьте файлы или примените настройки — разберём новый результат.');
   }
   function dirty() { clearResult(); notice('Настройки изменены. Нажмите «Применить настройки» или «Продолжить».'); }
+  function textSourcesSelected() { return Object.values(state.sources).some(source => source && /\.(txt|docx)$/i.test(source.name)); }
   function delimiter() { return $('delimiter').value === 'tab' ? '\t' : $('delimiter').value; }
   function encode(bytes) {
     let text = '';
@@ -155,7 +158,7 @@
   }
   function sourceLabel(side, file) {
     $(side + '-filename').textContent = file ? file.name : 'Выберите файл или перетащите сюда';
-    $(side + '-meta').textContent = file ? 'Файл выбран · нажмите, чтобы заменить' : (window.KristinaTransport ? 'XLSX, CSV, TSV · до 2 MiB' : 'CSV · UTF-8 · до 2 MiB');
+    $(side + '-meta').textContent = file ? 'Файл выбран · нажмите, чтобы заменить' : (window.KristinaTransport ? 'XLSX, CSV, TXT, DOCX · до 2 MiB' : 'CSV · UTF-8 · до 2 MiB');
   }
   function showSheets(side, sheets = [], selected = null) {
     const select = $(side + '-sheet');
@@ -174,7 +177,7 @@
     const index = selectColumns.get(select).indexOf(name); select.value = index < 0 ? '' : String(index);
   }
   function mapping(preserve = true) {
-    if (!state.metadata) return;
+    if (!state.metadata || state.metadata.kind === 'text') return;
     const body = $('field-mapping'), previous = new Map();
     if (preserve) for (const row of body.children) previous.set(row.dataset.left, [selectedColumn(row.querySelector('.field-target')), row.querySelector('.field-mode').value]);
     const suggestions = new Map(state.suggested.map(([left, right, mode]) => [left, [right, mode]]));
@@ -198,7 +201,7 @@
     updateUnmapped();
   }
   function updateUnmapped() {
-    if (!state.metadata) return;
+    if (!state.metadata || state.metadata.kind === 'text') return;
     const used = new Set([selectedColumn($('right-key'))]), omitted = [];
     for (const row of $('field-mapping').children) {
       const target = selectedColumn(row.querySelector('.field-target'));
@@ -212,6 +215,7 @@
     $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
     $('rules').hidden = true; $('rules').disabled = true; $('rules-empty').hidden = false;
     $('rules-summary').textContent = 'Определим автоматически';
+    $('settings').hidden = textSourcesSelected();
     if (!state.sources.left || !state.sources.right) { notice('Добавьте второй файл — сверка начнётся автоматически.'); officeReset('Первый файл готов. Добавьте второй — я сопоставлю позиции и объясню результат.'); return; }
     busy(true); notice('Читаю файлы и нахожу соответствия…');
     const revision = state.revision; let ready = false;
@@ -224,45 +228,57 @@
         officeReset('В книге несколько заполненных листов. Выберите нужный рядом с файлом — и я продолжу сверку.');
         return;
       }
-      state.metadata = metadata; state.suggested = metadata.rules.fields; state.delimiter = metadata.delimiter;
-      for (const side of ['left', 'right']) {
-        showSheets(side, metadata[side].sheets, metadata[side].sheet ?? null);
-        $(side + '-meta').textContent = `${metadata[side].sheet ? 'Лист «' + metadata[side].sheet + '» · ' : ''}${metadata[side].row_count} строк · ${metadata[side].headers.length} столбцов · заменить файл`;
-        options($(side + '-key'), metadata[side].headers, 'Выберите идентификатор');
-      }
-      if (metadata.rules.key) { chooseColumn($('left-key'), metadata.rules.key[0]); chooseColumn($('right-key'), metadata.rules.key[1]); }
-      $('membership').checked = !!metadata.rules.key && metadata.left.headers.length === 1 && metadata.right.headers.length === 1;
-      $('strip').checked = false; $('mapping-panel').hidden = $('membership').checked;
-      mapping(false); $('rules').hidden = false; $('rules-empty').hidden = true;
-      ready = metadata.ready;
-      if (!ready) {
-        $('question-text').textContent = metadata.question;
-        $('setup-question').hidden = false;
-        if (!metadata.rules.key) $('question-controls').append($('key-controls'));
-        else $('settings').open = true;
-        $('question-title').focus({preventScroll: true});
-        $('setup-question').scrollIntoView({behavior: 'smooth', block: 'center'});
-        if (metadata.unmatched.left.length || metadata.unmatched.right.length) $('settings').open = true;
-        notice(); officeReset('Файлы прочитаны. Уточните, как сопоставить позиции, — затем смогу объяснить результат.');
+      state.metadata = metadata;
+      if (metadata.kind === 'text') {
+        $('settings').hidden = true; $('rules-empty').hidden = true;
+        for (const side of ['left', 'right']) {
+          showSheets(side);
+          $(side + '-meta').textContent = `${metadata[side].block_count} фрагментов · ${String(metadata[side].format).toUpperCase()} · заменить файл`;
+        }
+        ready = metadata.ready;
+      } else {
+        $('settings').hidden = false;
+        state.suggested = metadata.rules.fields; state.delimiter = metadata.delimiter;
+        for (const side of ['left', 'right']) {
+          showSheets(side, metadata[side].sheets, metadata[side].sheet ?? null);
+          $(side + '-meta').textContent = `${metadata[side].sheet ? 'Лист «' + metadata[side].sheet + '» · ' : ''}${metadata[side].row_count} строк · ${metadata[side].headers.length} столбцов · заменить файл`;
+          options($(side + '-key'), metadata[side].headers, 'Выберите идентификатор');
+        }
+        if (metadata.rules.key) { chooseColumn($('left-key'), metadata.rules.key[0]); chooseColumn($('right-key'), metadata.rules.key[1]); }
+        $('membership').checked = !!metadata.rules.key && metadata.left.headers.length === 1 && metadata.right.headers.length === 1;
+        $('strip').checked = false; $('mapping-panel').hidden = $('membership').checked;
+        mapping(false); $('rules').hidden = false; $('rules-empty').hidden = true;
+        ready = metadata.ready;
+        if (!ready) {
+          $('question-text').textContent = metadata.question;
+          $('setup-question').hidden = false;
+          if (!metadata.rules.key) $('question-controls').append($('key-controls'));
+          else $('settings').open = true;
+          $('question-title').focus({preventScroll: true});
+          $('setup-question').scrollIntoView({behavior: 'smooth', block: 'center'});
+          if (metadata.unmatched.left.length || metadata.unmatched.right.length) $('settings').open = true;
+          notice(); officeReset('Файлы прочитаны. Уточните, как сопоставить позиции, — затем смогу объяснить результат.');
+        }
       }
     } catch (error) {
-      if (error.name !== 'AbortError') { notice('Не удалось прочитать файлы. ' + error.message, true); $('settings').open = true; officeReset('Не удалось прочитать файлы. Проверьте сообщение рядом с загрузкой и попробуйте снова.'); }
+      if (error.name !== 'AbortError' && revision === state.revision) { state.metadata = null; notice('Не удалось прочитать файлы. ' + error.message, true); $('settings').open = true; officeReset('Не удалось прочитать файлы. Проверьте сообщение рядом с загрузкой и попробуйте снова.'); }
     } finally { if (revision === state.revision) busy(false); }
     if (ready && revision === state.revision) await compare();
   }
   async function loadFile(side, file) {
     if (!file || state.busy) return;
     const version = ++loads[side]; clearResult(); state.sources[side] = null; state.metadata = null;
-    showSheets(side);
+    showSheets(side); $('settings').hidden = textSourcesSelected();
     $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
     $('rules').hidden = true; $('rules').disabled = true; $('rules-empty').hidden = false; sourceLabel(side, null);
     if (file.size > MAX_FILE_BYTES) { notice('Файл превышает 2 MiB. Выберите меньший файл.', true); return; }
+    if (/\.(txt|docx)$/i.test(file.name) && !window.KristinaTransport) { notice('TXT и DOCX доступны в расширении Кристины. Здесь загрузите CSV.', true); return; }
     if (/\.(xlsx|xls|xlsm|xlsb|ods)$/i.test(file.name) && !window.KristinaTransport) { notice('Excel доступен в расширении Кристины. Здесь загрузите CSV.', true); return; }
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (version !== loads[side]) return;
       state.sources[side] = {name: file.name, data: encode(bytes)}; sourceLabel(side, file); await prepare();
-    } catch (error) { notice('Не удалось открыть файл. ' + error.message, true); }
+    } catch (error) { if (version === loads[side]) { clearResult(); state.metadata = null; notice('Не удалось открыть файл. ' + error.message, true); } }
   }
   function selectedRules() {
     const key = [selectedColumn($('left-key')), selectedColumn($('right-key'))];
@@ -280,25 +296,41 @@
   }
   async function compare() {
     if (state.busy || !state.metadata) return;
-    let rules; try { rules = selectedRules(); } catch (error) { clearResult(); notice(error.message, true); return; }
+    let rules; try { rules = state.metadata.kind === 'text' ? {} : selectedRules(); } catch (error) { clearResult(); notice(error.message, true); return; }
     clearResult(); busy(true); const revision = state.revision; notice('Сравниваю документы…');
     try {
-      const result = await api('/api/compare', {...state.sources, delimiter: state.delimiter, ...rules});
+      const payload = state.metadata.kind === 'text' ? {...state.sources} : {...state.sources, delimiter: state.delimiter, ...rules};
+      const result = await api('/api/compare', payload);
       if (revision !== state.revision) return;
       state.report = result.report; state.html = result.html;
       $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
       renderResult(); officeDescribe(); notice();
-    } catch (error) { if (error.name !== 'AbortError') { clearResult(); notice('Сверка не выполнена. ' + error.message, true); officeReset('Сверка не выполнена. Исправьте данные или настройки по сообщению об ошибке.'); busy(false); } }
+    } catch (error) { if (error.name !== 'AbortError' && revision === state.revision) { clearResult(); notice('Сверка не выполнена. ' + error.message, true); officeReset('Сверка не выполнена. Исправьте данные или настройки по сообщению об ошибке.'); busy(false); } }
     finally { if (revision === state.revision) busy(false); }
   }
   function renderResult() {
-    const report = state.report, complete = report.status === 'complete';
+    const report = state.report, complete = report.status === 'complete', textMode = report.kind === 'text';
     $('results').hidden = false; $('complete-result').hidden = !complete; $('clarification').hidden = complete;
     $('result-heading').textContent = complete ? (report.summary.changed + report.summary.only_left + report.summary.only_right ? 'Различия в документах' : 'Проверенные значения совпадают') : 'Нужно уточнить данные';
-    $('result-context').textContent = 'Пары строк совмещены по «' + report.rules.key.join('» ↔ «') + '». Номера записей — в исходных файлах.';
-    const numeric = report.rules.fields.filter(f => f[2] === 'number').map(f => f[0]);
-    const brief = 'По «' + report.rules.key.join('» ↔ «') + '»' + (numeric.length ? ' · числа: ' + numeric.join(', ') : ' · точное сравнение текста');
-    $('rules-summary').textContent = brief.length > 180 ? brief.slice(0, 180) + '…' : brief;
+    $('settings').hidden = textMode; $('text-scope').hidden = !textMode;
+    $('results').classList.toggle('text-results', textMode);
+    $('search').placeholder = textMode ? 'Найти в тексте…' : 'Найти артикул…';
+    $('search-label-text').textContent = textMode ? 'Найти текст в документах' : 'Найти позицию';
+    $('totals').setAttribute('aria-label', textMode ? 'Показать фрагменты' : 'Показать позиции');
+    const notes = $('text-source-notes'); notes.replaceChildren();
+    if (textMode) {
+      $('result-context').textContent = `${report.summary.left_blocks} фрагментов в A · ${report.summary.right_blocks} в B. Сопоставленные фрагменты показаны рядом; изменённые слова выделены цветом.`;
+      if (!report.summary.changed && !report.summary.only_left && !report.summary.only_right) $('result-heading').textContent = 'Текст документов совпадает';
+      $('audit-explanation').textContent = 'Сравнивается извлечённый текст: строки TXT и абзацы DOCX. Сохранены исходные слова, пробелы и порядок; унифицированы переводы строк. Номера и подписи фрагментов относятся к каждому исходному файлу. Фрагменты без пары показаны только с одной стороны. Оформление и вёрстка не сравниваются.';
+      for (const side of ['left', 'right']) for (const note of (report.sources[side].notes || [])) notes.append(element('li', `${side === 'left' ? 'A' : 'B'}: ${note}`));
+    } else {
+      $('result-context').textContent = 'Пары строк совмещены по «' + report.rules.key.join('» ↔ «') + '». Номера записей — в исходных файлах.';
+      const numeric = report.rules.fields.filter(f => f[2] === 'number').map(f => f[0]);
+      const brief = 'По «' + report.rules.key.join('» ↔ «') + '»' + (numeric.length ? ' · числа: ' + numeric.join(', ') : ' · точное сравнение текста');
+      $('rules-summary').textContent = brief.length > 180 ? brief.slice(0, 180) + '…' : brief;
+      $('audit-explanation').textContent = 'Показано содержимое выбранных таблиц. Пары выровнены по идентификатору, номера записей относятся к исходным файлам (заголовок — запись 1). Подсветка относится только к проверенным полям; остальные помечены отдельно. Единицы и валюты не пересчитываются.';
+    }
+    notes.hidden = !notes.children.length;
     $('audit-details').textContent = JSON.stringify({sources: report.sources, rules: report.rules}, null, 2);
     $('search').value = ''; state.active = -1;
     if (!complete) {
@@ -310,15 +342,16 @@
     }
     state.records = [];
     for (const [category] of categories.slice(1)) for (const item of report[category]) state.records.push({...item, category});
-    state.records.sort((a, b) => (a.left?.record ?? (a.category === 'only_left' ? a.row.record : Infinity)) - (b.left?.record ?? (b.category === 'only_left' ? b.row.record : Infinity)) || (a.right?.record ?? a.row?.record ?? 0) - (b.right?.record ?? b.row?.record ?? 0));
+    if (textMode) state.records.sort((a, b) => Number(a.key.slice(5)) - Number(b.key.slice(5)));
+    else state.records.sort((a, b) => (a.left?.record ?? (a.category === 'only_left' ? a.row.record : Infinity)) - (b.left?.record ?? (b.category === 'only_left' ? b.row.record : Infinity)) || (a.right?.record ?? a.row?.record ?? 0) - (b.right?.record ?? b.row?.record ?? 0));
     state.filter = 'all'; state.page = 0; $('totals').replaceChildren();
     for (const [key, label] of categories) {
       const button = element('button', undefined, 'total'); button.type = 'button'; button.dataset.category = key;
-      button.append(element('strong', key === 'all' ? state.records.length : report.summary[key]), element('span', label));
+      button.append(element('strong', key === 'all' ? state.records.length : report.summary[key]), element('span', textMode && key === 'all' ? 'Все фрагменты' : label));
       button.addEventListener('click', () => { state.filter = key; state.page = 0; state.active = -1; renderRows(); }); $('totals').append(button);
     }
     $('document-left-name').textContent = report.sources.left.name; $('document-right-name').textContent = report.sources.right.name;
-    $('no-overlap').hidden = !(report.summary.left_rows && report.summary.right_rows && report.summary.matched + report.summary.changed === 0);
+    $('no-overlap').hidden = textMode || !(report.summary.left_rows && report.summary.right_rows && report.summary.matched + report.summary.changed === 0);
     renderRows();
   }
   // A bounded, linear prefix/suffix highlight. Preserve every original character.
@@ -328,6 +361,26 @@
     while (start < a.length && start < b.length && a[start] === b[start]) start++;
     while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;
     container.append(document.createTextNode(a.slice(0, start).join('')), element('mark', a.slice(start, a.length - end).join('')), document.createTextNode(end ? a.slice(a.length - end).join('') : ''));
+  }
+  function textPanel(item, side) {
+    const isLeft = side === 'left', row = item[side] || (item.category === (isLeft ? 'only_left' : 'only_right') ? item.row : null);
+    const panel = element('section', undefined, 'document-record text-record ' + (isLeft ? 'before' : 'after'));
+    panel.setAttribute('aria-label', `${isLeft ? 'A' : 'B'} · ${row?.location || 'Нет фрагмента'}`);
+    if (!row) { panel.classList.add('absent'); panel.append(element('p', 'Нет этого фрагмента')); return panel; }
+    const title = element('div', undefined, 'record-title');
+    const labels = {changed: 'Текст изменён', matched: 'Текст совпадает', only_left: 'Только в A', only_right: 'Только в B'};
+    title.append(element('strong', row.location), element('span', labels[item.category], 'record-status')); panel.append(title);
+    const content = element('p', undefined, 'text-content');
+    if (item.category === 'changed') {
+      const segments = item.segments?.[side];
+      // Never replace source text with an incomplete set of highlight tokens.
+      if (Array.isArray(segments) && segments.map(part => part.text).join('') === row.text) {
+        for (const part of segments) content.append(element(part.changed ? 'mark' : 'span', part.text));
+      } else content.append(element('mark', row.text));
+    } else if (item.category === 'only_left' || item.category === 'only_right') content.append(element('mark', row.text));
+    else content.textContent = row.text;
+    if (!row.text) { content.classList.add('is-empty'); content.setAttribute('aria-label', 'Пустая строка'); }
+    panel.append(content); return panel;
   }
   function recordPanel(item, side) {
     const isLeft = side === 'left', index = isLeft ? 0 : 1;
@@ -368,19 +421,21 @@
   }
   function filtered() {
     const query = $('search').value.toLocaleLowerCase();
-    return state.records.filter(item => (state.filter === 'all' || item.category === state.filter) && item.key.toLocaleLowerCase().includes(query));
+    return state.records.filter(item => (state.filter === 'all' || item.category === state.filter) && (state.report?.kind === 'text' ? [item.left?.text, item.right?.text, item.row?.text, item.left?.location, item.right?.location, item.row?.location].some(value => typeof value === 'string' && value.toLocaleLowerCase().includes(query)) : item.key.toLocaleLowerCase().includes(query)));
   }
   function renderRows() {
     if (!state.report || state.report.status !== 'complete') return;
     for (const button of $('totals').children) button.setAttribute('aria-pressed', String(button.dataset.category === state.filter));
     const records = filtered(), pages = Math.max(1, Math.ceil(records.length / PAGE_SIZE)); state.page = Math.min(state.page, pages - 1);
-    const start = state.page * PAGE_SIZE; $('record-range').textContent = records.length ? `${start + 1}–${Math.min(start + PAGE_SIZE, records.length)} из ${records.length} позиций` : '0 позиций';
+    const textMode = state.report.kind === 'text', unit = textMode ? 'фрагментов' : 'позиций';
+    const start = state.page * PAGE_SIZE; $('record-range').textContent = records.length ? `${start + 1}–${Math.min(start + PAGE_SIZE, records.length)} из ${records.length} ${unit}` : `0 ${unit}`;
     const root = $('result-rows'); root.replaceChildren();
     for (const [offset, item] of records.slice(start, start + PAGE_SIZE).entries()) {
       const pair = element('article', undefined, 'document-pair ' + item.category.replace('_', '-')); pair.tabIndex = -1; pair.dataset.index = String(start + offset); pair.dataset.category = item.category;
-      pair.append(recordPanel(item, 'left'), recordPanel(item, 'right')); root.append(pair);
+      const panel = textMode ? textPanel : recordPanel;
+      pair.append(panel(item, 'left'), panel(item, 'right')); root.append(pair);
     }
-    if (!records.length) root.append(element('p', 'Нет позиций для выбранного фильтра.', 'zero-state'));
+    if (!records.length) root.append(element('p', textMode ? 'Нет фрагментов для выбранного фильтра.' : 'Нет позиций для выбранного фильтра.', 'zero-state'));
     $('page-info').textContent = `Страница ${state.page + 1} из ${pages}`;
     $('previous').disabled = state.page === 0; $('next').disabled = state.page >= pages - 1;
     const hasChanges = records.some(item => item.category !== 'matched'); $('next-change').disabled = !hasChanges; $('previous-change').disabled = !hasChanges;
@@ -410,9 +465,13 @@
   $('office-draft').addEventListener('input', () => { $('office-draft-status').textContent = 'Черновик изменён. Проверьте текст перед отправкой.'; });
   if (window.matchMedia?.('(max-width:1379px)').matches) $('office-panel').open = false;
   officeEnable();
+  if (window.KristinaTransport) {
+    $('supported-formats').textContent = 'Таблицы CSV и Excel или текстовые документы TXT и DOCX. Формат определю по файлам.';
+    $('source-privacy').textContent = 'Сравнение начнётся автоматически. Файлы обрабатываются локально, без отправки в LLM. До 2 MiB на файл.';
+  }
   for (const side of ['left', 'right']) {
     if (window.KristinaTransport) {
-      $(side + '-file').accept += ',.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      $(side + '-file').accept += ',.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.txt,text/plain,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       sourceLabel(side, null);
       const label = element('label', 'Лист для сверки', 'sheet-choice'), select = element('select');
       select.id = side + '-sheet'; select.setAttribute('aria-label', 'Лист для сверки ' + (side === 'left' ? 'A' : 'B'));
