@@ -68,6 +68,8 @@ test('untrusted input stays literal and never produces actions, annotations, Jav
 
 test('text word segments retain source characters and highlights; invalid segments fail explicitly', async () => {
   const report = textFixture();
+  report.sources.left.notes = ['Общее примечание.', 'Только источник A.'];
+  report.sources.right.notes = ['Общее примечание.', 'Только источник B.'];
   report.only_left = [{key: 'text-3', row: {record: 3, text: 'Удалённый абзац.', location: 'Абзац 3'}}];
   report.only_right = [{key: 'text-4', row: {record: 3, text: 'Добавленный абзац.', location: 'Абзац 3'}}];
   report.summary.only_left = 1; report.summary.only_right = 1;
@@ -77,6 +79,10 @@ test('text word segments retain source characters and highlights; invalid segmen
   assert.equal(text.includes('UNCHANGED-BLOCK'), false);
   assert.ok(text.includes('Удалённый абзац.')); assert.ok(text.includes('Добавленный абзац.'));
   assert.ok(text.includes('A: сопоставленного блока нет.')); assert.ok(text.includes('B: сопоставленного блока нет.'));
+  assert.equal(text.split('Общее примечание.').length - 1, 1);
+  assert.ok(text.includes('Пояснения для обоих файлов\nОбщее примечание.'));
+  assert.ok(text.includes('Особенности файла A\nТолько источник A.'));
+  assert.ok(text.includes('Особенности файла B\nТолько источник B.'));
   assert.ok(streams.some(stream => stream.includes('1 0.9 0.86 rg')));
   assert.ok(streams.some(stream => stream.includes('0.87 0.95 0.89 rg')));
   report.changed[0].segments.left[1].text = '16';

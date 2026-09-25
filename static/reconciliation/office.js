@@ -89,6 +89,16 @@
     }
     return lines;
   }
+  function letterSourceNotes(report) {
+    const notes = new Map();
+    for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
+      for (const note of report.sources[side].notes || []) {
+        if (!notes.has(note)) notes.set(note, new Set());
+        notes.get(note).add(label);
+      }
+    }
+    return [...notes].map(([note, labels]) => `${labels.size === 2 ? 'Оба файла (A и B)' : [...labels][0]}: ${quote(note)}`);
+  }
   function textLines(item, category, full = false) {
     const show = full ? quote : short;
     const lines = [`${show(item.key)}. ${textTitle[category]}.`];
@@ -126,17 +136,20 @@
     }
     try {
       append('Здравствуйте!'); append('');
-      append('При сравнении извлечённого текста двух файлов получены следующие результаты.');
-      for (const line of textSources(report, true)) append(line);
+      append(`При сравнении извлечённого текста файлов A ${quote(report.sources.left.name)} и B ${quote(report.sources.right.name)} получены следующие результаты.`);
       append(textCounts(report));
-      append('Нормализованы переводы строк. Пробелы и регистр учитывались; исходная вёрстка не сравнивалась.');
-      append(textScope); append('');
-      append('Ниже перечислены все обнаруженные текстовые различия. Значения в кавычках — точные исходные фрагменты; переносы строк записаны как \\n.');
+      append(''); append('Ниже перечислены все обнаруженные текстовые различия.');
       for (const {item, category} of textEntries(report).filter(entry => entry.category !== 'matched')) {
         for (const line of textLines(item, category, true)) append(line);
       }
       if (!report.changed.length && !report.only_left.length && !report.only_right.length) append('Текстовых различий по указанным правилам не обнаружено.');
       append(''); append('Просьба проверить перечисленные текстовые различия и уточнить, какую редакцию следует использовать.');
+      append(''); append('Сведения о проверке:');
+      append(`Текстовых блоков: A — ${report.sources.left.block_count}; B — ${report.sources.right.block_count}.`);
+      append('Значения в кавычках — точные исходные фрагменты; переносы строк записаны как \\n.');
+      append('Нормализованы переводы строк. Пробелы и регистр учитывались; исходная вёрстка не сравнивалась.');
+      append(textScope);
+      for (const line of letterSourceNotes(report)) append(line);
       return response(['Черновик готов: в нём перечислены все текстовые различия, без оценки их смысла. Текст можно отредактировать. Письмо не отправлено.'], [], parts.join(''));
     } catch (error) {
       if (!(error instanceof RangeError) || error.message !== 'draft_size') throw error;
@@ -326,8 +339,6 @@
       for (const item of report.commercial?.excluded || []) append(`${quote(item.key)} — исключено из денежного расчёта: ${item.reasons.join(' ')}`);
       if (noOverlap(report)) append('По выбранным ключам общих позиций не найдено. Просьба сначала уточнить корректность ключей сопоставления.');
       if (!entries(report).length) append('В обоих файлах отсутствуют строки данных.');
-      append(''); append('Правила выполненной проверки:');
-      for (const line of ruleLines(report, false)) append(line);
       append(''); append('Ниже перечислены все обнаруженные различия по выбранным правилам.');
       for (const item of report.changed) for (const change of item.changes) append(changeLine(item, change, true));
       for (const [category, side, other] of [['only_left', 'A', 'B'], ['only_right', 'B', 'A']]) {
@@ -336,6 +347,9 @@
       if (!report.changed.length && !report.only_left.length && !report.only_right.length) append('Различий по выбранным правилам не обнаружено.');
       append('');
       append(report.changed.length || report.only_left.length || report.only_right.length ? 'Просьба уточнить перечисленные различия и сообщить, какие данные следует использовать.' : 'Просьба подтвердить, что выбранных полей достаточно для поставленной задачи.');
+      append(''); append('Правила выполненной проверки:');
+      for (const line of ruleLines(report, false)) append(line);
+      for (const line of letterSourceNotes(report)) append(line);
       append('Эта сверка не устанавливает причины различий, корректность непроверенных полей или фактическое исполнение обязательств.');
       return response(['Черновик готов: он содержит все обнаруженные различия и правила текущей сверки. Проверьте адресата и текст перед отправкой. Письмо не отправлено.'], [], parts.join(''));
     } catch (error) {
