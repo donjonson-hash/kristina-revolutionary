@@ -91,7 +91,10 @@ for (const target of ['firefox', 'chrome']) {
       }
       assert.equal(dom.window.document.querySelector('script:not([src])'), null, 'No inline executable scripts');
       if (name === 'index.html') {
-        assert.deepEqual([...dom.window.document.scripts].map(s => s.getAttribute('src')), ['transport.js', 'app.js']);
+        const scripts = [...dom.window.document.scripts].map(s => s.getAttribute('src'));
+        assert.deepEqual(new Set(scripts), new Set(['office.js', 'transport.js', 'app.js']));
+        assert.ok(scripts.indexOf('office.js') < scripts.indexOf('app.js'));
+        assert.ok(scripts.indexOf('transport.js') < scripts.indexOf('app.js'));
       }
       dom.window.close();
     }
@@ -114,7 +117,7 @@ for (const target of ['firefox', 'chrome']) {
 
 async function page(t, target) {
   const directory = path.join(output, target);
-  const errors = [], network = [], workers = [], requests = [], downloads = [];
+  const errors = [], network = [], workers = [], requests = [], downloads = [], clipboard = [], navigations = [];
   const localResources = {interceptors: [requestInterceptor(request => {
       const parsed = new URL(request.url);
       if (parsed.protocol !== 'file:' || !fileURLToPath(parsed).startsWith(directory + path.sep)) {
@@ -166,12 +169,17 @@ async function page(t, target) {
       window.XMLHttpRequest = class { constructor() { network.push('XMLHttpRequest'); throw Error('Network forbidden'); } };
       window.WebSocket = class { constructor(url) { network.push(String(url)); throw Error('Network forbidden'); } };
       window.navigator.sendBeacon = url => { network.push(String(url)); return false; };
+      Object.defineProperty(window.navigator, 'clipboard', {value: {
+        writeText: async value => { clipboard.push(value); },
+      }});
+      window.open = url => { navigations.push(String(url)); return null; };
       window.Element.prototype.scrollIntoView = () => {};
       const blobs = new Map();
       window.URL.createObjectURL = blob => { const id = `blob:test-${blobs.size}`; blobs.set(id, blob); return id; };
       window.URL.revokeObjectURL = id => blobs.delete(id);
       window.HTMLAnchorElement.prototype.click = function () {
         if (this.download) downloads.push({name: this.download, blob: blobs.get(this.href)});
+        else navigations.push(this.href);
       };
     },
   });
@@ -182,6 +190,7 @@ async function page(t, target) {
     assert.ok(allTerminated, 'Transport must terminate completed workers');
     assert.deepEqual(errors, []);
     assert.deepEqual(network, [], 'UI and worker must make no network calls');
+    assert.deepEqual(navigations, [], 'The office assistant must not open mail clients or external pages');
   });
   await until(() => dom.window.document.readyState === 'complete');
   const $ = id => dom.window.document.getElementById(id);
@@ -196,7 +205,7 @@ async function page(t, target) {
     await until(() => $(side + '-filename').textContent === name);
     await idle();
   }
-  return {$, dom, requests, downloads, result, file};
+  return {$, dom, requests, downloads, clipboard, result, file};
 }
 
 for (const target of ['firefox', 'chrome']) {
@@ -257,6 +266,183 @@ for (const target of ['firefox', 'chrome']) {
     assert.deepEqual([...$('result-rows').querySelectorAll('mark')].map(n => n.textContent), ['24', '88.50', '20', '92.00']);
   });
 }
+
+async function askOffice(p, question) {
+  const before = p.$('office-transcript').textContent;
+  assert.equal(p.$('office-send').disabled, false, 'A completed report enables questions');
+  p.$('office-question').value = question;
+  p.$('office-form').dispatchEvent(new p.dom.window.Event('submit', {bubbles: true, cancelable: true}));
+  await until(() => p.$('office-transcript').textContent !== before);
+  return p.$('office-transcript').textContent.slice(before.length);
+}
+
+for (const target of ['firefox', 'chrome']) {
+  test(`${target}: office explains actual demo/control results and exports only a requested draft`, async t => {
+    const p = await page(t, target), {$} = p;
+    $('demo').click();
+    await p.result();
+    assert.equal($('office-panel').hidden, false);
+    assert.ok($('office-summary').textContent.length > 40, 'Completed report has an automatic explanation');
+    assert.match($('office-summary').textContent, /2/);
+    assert.match($('office-summary').textContent, /1/);
+    const equality = await askOffice(p, 'Почему совпали?');
+    assert.match(equality, /10\.00/);
+    assert.match(equality, /числ|десятич/i);
+    assert.match(equality, /непровер|не провер|не оцен/i);
+
+    await p.file('left', order, 'order_office.csv');
+    await p.file('right', confirmation, 'supplier_confirmation.csv');
+    await p.result();
+    const comparisons = p.requests.length;
+    const prices = await askOffice(p, 'Что с ценами?');
+    for (const value of ['OFF-003', '189.00', '199.00', 'OFF-008', '88.50', '92.00']) assert.ok(prices.includes(value), value);
+    assert.doesNotMatch(prices, /OFF-001|OFF-004/);
+    const missing = await askOffice(p, 'Что отсутствует?');
+    assert.match(missing, /OFF-012/);
+    assert.match(missing, /OFF-013/);
+    assert.equal(p.requests.length, comparisons, 'Office questions use the existing verified report');
+    assert.deepEqual(p.downloads, []);
+    assert.deepEqual(p.clipboard, []);
+    await askOffice(p, 'Подготовь письмо');
+    assert.equal($('office-draft-section').hidden, false);
+    const draft = $('office-draft').value;
+    for (const value of ['order_office.csv', 'supplier_confirmation.csv', 'OFF-001', 'OFF-003', 'OFF-004', 'OFF-008', 'OFF-012', 'OFF-013']) assert.ok(draft.includes(value), value);
+    assert.match(draft, /Здравствуйте/);
+    assert.deepEqual(p.downloads, [], 'Preparing a draft does not download or send it');
+    assert.deepEqual(p.clipboard, [], 'Preparing a draft does not copy it automatically');
+    $('office-copy').click();
+    await until(() => p.clipboard.length === 1);
+    assert.equal(p.clipboard[0], draft);
+    $('office-download').click();
+    assert.equal(p.downloads.length, 1);
+    assert.match(p.downloads[0].name, /\.txt$/);
+    assert.equal(await p.downloads[0].blob.text(), draft);
+    assert.equal(p.requests.length, comparisons, 'Draft actions perform no additional comparison or network request');
+  });
+}
+
+test('office evidence actions clear filters and navigate to a key beyond the first 25 rows', async t => {
+  const p = await page(t, 'firefox'), {$} = p;
+  const rows = Array.from({length: 31}, (_, i) => [`P-${String(i).padStart(3, '0')}`, '10']);
+  await p.file('left', 'sku,price\n' + rows.map(r => r.join(',')).join('\n') + '\n', 'prices-a.csv');
+  await p.file('right', 'sku,price\n' + rows.map(([key, value], i) => `${key},${i === 29 ? '12' : value}`).join('\n') + '\n', 'prices-b.csv');
+  await p.result();
+  assert.equal($('result-rows').children.length, 25);
+  $('totals').querySelector('[data-category="matched"]').click();
+  $('search').value = 'no-such-key';
+  $('search').dispatchEvent(new p.dom.window.Event('input'));
+  assert.equal($('record-range').textContent, '0 позиций');
+  await askOffice(p, 'Покажи P-029');
+  const action = [...$('office-transcript').querySelectorAll('.office-action')].find(b => b.dataset.key === 'P-029');
+  assert.ok(action, 'Answer offers an exact evidence action');
+  action.click();
+  assert.equal($('search').value, '');
+  assert.equal($('totals').querySelector('[data-category="all"]').getAttribute('aria-pressed'), 'true');
+  assert.equal($('page-info').textContent, 'Страница 2 из 2');
+  assert.equal(p.dom.window.document.activeElement.dataset.index, '29');
+  assert.match(p.dom.window.document.activeElement.textContent, /P-029/);
+  assert.deepEqual([...p.dom.window.document.activeElement.querySelectorAll('mark')].map(n => n.textContent), ['10', '12']);
+});
+
+test('office raw exact-key questions preserve significant surrounding whitespace', async t => {
+  const p = await page(t, 'firefox'), {$} = p;
+  await p.file('left', 'sku,qty\n001,1\n 001 ,9\n', 'keys-a.csv');
+  await p.file('right', 'sku,qty\n001,1\n 001 ,8\n', 'keys-b.csv');
+  await p.result();
+  const comparison = p.requests.filter(request => request.path === '/api/compare').at(-1);
+  assert.equal(comparison.payload.strip, false, 'Whitespace is significant under these rules');
+  assert.deepEqual([...$('totals').querySelectorAll('strong')].map(n => n.textContent), ['2', '1', '0', '0', '1']);
+  const response = await askOffice(p, ' 001 ');
+  assert.ok(response.includes('Позиция " 001 "'), 'Answer must describe the raw key, not the trimmed matched key');
+  assert.match(response, /Есть изменения/);
+  assert.match(response, /"9"/);
+  assert.match(response, /"8"/);
+  const actions = [...$('office-transcript').querySelectorAll('.office-action')];
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].dataset.key, ' 001 ');
+  assert.equal(actions[0].dataset.category, 'changed');
+  actions[0].click();
+  const evidence = p.dom.window.document.activeElement;
+  assert.equal(evidence.dataset.index, '1');
+  assert.equal(evidence.dataset.category, 'changed');
+  assert.equal(evidence.querySelector('.before .record-title strong').textContent, 'sku:  001 ');
+  assert.deepEqual([...evidence.querySelectorAll('mark')].map(n => n.textContent), ['9', '8']);
+});
+
+test('changing rules or a source invalidates office answers, drafts and retained evidence actions', async t => {
+  const p = await page(t, 'firefox'), {$} = p;
+  $('demo').click();
+  await p.result();
+  await askOffice(p, 'Покажи DS-200');
+  await askOffice(p, 'Подготовь письмо');
+  const staleAction = [...$('office-transcript').querySelectorAll('.office-action')].find(b => b.dataset.key === 'DS-200');
+  assert.ok(staleAction);
+  $('strip').checked = true;
+  $('strip').dispatchEvent(new p.dom.window.Event('change', {bubbles: true}));
+  assert.equal($('results').hidden, true);
+  assert.equal($('office-draft-section').hidden, true);
+  assert.equal($('office-draft').value, '');
+  assert.doesNotMatch($('office-transcript').textContent, /DS-200/);
+  assert.doesNotMatch($('office-summary').textContent, /DS-200/);
+  assert.equal($('office-transcript').querySelector('.office-action'), null);
+  $('office-question').value = 'Покажи DS-200';
+  $('office-form').dispatchEvent(new p.dom.window.Event('submit', {bubbles: true, cancelable: true}));
+  assert.equal($('office-transcript').querySelector('.office-action'), null, 'An invalidated report cannot answer with old evidence');
+  staleAction.click();
+  $('office-copy').click();
+  $('office-download').click();
+  assert.equal($('results').hidden, true);
+  assert.equal($('result-rows').children.length, 0);
+  assert.deepEqual(p.downloads, []);
+  assert.deepEqual(p.clipboard, []);
+
+  $('compare').click();
+  await p.result();
+  $('search').value = 'retain-this-filter';
+  $('search').dispatchEvent(new p.dom.window.Event('input'));
+  staleAction.click();
+  assert.equal($('search').value, 'retain-this-filter', 'Old evidence actions cannot navigate a replacement report');
+  await askOffice(p, 'Подготовь письмо');
+  assert.notEqual($('office-draft').value, '');
+  let finishRead;
+  const bytes = Buffer.from('sku,quantity,unit\nCH-100,10,piece\nFRESH-ONLY,2,piece\n');
+  Object.defineProperty($('left-file'), 'files', {configurable: true, value: [{
+    name: 'fresh.csv', size: bytes.length, arrayBuffer: () => new Promise(resolve => { finishRead = resolve; }),
+  }]});
+  $('left-file').dispatchEvent(new p.dom.window.Event('change', {bubbles: true}));
+  assert.equal($('results').hidden, true, 'Invalidation occurs before the replacement finishes reading');
+  assert.equal($('office-draft-section').hidden, true);
+  assert.equal($('office-draft').value, '');
+  assert.doesNotMatch($('office-transcript').textContent, /DS-200|Здравствуйте/);
+  assert.equal($('office-transcript').querySelector('.office-action'), null);
+  $('office-copy').click();
+  $('office-download').click();
+  assert.deepEqual(p.downloads, []);
+  assert.deepEqual(p.clipboard, []);
+  finishRead(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  await p.result();
+  assert.match($('document-left-name').textContent, /fresh.csv/);
+  assert.equal($('office-draft').value, '', 'Fresh report must not resurrect an earlier draft');
+});
+
+test('office user messages, source values and generated drafts remain text', async t => {
+  const p = await page(t, 'chrome'), {$} = p;
+  const before = '<script>window.officeInjected=true</script>';
+  const after = '<img src=x onerror=window.officeInjected=true>';
+  await p.file('left', `sku,description\nXSS-001,${before}\n`, 'a.csv');
+  await p.file('right', `sku,description\nXSS-001,${after}\n`, 'b.csv');
+  await p.result();
+  await askOffice(p, 'Покажи XSS-001');
+  await askOffice(p, 'Подготовь письмо');
+  assert.ok($('office-draft').value.includes(before));
+  assert.ok($('office-draft').value.includes(after));
+  const userText = '<img src=x onerror=window.officeInjected=true><script>window.officeInjected=true</script>';
+  await askOffice(p, userText);
+  assert.ok($('office-transcript').textContent.includes(userText));
+  assert.equal($('office-panel').querySelector('script,img,iframe'), null);
+  assert.equal($('result-rows').querySelector('script,img,iframe'), null);
+  assert.equal(p.dom.window.officeInjected, undefined);
+});
 
 test('transport cancellation terminates work and rejects before/after worker creation', async t => {
   const workers = [];

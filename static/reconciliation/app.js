@@ -13,11 +13,117 @@
     if (className) node.className = className;
     return node;
   }
+  // A bounded conversation is scoped to one report revision. Sources never become HTML.
+  const OFFICE_MESSAGE_LIMIT = 12, OFFICE_TEXT_LIMIT = 12000;
+  let officeDraftGeneration = 0;
+  function officeAvailable() { return !!state.report && !state.busy && !!window.KristinaOffice; }
+  function officeEnable() {
+    const enabled = officeAvailable();
+    $('office-question').disabled = !enabled; $('office-send').disabled = !enabled;
+    $('office-form').hidden = !enabled; $('office-suggestions').hidden = !enabled;
+    $('office-question').placeholder = enabled ? 'Например: почему эти строки совпали?' : 'Сначала добавьте два файла';
+    for (const button of $('office-suggestions').children) button.disabled = !enabled;
+  }
+  function officeReset(message = 'Добавьте два файла. Я помогу разобраться в различиях и подготовить письмо по результату.') {
+    officeDraftGeneration++;
+    $('office-summary').textContent = message;
+    $('office-transcript').replaceChildren(); $('office-question').value = '';
+    $('office-draft').value = ''; $('office-draft-section').hidden = true; $('office-draft-status').textContent = '';
+    $('office-summary-actions')?.remove(); officeEnable();
+  }
+  function officeJump(action, revision) {
+    if (revision !== state.revision || !officeAvailable() || state.report.status !== 'complete') return;
+    if (typeof action.key === 'string') {
+      const index = state.records.findIndex(item => item.key === action.key);
+      if (index < 0) return;
+      $('search').value = ''; state.filter = 'all'; state.active = index; state.page = Math.floor(index / PAGE_SIZE);
+      renderRows();
+      // Keys can contain any CSV text. Only a numeric row index selects the DOM node.
+      const pair = Array.from($('result-rows').children).find(node => node.dataset.index === String(index));
+      if (!pair) return;
+      pair.focus({preventScroll: true}); pair.scrollIntoView({behavior: 'smooth', block: 'center'});
+      if (typeof action.field === 'string') {
+        const field = Array.from(pair.querySelectorAll('.document-field')).find(node => node.dataset.field === action.field);
+        if (field) { field.classList.add('office-target'); setTimeout(() => field.classList.remove('office-target'), 2500); }
+      }
+    } else if (categories.some(([category]) => category === action.category)) {
+      $('search').value = ''; state.filter = action.category; state.active = -1; state.page = 0; renderRows();
+      const target = $('result-rows').querySelector('.document-pair') || $('result-heading');
+      target.focus({preventScroll: true}); target.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }
+  }
+  function officeActions(actions, revision) {
+    const box = element('div', undefined, 'office-actions');
+    for (const action of (Array.isArray(actions) ? actions.slice(0, 20) : [])) {
+      if (!action || typeof action.label !== 'string') continue;
+      const hasKey = typeof action.key === 'string';
+      if (!hasKey && !categories.some(([category]) => category === action.category)) continue;
+      const button = element('button', action.label.slice(0, 180), 'office-action'); button.type = 'button';
+      if (hasKey) button.dataset.key = action.key;
+      if (typeof action.category === 'string') button.dataset.category = action.category;
+      button.addEventListener('click', () => officeJump(action, revision)); box.append(button);
+    }
+    return box;
+  }
+  function officeMessage(role, text, actions = []) {
+    const log = $('office-transcript'), message = element('article', undefined, 'office-message ' + role);
+    message.append(element('span', role === 'user' ? 'Вы' : 'Кристина', 'office-speaker'), element('p', String(text).slice(0, OFFICE_TEXT_LIMIT)));
+    if (role !== 'user') { const buttons = officeActions(actions, state.revision); if (buttons.children.length) message.append(buttons); }
+    log.append(message); while (log.children.length > OFFICE_MESSAGE_LIMIT) log.firstElementChild.remove();
+    log.scrollTop = log.scrollHeight;
+  }
+  function officeShowDraft(text) {
+    if (typeof text !== 'string') return;
+    officeDraftGeneration++;
+    $('office-draft').value = text.slice(0, 1048576); $('office-draft-section').hidden = false;
+    $('office-draft-status').textContent = 'Черновик готов. Отправка остаётся за вами.';
+  }
+  function officeDescribe() {
+    if (!window.KristinaOffice || !state.report) return;
+    const answer = window.KristinaOffice.describe(state.report);
+    $('office-summary').textContent = String(answer.text || '').slice(0, OFFICE_TEXT_LIMIT);
+    $('office-summary-actions')?.remove();
+    const actions = officeActions(answer.actions, state.revision);
+    if (actions.children.length) { actions.id = 'office-summary-actions'; $('office-summary').after(actions); }
+  }
+  function officeAsk(question, draftIntent = false) {
+    if (!officeAvailable()) return;
+    question = String(question); if (!question.trim()) return;
+    if (question.length > 1000) { $('office-question').setCustomValidity('Сократите вопрос до 1 000 символов.'); $('office-question').reportValidity(); return; }
+    $('office-question').setCustomValidity(''); officeMessage('user', question); $('office-question').value = '';
+    try {
+      const answer = draftIntent ? window.KristinaOffice.draftLetter(state.report) : window.KristinaOffice.answer(state.report, question);
+      officeMessage('assistant', answer.text || 'Уточните вопрос по текущей сверке.', answer.actions);
+      if (typeof answer.draft === 'string') officeShowDraft(answer.draft);
+    } catch (_error) { officeMessage('assistant', 'Не удалось подготовить ответ. Найденные различия доступны в документах.'); }
+  }
+  async function officeCopy() {
+    if (!officeAvailable() || $('office-draft-section').hidden) return;
+    const revision = state.revision, generation = officeDraftGeneration, text = $('office-draft').value;
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(text);
+      if (revision === state.revision && generation === officeDraftGeneration) $('office-draft-status').textContent = text === $('office-draft').value ? 'Текст скопирован.' : 'Скопирована версия на момент нажатия. Изменённый текст скопируйте ещё раз.';
+    } catch (_error) {
+      if (revision !== state.revision || generation !== officeDraftGeneration) return;
+      $('office-draft').focus(); $('office-draft').select();
+      $('office-draft-status').textContent = 'Автоматическое копирование недоступно. Текст выделен — нажмите Ctrl+C или ⌘C.';
+    }
+  }
+  function officeDownload() {
+    if (!officeAvailable() || $('office-draft-section').hidden) return;
+    const url = URL.createObjectURL(new Blob([$('office-draft').value], {type: 'text/plain;charset=utf-8'}));
+    const link = element('a'); link.href = url; link.download = 'kristina-letter-draft.txt'; document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    $('office-draft-status').textContent = 'Черновик передан браузеру для скачивания.';
+  }
   function notice(message = '', error = false) {
     $('notice').textContent = message; $('notice').classList.toggle('error', error); $('notice').hidden = !message;
   }
   function busy(value) {
     state.busy = value;
+    if (value) officeReset('Читаю документы и проверяю данные. Отвечу по новой сверке, когда она будет готова.');
+    officeEnable();
     for (const id of ['demo', 'left-file', 'right-file', 'delimiter', 'left-key', 'right-key', 'answer']) $(id).disabled = value;
     $('rules').disabled = value || !state.metadata;
     $('compare').disabled = value;
@@ -28,6 +134,7 @@
     if (controller) controller.abort();
     state.report = null; state.html = null; state.records = [];
     $('results').hidden = true; $('result-rows').replaceChildren();
+    officeReset('Текущая сверка сброшена. Добавьте файлы или примените настройки — разберём новый результат.');
   }
   function dirty() { clearResult(); notice('Настройки изменены. Нажмите «Применить настройки» или «Продолжить».'); }
   function delimiter() { return $('delimiter').value === 'tab' ? '\t' : $('delimiter').value; }
@@ -96,7 +203,7 @@
     $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
     $('rules').hidden = true; $('rules').disabled = true; $('rules-empty').hidden = false;
     $('rules-summary').textContent = 'Определим автоматически';
-    if (!state.sources.left || !state.sources.right) { notice('Добавьте второй файл — сверка начнётся автоматически.'); return; }
+    if (!state.sources.left || !state.sources.right) { notice('Добавьте второй файл — сверка начнётся автоматически.'); officeReset('Первый файл готов. Добавьте второй — я сопоставлю позиции и объясню результат.'); return; }
     busy(true); notice('Читаю файлы и нахожу соответствия…');
     const revision = state.revision; let ready = false;
     try {
@@ -120,10 +227,10 @@
         $('question-title').focus({preventScroll: true});
         $('setup-question').scrollIntoView({behavior: 'smooth', block: 'center'});
         if (metadata.unmatched.left.length || metadata.unmatched.right.length) $('settings').open = true;
-        notice();
+        notice(); officeReset('Файлы прочитаны. Уточните, как сопоставить позиции, — затем смогу объяснить результат.');
       }
     } catch (error) {
-      if (error.name !== 'AbortError') { notice('Не удалось прочитать файлы. ' + error.message, true); $('settings').open = true; }
+      if (error.name !== 'AbortError') { notice('Не удалось прочитать файлы. ' + error.message, true); $('settings').open = true; officeReset('Не удалось прочитать файлы. Проверьте сообщение рядом с загрузкой и попробуйте снова.'); }
     } finally { if (revision === state.revision) busy(false); }
     if (ready && revision === state.revision) await compare();
   }
@@ -155,16 +262,15 @@
   }
   async function compare() {
     if (state.busy || !state.metadata) return;
-    let rules; try { rules = selectedRules(); } catch (error) { notice(error.message, true); return; }
+    let rules; try { rules = selectedRules(); } catch (error) { clearResult(); notice(error.message, true); return; }
     clearResult(); busy(true); const revision = state.revision; notice('Сравниваю документы…');
     try {
       const result = await api('/api/compare', {...state.sources, delimiter: state.delimiter, ...rules});
       if (revision !== state.revision) return;
       state.report = result.report; state.html = result.html;
       $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
-      renderResult(); notice();
-      $('result-heading').focus({preventScroll: true}); $('results').scrollIntoView({behavior: 'smooth', block: 'start'});
-    } catch (error) { if (error.name !== 'AbortError') notice('Сверка не выполнена. ' + error.message, true); }
+      renderResult(); officeDescribe(); notice();
+    } catch (error) { if (error.name !== 'AbortError') { clearResult(); notice('Сверка не выполнена. ' + error.message, true); officeReset('Сверка не выполнена. Исправьте данные или настройки по сообщению об ошибке.'); busy(false); } }
     finally { if (revision === state.revision) busy(false); }
   }
   function renderResult() {
@@ -218,9 +324,11 @@
     const values = element('dl', undefined, 'document-values');
     const changes = new Map((item.changes || []).map(c => [isLeft ? c.left_column : c.right_column, c]));
     const checked = new Map(state.report.rules.fields.map(f => [f[index], f]));
-    for (const [name, value] of Object.entries(row.values)) {
+    for (const name of state.report.sources[side].headers) {
+      const value = row.values[name];
       if (name === keyName) continue;
       const block = element('div', undefined, 'document-field'), label = element('dt', name), dd = element('dd');
+      block.dataset.field = name;
       if (value.length > 35 || /наименование|name|description/i.test(name)) block.classList.add('wide');
       if (!value) label.append(element('span', ' · пустое значение', 'uncompared'));
       const change = changes.get(name), single = item.category === 'only_left' || item.category === 'only_right';
@@ -271,6 +379,18 @@
     const url = URL.createObjectURL(new Blob([content], {type: html ? 'text/html;charset=utf-8' : 'application/json;charset=utf-8'}));
     const link = element('a'); link.href = url; link.download = 'kristina-reconciliation.' + format; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  $('office-form').addEventListener('submit', event => { event.preventDefault(); officeAsk($('office-question').value); });
+  $('office-question').addEventListener('input', () => $('office-question').setCustomValidity(''));
+  $('office-question').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); officeAsk($('office-question').value); } });
+  for (const button of $('office-suggestions').children) button.addEventListener('click', () => officeAsk(button.dataset.question, button.dataset.question === 'Подготовь письмо'));
+  $('office-open').addEventListener('click', () => {
+    $('office-panel').open = true; $('office-panel').scrollIntoView({behavior: 'smooth', block: 'center'});
+    if (officeAvailable()) $('office-question').focus({preventScroll: true});
+  });
+  $('office-copy').addEventListener('click', officeCopy); $('office-download').addEventListener('click', officeDownload);
+  $('office-draft').addEventListener('input', () => { $('office-draft-status').textContent = 'Черновик изменён. Проверьте текст перед отправкой.'; });
+  if (window.matchMedia?.('(max-width:1379px)').matches) $('office-panel').open = false;
+  officeEnable();
   for (const side of ['left', 'right']) {
     $(side + '-file').addEventListener('change', event => loadFile(side, event.target.files[0]));
     const zone = $(side + '-drop'); zone.addEventListener('dragover', event => { event.preventDefault(); if (!state.busy) zone.classList.add('dragging'); });
