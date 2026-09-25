@@ -2,6 +2,7 @@ import {prepare, inspect, compare} from './engine.mjs';
 import {renderHtml, renderJson} from './report.mjs';
 import {prepareText, compareText} from './text-engine.mjs';
 import {renderTextHtml} from './text-report.mjs';
+import {buildCommercialSummary} from './commercial-summary.mjs';
 
 export async function handleRequest(path, payload) {
   for (const side of ['left', 'right']) {
@@ -35,6 +36,7 @@ export async function handleRequest(path, payload) {
   }
   if (path === '/api/compare') {
     const report = await compare(payload);
+    report.commercial = buildCommercialSummary(report);
     renderJson(report);
     return {report, html: renderHtml(report)};
   }

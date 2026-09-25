@@ -22,6 +22,8 @@
     $('office-question').disabled = !enabled; $('office-send').disabled = !enabled;
     $('office-form').hidden = !enabled; $('office-suggestions').hidden = !enabled;
     const textMode = state.report?.kind === 'text';
+    $('office-impact-question').hidden = !enabled || textMode || !state.report?.commercial;
+    $('office-impact-question').disabled = !enabled;
     $('office-question').placeholder = enabled ? (textMode ? 'Например: что изменилось в тексте?' : 'Например: почему эти строки совпали?') : 'Сначала добавьте два файла';
     const questions = textMode ? ['Что изменилось?', 'Что добавлено?', 'Что удалено?', 'Подготовь письмо'] : ['Объясни результат', 'Где изменилась цена?', 'Что отсутствует?', 'Подготовь письмо'];
     Array.from($('office-suggestions').children).forEach((button, index) => { button.disabled = !enabled; button.dataset.question = questions[index]; button.textContent = questions[index]; });
@@ -308,8 +310,36 @@
     } catch (error) { if (error.name !== 'AbortError' && revision === state.revision) { clearResult(); notice('Сверка не выполнена. ' + error.message, true); officeReset('Сверка не выполнена. Исправьте данные или настройки по сообщению об ошибке.'); busy(false); } }
     finally { if (revision === state.revision) busy(false); }
   }
+  function renderCommercial() {
+    const box = $('commercial-summary'), impact = state.report?.commercial;
+    box.replaceChildren(); box.hidden = !impact || state.report.kind === 'text' || state.report.status !== 'complete';
+    if (box.hidden) return;
+    box.append(element('h3', 'Влияние на сумму'));
+    const stats = element('p', undefined, 'commercial-counts');
+    const count = value => value === null || value === undefined ? 'не определено' : String(value);
+    stats.textContent = `Изменилась цена: ${count(impact.counts.price_changed)} · количество: ${count(impact.counts.quantity_changed)} · только в A: ${impact.counts.only_left} · только в B: ${impact.counts.only_right}`;
+    box.append(stats);
+    for (const line of window.KristinaOffice.commercialLines(state.report)) box.append(element('p', line));
+    const revision = state.revision;
+    function details(items, heading, describe) {
+      if (!items.length) return;
+      const section = element('details'), list = element('ul', undefined, 'commercial-items');
+      section.append(element('summary', `${heading}: ${items.length}`));
+      for (const item of items.slice(0, 12)) {
+        const row = element('li'); row.append(element('p', describe(item)));
+        row.append(officeActions([{label: `Открыть ${String(item.key).slice(0, 70)} в документах`, key: item.key, category: item.category}], revision));
+        list.append(row);
+      }
+      section.append(list);
+      if (items.length > 12) section.append(element('p', `Показано 12 из ${items.length}; все позиции включены в скачиваемый HTML-отчёт.`, 'hint'));
+      box.append(section);
+    }
+    details(impact.items.filter(item => !/^0(?:\.0+)?$/.test(String(item.delta))), 'Изменения по позициям', item => `${item.key} · ${item.unit}: ${window.KristinaOffice.commercialTotalLine(item)}`);
+    details(impact.excluded, 'Что уточнить для полного расчёта', item => `${item.key}: ${item.reasons.join(' ')}`);
+  }
   function renderResult() {
     const report = state.report, complete = report.status === 'complete', textMode = report.kind === 'text';
+    renderCommercial();
     $('results').hidden = false; $('complete-result').hidden = !complete; $('clarification').hidden = complete;
     $('result-heading').textContent = complete ? (report.summary.changed + report.summary.only_left + report.summary.only_right ? 'Различия в документах' : 'Проверенные значения совпадают') : 'Нужно уточнить данные';
     $('settings').hidden = textMode; $('text-scope').hidden = !textMode;
@@ -456,6 +486,7 @@
   $('office-form').addEventListener('submit', event => { event.preventDefault(); officeAsk($('office-question').value); });
   $('office-question').addEventListener('input', () => $('office-question').setCustomValidity(''));
   $('office-question').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); officeAsk($('office-question').value); } });
+  $('office-impact-question').addEventListener('click', () => officeAsk('Как изменилась сумма?'));
   for (const button of $('office-suggestions').children) button.addEventListener('click', () => officeAsk(button.dataset.question, button.dataset.question === 'Подготовь письмо'));
   $('office-open').addEventListener('click', () => {
     $('office-panel').open = true; $('office-panel').scrollIntoView({behavior: 'smooth', block: 'center'});
@@ -492,7 +523,7 @@
   $('demo').addEventListener('click', async () => {
     if (state.busy) return; loads.left++; loads.right++;
     for (const side of ['left', 'right']) showSheets(side);
-    const examples = {left: ['order.csv', 'sku,quantity,unit\nCH-100,10,piece\nDS-200,5,piece\nLP-300,2,piece\nOLD-400,1,piece\n'], right: ['confirmation.csv', 'sku,quantity,unit\nCH-100,10.00,piece\nDS-200,4,piece\nLP-300,2,box\nNEW-500,1,piece\n']};
+    const examples = {left: ['order.csv', 'sku,quantity,unit,price_rub\nCH-100,10,piece,189\nDS-200,5,piece,20\nLP-300,2,piece,30\nOLD-400,1,piece,40\n'], right: ['confirmation.csv', 'sku,quantity,unit,price_rub\nCH-100,10.00,piece,189.00\nDS-200,4,piece,22\nLP-300,2,box,30\nNEW-500,1,piece,40\n']};
     $('delimiter').value = 'auto'; $('settings').open = false;
     for (const side of ['left', 'right']) { const [name, text] = examples[side]; state.sources[side] = {name, data: encode(new TextEncoder().encode(text))}; $(side + '-file').value = ''; sourceLabel(side, {name}); }
     await prepare();
