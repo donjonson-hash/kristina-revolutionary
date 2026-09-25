@@ -17,12 +17,12 @@ export async function handleRequest(path, payload) {
     return {data, filename: `kristina-reconciliation.${format}`, mime: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
   }
   for (const side of ['left', 'right']) {
-    const unsupported = /\.(doc|docm|odt|rtf|pdf)$/i.exec(payload?.[side]?.name || '');
-    if (unsupported) throw new Error(`Формат ${unsupported[1].toUpperCase()} пока не поддерживается. Для текста выберите TXT или DOCX.`);
+    const unsupported = /\.(doc|docm|odt|rtf)$/i.exec(payload?.[side]?.name || '');
+    if (unsupported) throw new Error(`Формат ${unsupported[1].toUpperCase()} пока не поддерживается. Для текста выберите TXT, DOCX или PDF с текстовым слоем.`);
   }
-  const isText = side => /\.(txt|docx)$/i.test(payload?.[side]?.name || '');
+  const isText = side => /\.(txt|docx|pdf)$/i.test(payload?.[side]?.name || '');
   if (isText('left') || isText('right')) {
-    if (!isText('left') || !isText('right')) throw new Error('Для текста загрузите два файла TXT или DOCX. Таблицы CSV/XLSX сравниваются отдельно.');
+    if (!isText('left') || !isText('right')) throw new Error('Для текста загрузите два файла TXT, DOCX или PDF. Таблицы CSV/XLSX сравниваются отдельно.');
     if (path === '/api/prepare' || path === '/api/inspect') {
       const result = await prepareText(payload);
       renderJson(result);

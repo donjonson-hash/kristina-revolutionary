@@ -1,4 +1,4 @@
-/** Bounded UTF-8 TXT and plain-paragraph DOCX extraction, entirely offline. */
+/** Bounded TXT, plain-paragraph DOCX and PDF text-layer extraction, offline. */
 import {DOMParser} from './xml-vendor.mjs';
 import {unzipDocument} from './text-zip.mjs';
 export const MAX_TEXT_SOURCE_BYTES = 2 * 1024 * 1024;
@@ -195,8 +195,8 @@ function docxBlocks(doc) {
 
 export async function readTextSource(item) {
   if (!item || typeof item.name !== 'string' || !item.name.trim() || [...item.name].length > 255 || item.name.includes('\0')) fail('Укажите имя текстового файла длиной до 255 символов.');
-  const format = item.name.toLowerCase().endsWith('.txt') ? 'txt' : item.name.toLowerCase().endsWith('.docx') ? 'docx' : null;
-  if (!format) fail('Для текстовой сверки загрузите TXT или DOCX.');
+  const format = /\.(txt|docx|pdf)$/i.exec(item.name)?.[1].toLowerCase();
+  if (!format) fail('Для текстовой сверки загрузите TXT, DOCX или PDF с текстовым слоем.');
   const data = item.data;
   if (typeof data !== 'string' || data.length > 4 * Math.ceil(MAX_TEXT_SOURCE_BYTES / 3)) fail('Текстовый файл превышает 2 МиБ или имеет неверный формат.');
   if (/[^A-Za-z0-9+/=]/.test(data) || data.length % 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(data)) fail('Некорректные данные base64.');
@@ -204,6 +204,11 @@ export async function readTextSource(item) {
   try { raw = Uint8Array.from(atob(data), c => c.charCodeAt(0)); } catch { fail('Некорректные данные base64.'); }
   if (raw.length > MAX_TEXT_SOURCE_BYTES) fail('Текстовый файл превышает 2 МиБ.');
   const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', raw))].map(n => n.toString(16).padStart(2, '0')).join('');
+  if (format === 'pdf') {
+    const {readPdfBytes} = await import('./pdf-source.mjs');
+    const {blocks, notes, page_count} = await readPdfBytes(raw);
+    return {meta: {name: item.name, sha256, format, block_count: blocks.length, page_count, coverage: 'text_layer_only', notes}, blocks};
+  }
   let texts, notes = [...standardNotes];
   if (format === 'txt') {
     let text;

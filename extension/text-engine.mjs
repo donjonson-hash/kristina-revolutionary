@@ -55,6 +55,7 @@ export async function compareText(payload) {
   const ids = blocks => blocks.map(block => { if (!intern.has(block.text)) intern.set(block.text, ++token); return intern.get(block.text); });
   const anchors = lcs(ids(a), ids(b), (x, y) => x === y), budget = {used: 0, fallback: 0};
   const result = {schema_version: 1, kind: 'text', status: 'complete', sources: {left: left.meta, right: right.meta}, rules: {mode: 'text', normalization: 'line_endings'}, summary: null, matched: [], changed: [], only_left: [], only_right: []};
+  if (left.meta.format === 'pdf' || right.meta.format === 'pdf') result.rules.pdf_text_layer = true;
   let order = 0, i = 0, j = 0;
   function gap(ai, bi) {
     // Exact neighboring anchors bound a changed region; paired unmatched blocks
@@ -70,7 +71,9 @@ export async function compareText(payload) {
     gap(ai, bi); result.matched.push({key: `text-${++order}`, left: a[i++], right: b[j++]});
   }
   gap(a.length, b.length);
-  const scope = 'Абзацы выровнены по точным совпадениям и порядку. Пары различающихся абзацев показывают текстовую замену, а не смысловую эквивалентность.';
+  const scope = result.rules.pdf_text_layer
+    ? 'Извлечённые фрагменты выровнены по точным совпадениям и порядку. Перенос текста на другую страницу сам по себе не считается изменением текста. Пары различающихся фрагментов не означают смысловую эквивалентность.'
+    : 'Абзацы выровнены по точным совпадениям и порядку. Пары различающихся абзацев показывают текстовую замену, а не смысловую эквивалентность.';
   result.sources.left.notes.push(scope); result.sources.right.notes.push(scope);
   if (budget.fallback) {
     const note = `Для ${budget.fallback} пар превышен бюджет подсветки слов: выделен абзац целиком. Текст сохранён полностью.`;
