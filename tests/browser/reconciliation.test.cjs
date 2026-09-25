@@ -97,6 +97,8 @@ test('demo -> real comparison -> evidence, categories, search and both downloads
   assert.equal($('settings').open, false, 'demo needs no settings');
   assert.equal($('commercial-summary').hidden, true, 'Legacy Python report has no commercial calculation');
   assert.equal($('office-impact-question').hidden, true);
+  assert.equal($('download-xlsx').hidden, true);
+  assert.equal($('download-pdf').hidden, true);
   assert.deepEqual([...$('totals').querySelectorAll('strong')].map((n) => n.textContent), ['5', '2', '1', '1', '1']);
   assert.match($('result-rows').textContent, /DS-200/);
   assert.match($('result-rows').textContent, /LP-300/);
