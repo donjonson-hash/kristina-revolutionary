@@ -5,7 +5,7 @@
   const state = {sources: {left: null, right: null}, metadata: null, suggested: [], delimiter: ',',
     report: null, html: null, records: [], busy: false, revision: 0, filter: 'all', page: 0, active: -1};
   const loads = {left: 0, right: 0}, selectColumns = new WeakMap();
-  let controller = null;
+  let controller = null, exportController = null;
   const categories = [['all', 'Все позиции'], ['changed', 'Изменились'], ['only_left', 'Только в A'], ['only_right', 'Только в B'], ['matched', 'Совпали']];
   function element(tag, text, className) {
     const node = document.createElement(tag);
@@ -127,7 +127,7 @@
   function busy(value) {
     state.busy = value;
     if (value) officeReset('Читаю документы и проверяю данные. Отвечу по новой сверке, когда она будет готова.');
-    officeEnable();
+    officeEnable(); exportEnable();
     for (const id of ['demo', 'left-file', 'right-file', 'delimiter', 'left-key', 'right-key', 'answer']) $(id).disabled = value;
     for (const side of ['left', 'right']) if ($(side + '-sheet')) $(side + '-sheet').disabled = value;
     $('rules').disabled = value || !state.metadata || state.metadata.kind === 'text';
@@ -137,7 +137,10 @@
   function clearResult() {
     state.revision += 1;
     if (controller) controller.abort();
+    if (exportController) exportController.abort();
+    exportController = null;
     state.report = null; state.html = null; state.records = [];
+    exportStatus(); exportEnable();
     $('results').hidden = true; $('result-rows').replaceChildren();
     officeReset('Текущая сверка сброшена. Добавьте файлы или примените настройки — разберём новый результат.');
   }
@@ -339,6 +342,7 @@
   }
   function renderResult() {
     const report = state.report, complete = report.status === 'complete', textMode = report.kind === 'text';
+    exportEnable();
     renderCommercial();
     $('results').hidden = false; $('complete-result').hidden = !complete; $('clarification').hidden = complete;
     $('result-heading').textContent = complete ? (report.summary.changed + report.summary.only_left + report.summary.only_right ? 'Различия в документах' : 'Проверенные значения совпадают') : 'Нужно уточнить данные';
@@ -483,6 +487,43 @@
     const url = URL.createObjectURL(new Blob([content], {type: html ? 'text/html;charset=utf-8' : 'application/json;charset=utf-8'}));
     const link = element('a'); link.href = url; link.download = 'kristina-reconciliation.' + format; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  function exportEnable() {
+    const available = !!window.KristinaTransport && state.report?.status === 'complete';
+    for (const format of ['xlsx', 'pdf']) {
+      const button = $('download-' + format);
+      button.hidden = !available || (format === 'xlsx' && state.report.kind === 'text');
+      button.disabled = button.hidden || state.busy || !!exportController;
+    }
+  }
+  function exportStatus(message = '', error = false) {
+    const status = $('export-status');
+    status.textContent = message; status.hidden = !message; status.classList.toggle('export-error', error);
+  }
+  async function downloadExport(format) {
+    if (!['xlsx', 'pdf'].includes(format) || !window.KristinaTransport || state.busy || exportController || state.report?.status !== 'complete') return;
+    if (format === 'xlsx' && state.report.kind === 'text') return;
+    const report = state.report, revision = state.revision, requestController = new AbortController();
+    exportController = requestController; exportEnable();
+    exportStatus('Готовлю ' + format.toUpperCase() + '-отчёт…');
+    const current = () => !requestController.signal.aborted && revision === state.revision && report === state.report && exportController === requestController;
+    try {
+      // Export has its own cancellation scope so a new comparison stays independent.
+      const result = await window.KristinaTransport.request('/api/export', {report, format}, {signal: requestController.signal});
+      if (!current()) return;
+      if (!(result?.data instanceof Uint8Array) || !result.data.length) throw new Error('Не удалось получить готовый файл. Повторите скачивание.');
+      const url = URL.createObjectURL(new Blob([result.data], {type: result.mime}));
+      const link = element('a'); link.href = url; link.download = result.filename;
+      try { document.body.append(link); link.click(); }
+      finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+      exportStatus(format.toUpperCase() + '-отчёт передан браузеру для скачивания.');
+    } catch (error) {
+      if (!current() || error?.name === 'AbortError') return;
+      const detail = typeof error?.message === 'string' && /^(?:[А-Яа-яЁё]|(?:XLSX|PDF)[: -])/.test(error.message) ? ' ' + error.message.slice(0, 240) : ' Повторите скачивание или сохраните HTML-отчёт.';
+      exportStatus('Не удалось подготовить ' + format.toUpperCase() + '.' + detail, true);
+    } finally {
+      if (exportController === requestController) { exportController = null; exportEnable(); }
+    }
+  }
   $('office-form').addEventListener('submit', event => { event.preventDefault(); officeAsk($('office-question').value); });
   $('office-question').addEventListener('input', () => $('office-question').setCustomValidity(''));
   $('office-question').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); officeAsk($('office-question').value); } });
@@ -495,7 +536,7 @@
   $('office-copy').addEventListener('click', officeCopy); $('office-download').addEventListener('click', officeDownload);
   $('office-draft').addEventListener('input', () => { $('office-draft-status').textContent = 'Черновик изменён. Проверьте текст перед отправкой.'; });
   if (window.matchMedia?.('(max-width:1379px)').matches) $('office-panel').open = false;
-  officeEnable();
+  officeEnable(); exportEnable();
   if (window.KristinaTransport) {
     $('supported-formats').textContent = 'Таблицы CSV и Excel или текстовые документы TXT и DOCX. Формат определю по файлам.';
     $('source-privacy').textContent = 'Сравнение начнётся автоматически. Файлы обрабатываются локально, без отправки в LLM. До 2 MiB на файл.';
@@ -536,4 +577,5 @@
   $('next').addEventListener('click', () => { state.page++; state.active = state.page * PAGE_SIZE - 1; renderRows(); });
   $('next-change').addEventListener('click', () => jumpChange(1)); $('previous-change').addEventListener('click', () => jumpChange(-1));
   $('download-html').addEventListener('click', () => download('html')); $('download-json').addEventListener('click', () => download('json'));
+  $('download-xlsx').addEventListener('click', () => downloadExport('xlsx')); $('download-pdf').addEventListener('click', () => downloadExport('pdf'));
 })();
