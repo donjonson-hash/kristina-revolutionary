@@ -197,3 +197,8 @@ main{padding:0 18px}
 .document-field.office-target{outline:2px solid #668669;outline-offset:5px;border-radius:2px}
 
 @media(max-width:700px){.downloads{max-width:100%;justify-content:flex-start}}
+/* Worksheet selection stays next to its source, outside advanced settings. */
+.sheet-choice{display:grid;gap:8px;margin-top:14px;overflow-wrap:anywhere}
+.sheet-choice[hidden]{display:none}
+.sheet-choice select{max-width:100%;min-width:0}
+.cell-address{font:12px ui-monospace,monospace;color:#52645a}

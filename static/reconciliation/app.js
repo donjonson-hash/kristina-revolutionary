@@ -125,6 +125,7 @@
     if (value) officeReset('Читаю документы и проверяю данные. Отвечу по новой сверке, когда она будет готова.');
     officeEnable();
     for (const id of ['demo', 'left-file', 'right-file', 'delimiter', 'left-key', 'right-key', 'answer']) $(id).disabled = value;
+    for (const side of ['left', 'right']) if ($(side + '-sheet')) $(side + '-sheet').disabled = value;
     $('rules').disabled = value || !state.metadata;
     $('compare').disabled = value;
     $('compare').textContent = value ? 'Обрабатываю…' : 'Применить настройки';
@@ -154,7 +155,15 @@
   }
   function sourceLabel(side, file) {
     $(side + '-filename').textContent = file ? file.name : 'Выберите файл или перетащите сюда';
-    $(side + '-meta').textContent = file ? 'Файл выбран · нажмите, чтобы заменить' : 'CSV · UTF-8 · до 2 MiB';
+    $(side + '-meta').textContent = file ? 'Файл выбран · нажмите, чтобы заменить' : (window.KristinaTransport ? 'XLSX, CSV, TSV · до 2 MiB' : 'CSV · UTF-8 · до 2 MiB');
+  }
+  function showSheets(side, sheets = [], selected = null) {
+    const select = $(side + '-sheet');
+    if (!select) return;
+    select.parentElement.hidden = sheets.length < 2;
+    options(select, sheets.map(s => s.name), 'Выберите лист');
+    sheets.forEach((sheet, i) => { if (sheet.hidden) select.options[i + 1].textContent += ' (скрытый)'; });
+    if (selected !== null) { chooseColumn(select, selected); state.sources[side].sheet = selected; }
   }
   function options(select, names, placeholder) {
     selectColumns.set(select, names); select.replaceChildren(new Option(placeholder, ''));
@@ -209,9 +218,16 @@
     try {
       const metadata = await api('/api/prepare', {...state.sources, delimiter: delimiter()});
       if (revision !== state.revision) return;
+      if (metadata.needs_sheet) {
+        for (const side of ['left', 'right']) showSheets(side, metadata.sheets[side], metadata.selected[side]);
+        notice('Выберите лист в каждом Excel-файле с несколькими заполненными листами. Я сверю только выбранные листы.');
+        officeReset('В книге несколько заполненных листов. Выберите нужный рядом с файлом — и я продолжу сверку.');
+        return;
+      }
       state.metadata = metadata; state.suggested = metadata.rules.fields; state.delimiter = metadata.delimiter;
       for (const side of ['left', 'right']) {
-        $(side + '-meta').textContent = `${metadata[side].row_count} строк · ${metadata[side].headers.length} столбцов · заменить файл`;
+        showSheets(side, metadata[side].sheets, metadata[side].sheet ?? null);
+        $(side + '-meta').textContent = `${metadata[side].sheet ? 'Лист «' + metadata[side].sheet + '» · ' : ''}${metadata[side].row_count} строк · ${metadata[side].headers.length} столбцов · заменить файл`;
         options($(side + '-key'), metadata[side].headers, 'Выберите идентификатор');
       }
       if (metadata.rules.key) { chooseColumn($('left-key'), metadata.rules.key[0]); chooseColumn($('right-key'), metadata.rules.key[1]); }
@@ -237,9 +253,11 @@
   async function loadFile(side, file) {
     if (!file || state.busy) return;
     const version = ++loads[side]; clearResult(); state.sources[side] = null; state.metadata = null;
+    showSheets(side);
     $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
     $('rules').hidden = true; $('rules').disabled = true; $('rules-empty').hidden = false; sourceLabel(side, null);
-    if (file.size > MAX_FILE_BYTES) { notice('Файл превышает 2 MiB. Выберите меньший CSV.', true); return; }
+    if (file.size > MAX_FILE_BYTES) { notice('Файл превышает 2 MiB. Выберите меньший файл.', true); return; }
+    if (/\.(xlsx|xls|xlsm|xlsb|ods)$/i.test(file.name) && !window.KristinaTransport) { notice('Excel доступен в расширении Кристины. Здесь загрузите CSV.', true); return; }
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (version !== loads[side]) return;
@@ -318,7 +336,7 @@
     panel.setAttribute('aria-label', `${isLeft ? 'A' : 'B'} · ${item.key}`);
     if (!row) { panel.classList.add('absent'); panel.append(element('p', 'Нет этой позиции')); return panel; }
     const title = element('div', undefined, 'record-title'), keyName = state.report.rules.key[index];
-    title.append(element('strong', `${keyName}: ${row.values[keyName]}`), element('span', `Запись ${row.record}`, 'record-number'));
+    title.append(element('strong', `${keyName}: ${row.values[keyName]}`), element('span', row.sheet ? `«${row.sheet}» · строка ${row.record} · ${row.cells[keyName]}` : `Запись ${row.record}`, 'record-number'));
     const labels = {changed: 'Есть изменения', only_left: 'Только в A', only_right: 'Только в B', matched: 'Проверенные поля совпали'};
     title.append(element('span', labels[item.category], 'record-status')); panel.append(title);
     const values = element('dl', undefined, 'document-values');
@@ -329,6 +347,7 @@
       if (name === keyName) continue;
       const block = element('div', undefined, 'document-field'), label = element('dt', name), dd = element('dd');
       block.dataset.field = name;
+      if (row.cells?.[name]) label.append(element('span', ' · ' + row.cells[name], 'cell-address'));
       if (value.length > 35 || /наименование|name|description/i.test(name)) block.classList.add('wide');
       if (!value) label.append(element('span', ' · пустое значение', 'uncompared'));
       const change = changes.get(name), single = item.category === 'only_left' || item.category === 'only_right';
@@ -392,6 +411,19 @@
   if (window.matchMedia?.('(max-width:1379px)').matches) $('office-panel').open = false;
   officeEnable();
   for (const side of ['left', 'right']) {
+    if (window.KristinaTransport) {
+      $(side + '-file').accept += ',.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      sourceLabel(side, null);
+      const label = element('label', 'Лист для сверки', 'sheet-choice'), select = element('select');
+      select.id = side + '-sheet'; select.setAttribute('aria-label', 'Лист для сверки ' + (side === 'left' ? 'A' : 'B'));
+      label.hidden = true; label.append(select); $(side + '-drop').after(label);
+      select.addEventListener('change', () => {
+        if (!state.sources[side] || state.busy) return;
+        if (select.value === '') delete state.sources[side].sheet;
+        else state.sources[side].sheet = selectedColumn(select);
+        prepare();
+      });
+    }
     $(side + '-file').addEventListener('change', event => loadFile(side, event.target.files[0]));
     const zone = $(side + '-drop'); zone.addEventListener('dragover', event => { event.preventDefault(); if (!state.busy) zone.classList.add('dragging'); });
     zone.addEventListener('dragleave', () => zone.classList.remove('dragging'));
@@ -400,6 +432,7 @@
   }
   $('demo').addEventListener('click', async () => {
     if (state.busy) return; loads.left++; loads.right++;
+    for (const side of ['left', 'right']) showSheets(side);
     const examples = {left: ['order.csv', 'sku,quantity,unit\nCH-100,10,piece\nDS-200,5,piece\nLP-300,2,piece\nOLD-400,1,piece\n'], right: ['confirmation.csv', 'sku,quantity,unit\nCH-100,10.00,piece\nDS-200,4,piece\nLP-300,2,box\nNEW-500,1,piece\n']};
     $('delimiter').value = 'auto'; $('settings').open = false;
     for (const side of ['left', 'right']) { const [name, text] = examples[side]; state.sources[side] = {name, data: encode(new TextEncoder().encode(text))}; $(side + '-file').value = ''; sourceLabel(side, {name}); }

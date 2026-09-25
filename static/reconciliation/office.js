@@ -52,10 +52,14 @@
   function counts(report) {
     return `Изменились: ${report.changed.length}; только в A: ${report.only_left.length}; только в B: ${report.only_right.length}; ${fields(report).length ? 'совпали по проверенным полям' : 'ключи найдены в обоих файлах'}: ${report.matched.length}.`;
   }
+  function sheetLines(report, compact = true) {
+    const show = compact ? short : quote;
+    return ['left', 'right'].flatMap((side, i) => report.sources[side].sheet ? [`${i ? 'B' : 'A'}: проверен только лист ${show(report.sources[side].sheet)}. Другие листы и оформление не проверялись.`] : []);
+  }
   function ruleLines(report, compact = true) {
     const show = compact ? short : quote;
     const rules = report.rules || {}, selected = fields(report);
-    const lines = [`Сопоставление по ключам: A ${show(rules.key?.[0] ?? '')} ↔ B ${show(rules.key?.[1] ?? '')}.`];
+    const lines = [...sheetLines(report, compact), `Сопоставление по ключам: A ${show(rules.key?.[0] ?? '')} ↔ B ${show(rules.key?.[1] ?? '')}.`];
     if (!selected.length) lines.push('Проверялось только наличие ключей. Значения других столбцов не сравнивались.');
     else {
       lines.push('Проверенные поля:');
@@ -73,6 +77,7 @@
     const missing = unavailable(report); if (missing) return missing;
     const lines = ['Я Кристина, ваш офисный помощник. Проверила два файла.',
       `A — ${short(report.sources.left.name)}; B — ${short(report.sources.right.name)}.`, counts(report)];
+    lines.push(...sheetLines(report));
     if (!entries(report).length) lines.push('В обоих файлах нет строк данных; сравнивать позиции пока нечего.');
     if (noOverlap(report)) lines.push('По выбранным ключам общих позиций нет. Сначала проверьте, что ключи в A и B обозначают одно и то же.');
     if (!fields(report).length) lines.push('Проверила только наличие ключей. Значения других столбцов не сравнивались.');
@@ -103,7 +108,8 @@
 
   function changeLine(item, change, full = false) {
     const show = full ? quote : short;
-    return `${show(item.key)}: A ${show(change.left_column)} = ${show(change.before)} → B ${show(change.right_column)} = ${show(change.after)} (строки A ${item.left.record}, B ${item.right.record}).`;
+    const reference = (row, column) => row.sheet ? `${show(row.sheet)}!${row.cells[column]}` : row.record;
+    return `${show(item.key)}: A ${show(change.left_column)} = ${show(change.before)} → B ${show(change.right_column)} = ${show(change.after)} (строки A ${reference(item.left, change.left_column)}, B ${reference(item.right, change.right_column)}).`;
   }
 
   function changedFields(report, kind) {
