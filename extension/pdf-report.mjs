@@ -6,7 +6,7 @@ import {renderJson, MAX_REPORT_BYTES} from './report.mjs';
 export const MAX_PDF_PAGES = 200;
 export const MAX_PDF_CHARACTERS = 1_000_000;
 const LIMIT = 'PDF слишком большой. Разделите документы или сохраните полный отчёт HTML/JSON.';
-const labels = {changed: 'Есть различия', only_left: 'Только в A', only_right: 'Только в B', matched: 'Совпали проверенные поля'};
+const labels = {changed: 'Есть различия', only_left: 'Только в A', only_right: 'Только в B', moved: 'Перемещено без изменения текста', reflow: 'Изменены переносы строк', matched: 'Совпали проверенные поля'};
 const INK = rgb(.14, .22, .19), MUTED = rgb(.34, .39, .36);
 const COLORS = {left: rgb(1, .90, .86), right: rgb(.87, .95, .89), neutral: rgb(.94, .95, .93)};
 const money = value => value === null ? 'не рассчитано' : String(value).replace('.', ',');
@@ -24,6 +24,10 @@ function contents(report) {
   add('Кристина · отчёт о сверке', {size: 21, gap: 13});
   add('Сравнение выполнено локально. Исходная вёрстка документов не воспроизводится.', {muted: true});
   add(`Изменились: ${report.summary.changed}; только в A: ${report.summary.only_left}; только в B: ${report.summary.only_right}; совпали: ${report.summary.matched}.`);
+  if (report.kind === 'text' && (report.moved?.length || report.reflow?.length)) {
+    add(`Отдельно: перемещено без изменения текста — ${report.moved?.length || 0}; групп с изменением переносов строк — ${report.reflow?.length || 0}.`);
+    add('Эти группы не включены в число изменений текста и позиций только в A/B. Порядок пар служит для сопоставления; исходное расположение указано для каждой стороны.', {muted: true});
+  }
   add('Совпавшие пары опущены. Полное извлечённое содержимое доступно в HTML/JSON-отчёте. Исходные файлы следует хранить отдельно.', {muted: true});
   add('Красная подсветка — значение A; зелёная — значение B.', {muted: true});
   add(`A: ${report.sources.left.name}`);
@@ -39,21 +43,30 @@ function contents(report) {
     for (const message of summary.messages) add(message, {muted: true});
   }
   heading('Обнаруженные различия');
-  const rows = ['changed', 'only_left', 'only_right'].flatMap(category => report[category].map(item => ({item, category})));
+  const categories = report.kind === 'text' ? ['changed', 'only_left', 'only_right', 'moved', 'reflow'] : ['changed', 'only_left', 'only_right'];
+  const rows = categories.flatMap(category => (report[category] || []).map(item => ({item, category})));
   const record = ({item, category}, side) => item[side]?.record ?? (category === `only_${side}` ? item.row.record : Infinity);
   rows.sort(report.kind === 'text' ? (a, b) => Number(a.item.key.slice(5)) - Number(b.item.key.slice(5)) : (a, b) => record(a, 'left') - record(b, 'left') || record(a, 'right') - record(b, 'right'));
   if (!rows.length) add('Различий по выполненным правилам не обнаружено.');
   for (const {item, category} of rows) {
     const context = `${item.key} · ${labels[category]}`;
     add(context, {size: 12, heading: true, fill: 'neutral', context});
-    const only = category !== 'changed';
+    const only = category === 'only_left' || category === 'only_right';
     if (report.kind === 'text') {
+      if (category === 'moved') {
+        if (item.left.text !== item.right.text) throw new TypeError('PDF: текст перемещённого фрагмента различается. Повторите сверку.');
+        add(`A: ${item.left.location} · блок ${item.left.record}`, {muted: true, context});
+        add(`B: ${item.right.location} · блок ${item.right.record}`, {muted: true, context});
+        add(item.left.text, {context});
+        continue;
+      }
       for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
         const block = only ? (category === `only_${side}` ? item.row : null) : item[side];
         if (!block) { add(`${label}: сопоставленного блока нет.`, {muted: true, context}); continue; }
-        add(`${label}: ${block.location} · блок ${block.record}`, {muted: true, context});
-        let segments = [{text: block.text, changed: true}];
-        if (!only) {
+        const records = block.source_blocks ? 'блоки ' + block.source_blocks.map(part => part.record).join(', ') : 'блок ' + block.record;
+        add(`${label}: ${block.location} · ${records}`, {muted: true, context});
+        let segments = [{text: block.text, changed: only}];
+        if (category === 'changed') {
           segments = item.segments?.[side];
           if (!Array.isArray(segments) || segments.some(segment => typeof segment.text !== 'string' || typeof segment.changed !== 'boolean') || segments.map(segment => segment.text).join('') !== block.text) throw new TypeError('PDF: подсветка не соответствует исходному тексту. Повторите сверку.');
         }
