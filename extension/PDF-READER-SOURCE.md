@@ -21,7 +21,7 @@ The build verifies both upstream source SHA-256 checksums and the dependency ver
 ```text
 build/pdf.mjs         495588717f62303a839e91a5343deebf1b41f52e2f9f6361e73dee6ea6a4355e
 build/pdf.worker.mjs  f2870db902eaff8397442c912b69459980ac91f6f4b5ed827167b12cf7057930
-pdf-reader-vendor.mjs 91504ee0c3b942f391a34f8defe676d6b6abcc96a9291ad9e7a4ae3a553d8357
+pdf-reader-vendor.mjs dcd3cd61840406b08cef5c57dcd6552de5ee3be67e80e2c6314ecb427ac512aa
 ```
 
 ## Rebuild
@@ -42,8 +42,9 @@ Every upstream patch must match exactly once or the build fails.
 1. Disable the PDF.js worker's automatic global message listener. The existing
    application Worker retains its own listener. PDF.js uses its loopback protocol
    inside that Worker, so it does not create a nested Worker or import a remote script.
-2. Reject actual raster XObject and inline-image operations in text extraction,
-   including images reached recursively through Form XObjects. Images are not decoded.
+2. Retain upstream text extraction for raster XObjects and inline images: skip
+   image content and recurse into Form XObjects for text. The earlier image rejection
+   patches were removed in 0.10.0; image rendering and comparison are not requested.
 3. Reject `ErrorFont`, graphic Type3 fonts and characters without a usable Unicode
    mapping, instead of silently dropping glyphs or substituting a raw PDF character code.
 4. Limit a decoded stream buffer to 32 MiB before allocation and a single text
@@ -68,9 +69,10 @@ Import is limited to 2 MiB, 100 pages, 2000 extracted lines, 500000 Unicode code
 points, 100000 text items and 15 seconds per document. The existing application
 Worker timeout is the outer bound for synchronous parser work. Decompression has
 the independent per-stream limit above. The importer rejects encrypted documents,
-forms, annotations (including links), attachments, optional-content layers, all
-encountered raster images and every page with no usable text, even if other pages
-contain text. It does not perform OCR or render original pages.
+forms, annotations (including links), attachments, optional-content layers and every
+page with no usable text, even if other pages contain text. Text-bearing pages may
+contain images; those images and any text within them are not compared. This scope
+is stated in the result, office draft and exported reports. It does not perform OCR or render original pages.
 
 Lines concatenate items in PDF.js source order and split at `hasEOL`; the application
 does not insert spaces or apply semantic matching. `disableNormalization: true`
@@ -80,7 +82,8 @@ match the visual document. Source notes state this limitation. Replacement chara
 private-use mappings, unpaired surrogates and unsupported controls fail explicitly.
 
 Validation uses independently authored Cyrillic PDF inputs, standard Helvetica,
-fragmented text runs, raster/inline-image and form rejection, invalid/password files,
+fragmented text runs, text with raster/inline images, image-only and mixed scan
+rejection, form rejection, invalid/password files,
 Unicode rejection and page limits. A real Node Worker with browser-like globals,
 no DOMMatrix, prohibited fetch/XHR/nested Worker stubs and removed compatibility
 methods also exercised successful extraction and preserved the application listener.
