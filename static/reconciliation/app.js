@@ -15,7 +15,8 @@
     else officeHome.insertBefore($('office-sidebar'), officeNext);
     $('zoom-control').hidden = !textMode;
   }
-  const categories = [['all', 'Все позиции'], ['changed', 'Изменились'], ['only_left', 'Только в A'], ['only_right', 'Только в B'], ['matched', 'Совпали']];
+  const categories = [['all', 'Все позиции'], ['changed', 'Изменились'], ['only_left', 'Только в A'], ['only_right', 'Только в B'], ['matched', 'Совпали'], ['moved', 'Перемещено без изменения текста'], ['reflow', 'Изменены переносы строк']];
+  const structuralCategory = category => category === 'moved' || category === 'reflow';
   function element(tag, text, className) {
     const node = document.createElement(tag);
     if (text !== undefined) node.textContent = String(text);
@@ -369,9 +370,10 @@
     const notes = $('text-source-notes'); notes.replaceChildren();
     if (textMode) {
       $('result-context').textContent = `${report.summary.left_blocks} фрагментов в A · ${report.summary.right_blocks} в B. Показан извлечённый текст без исходной вёрстки.`;
-      if (!report.summary.changed && !report.summary.only_left && !report.summary.only_right) $('result-heading').textContent = pdfMode ? 'Извлечённый текст совпадает' : 'Текст документов совпадает';
-      $('audit-explanation').textContent = 'Сравнивается извлечённый текст: строки TXT и абзацы DOCX. Сохранены исходные слова, пробелы и порядок; унифицированы переводы строк. Номера и подписи фрагментов относятся к каждому исходному файлу. Фрагменты без пары показаны только с одной стороны. Оформление и вёрстка не сравниваются.';
+      if (!report.summary.changed && !report.summary.only_left && !report.summary.only_right) $('result-heading').textContent = (report.moved?.length || report.reflow?.length) ? 'Изменены порядок фрагментов или переносы строк' : (pdfMode ? 'Извлечённый текст совпадает' : 'Текст документов совпадает');
+      $('audit-explanation').textContent = 'Сравнивается извлечённый текст: строки TXT и абзацы DOCX. Сохранены исходные слова и пробелы; унифицированы переводы строк. Номера и подписи фрагментов относятся к каждому исходному файлу. Фрагменты без пары показаны только с одной стороны. Оформление и вёрстка не сравниваются.';
       if (pdfMode) $('audit-explanation').textContent = 'Сравнивается текстовый слой PDF: строки связаны с номерами исходных страниц. Вёрстка и номера страниц не являются правилами сравнения. Пробелы и порядок строк восстановлены при извлечении; исходные страницы здесь не воспроизводятся.';
+      if (report.moved?.length || report.reflow?.length) $('audit-explanation').textContent += ' Показаны сопоставленные пары фрагментов; порядок показа может отличаться от исходного. Подписи указывают исходные координаты. Перемещения и переносы выделены отдельно. Переносы определяются эвристикой объединения строк, без оценки смысловой эквивалентности.';
       for (const side of ['left', 'right']) for (const note of (report.sources[side].notes || [])) notes.append(element('li', `${side === 'left' ? 'A' : 'B'}: ${note}`));
     } else {
       $('result-context').textContent = 'Пары строк совмещены по «' + report.rules.key.join('» ↔ «') + '». Номера записей — в исходных файлах.';
@@ -392,13 +394,14 @@
       return;
     }
     state.records = [];
-    for (const [category] of categories.slice(1)) for (const item of report[category]) state.records.push({...item, category});
+    const visibleCategories = categories.filter(([key]) => !structuralCategory(key) || (textMode && report[key]?.length));
+    for (const [category] of visibleCategories.slice(1)) for (const item of report[category] || []) state.records.push({...item, category});
     if (textMode) state.records.sort((a, b) => Number(a.key.slice(5)) - Number(b.key.slice(5)));
     else state.records.sort((a, b) => (a.left?.record ?? (a.category === 'only_left' ? a.row.record : Infinity)) - (b.left?.record ?? (b.category === 'only_left' ? b.row.record : Infinity)) || (a.right?.record ?? a.row?.record ?? 0) - (b.right?.record ?? b.row?.record ?? 0));
     state.filter = 'all'; state.page = 0; $('totals').replaceChildren();
-    for (const [key, label] of categories) {
+    for (const [key, label] of visibleCategories) {
       const button = element('button', undefined, 'total'); button.type = 'button'; button.dataset.category = key;
-      button.append(element('strong', key === 'all' ? state.records.length : report.summary[key]), element('span', textMode && key === 'all' ? 'Все фрагменты' : label));
+      button.append(element('strong', key === 'all' ? state.records.length : (report.summary[key] ?? report[key]?.length ?? 0)), element('span', textMode && key === 'all' ? 'Все фрагменты' : label));
       button.addEventListener('click', () => { state.filter = key; state.page = 0; state.active = -1; changePage = 0; renderRows(); }); $('totals').append(button);
     }
     $('document-left-name').textContent = report.sources.left.name; $('document-right-name').textContent = report.sources.right.name;
@@ -419,7 +422,7 @@
     panel.setAttribute('aria-label', `${isLeft ? 'A' : 'B'} · ${row?.location || 'Нет фрагмента'}`);
     if (!row) { panel.classList.add('absent'); panel.append(element('p', 'Нет этого фрагмента')); return panel; }
     const title = element('div', undefined, 'record-title');
-    const labels = {changed: 'Текст изменён', matched: 'Текст совпадает', only_left: 'Только в A', only_right: 'Только в B'};
+    const labels = {changed: 'Текст изменён', matched: 'Текст совпадает', only_left: 'Только в A', only_right: 'Только в B', moved: 'Перемещено без изменения текста', reflow: 'Изменены переносы строк'};
     title.append(element('strong', row.location), element('span', labels[item.category], 'record-status')); panel.append(title);
     if (row.page && row.line === 1) panel.append(element('p', `Страница ${row.page}`, 'pdf-page-label'));
     const content = element('p', undefined, 'text-content');
@@ -432,7 +435,18 @@
     } else if (item.category === 'only_left' || item.category === 'only_right') content.append(element('mark', row.text));
     else content.textContent = row.text;
     if (!row.text) { content.classList.add('is-empty'); content.setAttribute('aria-label', 'Пустая строка'); }
-    panel.append(content); return panel;
+    panel.append(content);
+    if (row.source_blocks?.length) {
+      const sources = element('details', undefined, 'source-blocks');
+      sources.append(element('summary', `Исходные фрагменты: ${row.source_blocks.length}`));
+      for (const block of row.source_blocks) {
+        const original = element('div', undefined, 'source-block');
+        original.append(element('strong', `${block.location} · блок ${block.record}`), element('p', block.text, 'text-content'));
+        sources.append(original);
+      }
+      panel.append(sources);
+    }
+    return panel;
   }
   function recordPanel(item, side) {
     const isLeft = side === 'left', index = isLeft ? 0 : 1;
@@ -486,7 +500,7 @@
     $('change-count').textContent = String(changes.length);
     $('change-position').textContent = active < 0 ? `Отличий: ${changes.length}` : `Отличие ${active + 1} из ${changes.length}`;
     const list = $('change-list'); list.replaceChildren(); list.start = changePage * PAGE_SIZE + 1;
-    const labels = {changed: 'Изменено', only_left: 'Только в A', only_right: 'Только в B'};
+    const labels = {changed: 'Изменено', only_left: 'Только в A', only_right: 'Только в B', moved: 'Перемещено без изменения текста', reflow: 'Изменены переносы строк'};
     const textMode = state.report.kind === 'text';
     for (const [offset, {item, index}] of changes.slice(changePage * PAGE_SIZE, (changePage + 1) * PAGE_SIZE).entries()) {
       const li = element('li'), button = element('button', undefined, 'change-item');
@@ -503,7 +517,7 @@
         else value = item.key + (item.changes?.length ? ' · ' + item.changes.map(change => `${left ? change.left_column : change.right_column}: ${left ? change.before : change.after}`).join('; ') : '');
         // Only this navigation preview is shortened; the evidence keeps every character.
         const preview = Array.from(value);
-        button.append(element('span', `${left ? 'A' : 'B'}: ${preview.slice(0, 160).join('')}${preview.length > 160 ? '…' : ''}` + (!value ? ' (пустой текст)' : ''), 'change-excerpt ' + (left ? 'before' : 'after')));
+        button.append(element('span', `${left ? 'A' : 'B'}: ${preview.slice(0, 160).join('')}${preview.length > 160 ? '…' : ''}` + (!value ? ' (пустой текст)' : ''), 'change-excerpt ' + (structuralCategory(item.category) ? 'structural' : (left ? 'before' : 'after'))));
       }
       button.append(element('span', locations.join(' · '), 'change-location'));
       const revision = state.revision;

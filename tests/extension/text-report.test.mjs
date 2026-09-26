@@ -55,3 +55,19 @@ test('HTML amplification stops at the UTF-8 budget', () => {
   report.matched = Array.from({length: 1000}, (_, i) => ({key: `text-${i + 1}`, left: block(i + 1, value), right: block(i + 1, value)}));
   assert.throws(() => renderTextHtml(report), {name: 'RangeError', message: /HTML report exceeds 16 MiB/});
 });
+
+test('structural categories retain both original texts and coordinates without addition/deletion highlighting', () => {
+  const report = fixture();
+  report.moved = [{key: 'text-5', left: block(4, '<Стоимость> 125000'), right: block(8, '<Стоимость> 125000')}];
+  const originals = [block(6, 'Доставка включена'), block(7, 'в стоимость.')];
+  report.reflow = [{key: 'text-6', left: block(5, 'Доставка включена в стоимость.'), right: {record: 6, text: originals.map(row => row.text).join('\n'), location: 'Абзац 6; Абзац 7', source_blocks: originals}}];
+  report.summary.moved = 1; report.summary.reflow = 1;
+  const doc = new JSDOM(renderTextHtml(report)).window.document;
+  assert.equal(doc.querySelectorAll('.moved mark, .reflow mark').length, 0);
+  assert.deepEqual([...doc.querySelectorAll('.moved .text')].map(n => n.textContent), ['<Стоимость> 125000', '<Стоимость> 125000']);
+  assert.equal(doc.querySelector('.reflow .right .text').textContent, 'Доставка включена\nв стоимость.');
+  assert.match(doc.querySelector('.reflow .right .location').textContent, /Абзац 6; Абзац 7 · блоки 6, 7/);
+  assert.match(doc.querySelector('.moved h3').textContent, /Перемещено без изменения текста/);
+  assert.match(doc.querySelector('.reflow h3').textContent, /Изменены переносы строк/);
+  assert.equal(doc.querySelectorAll('стоимость').length, 0, 'Source markup remains escaped');
+});

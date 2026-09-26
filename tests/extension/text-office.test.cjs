@@ -70,3 +70,45 @@ test('large replies disclose truncation; oversized full draft is refused', () =>
   const draft = office.draftLetter(report);
   assert.equal(draft.draft, undefined); assert.match(draft.text, /превышает лимит 1 МиБ/);
 });
+
+function structuralFixture() {
+  const report = fixture();
+  report.changed = []; report.only_left = []; report.only_right = []; report.matched = [];
+  report.moved = [{key: 'text-1', left: block(1, 'Неизменный текст.'), right: block(4, 'Неизменный текст.')}];
+  const first = {...block(2, 'Поставка через'), page: 1, location: 'Страница 1 · строка 2'};
+  const second = {...block(3, '15 дней.'), page: 2, location: 'Страница 2 · строка 1'};
+  report.reflow = [{key: 'text-2', left: {...first, text: 'Поставка через\n15 дней.', location: 'Страницы 1–2', source_blocks: [first, second]}, right: {...block(2, 'Поставка через 15 дней.'), page: 1}}];
+  return report;
+}
+
+test('structural-only summary and draft never claim unchanged documents or new/removed content', () => {
+  const report = structuralFixture(), summary = office.describe(report), draft = office.draftLetter(report).draft;
+  assert.match(summary.text, /Изменённых блоков: 0; только в A: 0; только в B: 0/);
+  assert.match(summary.text, /Перемещено без изменения текста: 1/);
+  assert.match(summary.text, /Изменены переносы строк: 1/);
+  assert.match(summary.text, /эвристикой объединения строк/);
+  assert.doesNotMatch(summary.text + draft, /Извлечённый текст совпал по правилам|Текстовых различий по указанным правилам не обнаружено/);
+  assert.deepEqual(summary.actions.map(action => action.category), ['moved', 'reflow']);
+  assert.deepEqual(office.answer(report, 'Что добавлено?').actions, []);
+  assert.deepEqual(office.answer(report, 'Что удалено?').actions, []);
+  assert.deepEqual(office.answer(report, 'Что перемещено?').actions.map(action => action.key), ['text-1']);
+  assert.deepEqual(office.answer(report, 'Покажи переносы строк').actions.map(action => action.key), ['text-2']);
+  for (const source of report.reflow[0].left.source_blocks) {
+    assert.ok(draft.includes(JSON.stringify(source.text)));
+    assert.ok(draft.includes(JSON.stringify(source.location)));
+  }
+  assert.match(draft, /без оценки смысловой эквивалентности/);
+});
+
+test('aggregated reflow locates every original block and PDF page with correct side', () => {
+  const report = structuralFixture();
+  for (const query of ['Покажи блок 3 в A', 'Покажи страницу 2 в A', 'Найди «15 дней.»']) {
+    const result = office.answer(report, query);
+    assert.deepEqual(result.actions.map(action => action.key), ['text-2']);
+    assert.match(result.text, /Страница 2 · строка 1/);
+    assert.match(result.text, /блок 3/);
+  }
+  assert.deepEqual(office.answer(report, 'Покажи блок 3 в B').actions, []);
+  assert.deepEqual(office.answer(report, 'Покажи страницу 2 в B').actions, []);
+  assert.deepEqual(office.answer(report, 'Покажи блок 4 в B').actions.map(action => action.key), ['text-1']);
+});

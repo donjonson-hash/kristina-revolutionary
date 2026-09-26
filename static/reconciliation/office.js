@@ -74,8 +74,11 @@
   }
 
 
-  const textTitle = {changed: 'Текст изменился', only_left: 'Текст есть только в A', only_right: 'Текст есть только в B', matched: 'Текст совпал'};
-  const textEntries = report => entries(report).sort((a, b) => Number(a.item.key.slice(5)) - Number(b.item.key.slice(5)));
+  const textCategories = [...categories, 'moved', 'reflow'];
+  const structuralScope = 'Перемещения и переносы строк выделены отдельно. Переносы определяются эвристикой объединения строк, без оценки смысловой эквивалентности. Пары показаны в порядке сопоставления; координаты относятся к исходным файлам.';
+  const originalBlocks = block => block ? (block.source_blocks?.length ? block.source_blocks : [block]) : [];
+  const textTitle = {moved: 'Перемещено без изменения текста', reflow: 'Изменены переносы строк', changed: 'Текст изменился', only_left: 'Текст есть только в A', only_right: 'Текст есть только в B', matched: 'Текст совпал'};
+  const textEntries = report => textCategories.flatMap(category => (report[category] || []).map(item => ({item, category}))).sort((a, b) => Number(a.item.key.slice(5)) - Number(b.item.key.slice(5)));
   const textScope = 'Сравнивался извлечённый текст. Юридический смысл, достоверность фактов и орфография не оценивались.';
   function textNormalization(report) {
     return Object.values(report.sources).some(source => source.format === 'pdf')
@@ -83,7 +86,7 @@
       : 'Нормализованы только переводы строк; пробелы и регистр учитываются.';
   }
   function textCounts(report) {
-    return `Изменённых блоков: ${report.changed.length}; только в A: ${report.only_left.length}; только в B: ${report.only_right.length}; совпавших: ${report.matched.length}.`;
+    return `Изменённых блоков: ${report.changed.length}; только в A: ${report.only_left.length}; только в B: ${report.only_right.length}; совпавших: ${report.matched.length}.` + (report.moved?.length ? ` Перемещено без изменения текста: ${report.moved.length}.` : '') + (report.reflow?.length ? ` Изменены переносы строк: ${report.reflow.length}.` : '');
   }
   function textSources(report, full = false) {
     const show = full ? quote : short, lines = [];
@@ -109,7 +112,9 @@
     const lines = [`${show(item.key)}. ${textTitle[category]}.`];
     for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
       const block = item[side] || (category === `only_${side}` ? item.row : null);
-      if (block) lines.push(`${label} · ${show(block.location)} (блок ${block.record}): ${show(block.text)}`);
+      if (block) {
+        for (const original of originalBlocks(block)) lines.push(`${label} · ${show(original.location)} (блок ${original.record}): ${show(original.text)}`);
+      }
       else lines.push(`${label}: сопоставленного текстового блока нет.`);
     }
     return lines;
@@ -122,13 +127,14 @@
   }
   function describeText(report) {
     const lines = ['Я Кристина, ваш офисный помощник. Сравнила текст двух файлов.', ...textSources(report), textCounts(report), textScope];
+    if (report.moved?.length || report.reflow?.length) lines.push(structuralScope);
     if (!textEntries(report).length) lines.push('В обоих файлах нет извлечённых текстовых блоков.');
     const changed = textEntries(report).filter(entry => entry.category !== 'matched');
     for (const {item, category} of changed.slice(0, 2)) lines.push(...textLines(item, category));
     if (changed.length > 2) lines.push(`Примеры: показано 2 из ${changed.length} различий. Полный текст — в документах и HTML-отчёте.`);
     if (!changed.length && textEntries(report).length) lines.push('Извлечённый текст совпал по правилам сравнения.');
     lines.push('Можно открыть блок по номеру или фразе, показать добавления и удаления либо подготовить черновик письма.');
-    return response(lines, categories.filter(category => report[category].length).map(category => ({label: `${textTitle[category]}: ${report[category].length}`, category})));
+    return response(lines, textCategories.filter(category => report[category]?.length).map(category => ({label: `${textTitle[category]}: ${report[category].length}`, category})));
   }
   function draftTextLetter(report) {
     const encoder = new TextEncoder(), parts = []; let size = 0;
@@ -147,12 +153,13 @@
       for (const {item, category} of textEntries(report).filter(entry => entry.category !== 'matched')) {
         for (const line of textLines(item, category, true)) append(line);
       }
-      if (!report.changed.length && !report.only_left.length && !report.only_right.length) append('Текстовых различий по указанным правилам не обнаружено.');
+      if (!report.changed.length && !report.only_left.length && !report.only_right.length && !report.moved?.length && !report.reflow?.length) append('Текстовых различий по указанным правилам не обнаружено.');
       append(''); append('Просьба проверить перечисленные текстовые различия и уточнить, какую редакцию следует использовать.');
       append(''); append('Сведения о проверке:');
       append(`Текстовых блоков: A — ${report.sources.left.block_count}; B — ${report.sources.right.block_count}.`);
       append('Значения в кавычках — фрагменты извлечённого текста; переносы строк записаны как \\n.');
       append(textNormalization(report));
+      if (report.moved?.length || report.reflow?.length) append(structuralScope);
       append(textScope);
       for (const line of letterSourceNotes(report)) append(line);
       return response(['Черновик готов: в нём перечислены все текстовые различия, без оценки их смысла. Текст можно отредактировать. Письмо не отправлено.'], [], parts.join(''));
@@ -174,8 +181,16 @@
       const number = Number(position[1]);
       const sideMatch = raw.match(/(?:в|из|стороне|файле|документе)\s+([abаб])(?=$|[\s?.!,])/iu) || raw.match(/^([abаб])\s*:/iu);
       const side = sideMatch ? (/^[aа]$/iu.test(sideMatch[1]) ? 'left' : 'right') : null;
-      const found = all.filter(({item, category}) => (side ? [side] : ['left', 'right']).some(s => (item[s] || (category === `only_${s}` ? item.row : null))?.record === number));
+      const found = all.filter(({item, category}) => (side ? [side] : ['left', 'right']).some(s => originalBlocks(item[s] || (category === `only_${s}` ? item.row : null)).some(block => block.record === number)));
       return textSelection(found, `Исходная позиция ${number}${side ? ' в ' + (side === 'left' ? 'A' : 'B') : ' (поиск в A и B; номера могут относиться к разным парам)'}.`);
+    }
+    const pageRequest = raw.match(/(?:страниц[аыуе]|стр\.)\s*№?\s*(\d+)/iu);
+    if (pageRequest) {
+      const number = Number(pageRequest[1]);
+      const sideMatch = raw.match(/(?:в|из|стороне|файле|документе)\s+([abаб])(?=$|[\s?.!,])/iu);
+      const sides = sideMatch ? [/^[aа]$/iu.test(sideMatch[1]) ? 'left' : 'right'] : ['left', 'right'];
+      const found = all.filter(({item, category}) => sides.some(side => originalBlocks(item[side] || (category === `only_${side}` ? item.row : null)).some(block => block.page === number)));
+      return textSelection(found, `Исходная страница ${number}${sideMatch ? ' в ' + (sides[0] === 'left' ? 'A' : 'B') : ' (поиск в A и B)'}.`);
     }
     const phraseRequest = raw.match(/^(?:найди|покажи|где|что с)\s+(?:(?:фразу|фраза|текст)\s+)?(.+?)\??$/iu);
     if (phraseRequest) {
@@ -191,7 +206,12 @@
       }
     }
     if (/юрид|законн|правомер|орфограф|пунктуац|граммат|достовер|факт|смысл|правильн|вычит|риск|обязательств|винов|причин/.test(q)) return response([textScope, 'Могу показать точные текстовые отличия и места в исходных документах.']);
-    if (/почему.*(?:равн|совпал|одинаков)|как.*(?:сравнив|сопостав)|правил|что проверял/.test(q)) return response(['Сравнивался извлечённый текст блоков. ' + textNormalization(report) + ' Подсветка показывает изменённые фрагменты, а не оценку их смысла.', ...textSources(report), textScope]);
+    if (/почему.*(?:равн|совпал|одинаков)|как.*(?:сравнив|сопостав)|правил|что проверял/.test(q)) return response(['Сравнивался извлечённый текст блоков. ' + textNormalization(report) + ' Подсветка показывает изменённые фрагменты, а не оценку их смысла.' + (report.moved?.length || report.reflow?.length ? ' ' + structuralScope : ''), ...textSources(report), textScope]);
+    if (/перемещ|перестав|порядок/.test(q)) return textSelection(all.filter(entry => entry.category === 'moved'), 'Перемещено без изменения текста:');
+    if (/перенос|разбиени[ея] строк/.test(q)) {
+      const selected = textSelection(all.filter(entry => entry.category === 'reflow'), 'Изменены переносы строк:');
+      return response([structuralScope, selected.text], selected.actions);
+    }
     if (/добав|только\s+(?:в\s+)?[bб](?=$|[\s?!.])/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_right'), 'Текстовые блоки только в B:');
     if (/удал|только\s+(?:в\s+)?[aа](?=$|[\s?!.])/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_left'), 'Текстовые блоки только в A:');
     if (/отсутств|без пары/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_left' || entry.category === 'only_right'), 'Текстовые блоки без пары:');
