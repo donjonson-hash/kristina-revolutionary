@@ -13,10 +13,12 @@ import {Worker as NodeWorker} from 'node:worker_threads';
 import {setTimeout as delay} from 'node:timers/promises';
 import {xlsx} from './xlsx-fixture.mjs';
 import {docx} from './text-fixture.mjs';
+import {pdfFixturePair, pdfSource, PDF_LINES_A, PDF_LINES_B} from './pdf-input-fixture.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(new URL('../browser/package.json', import.meta.url));
 const {JSDOM, requestInterceptor, VirtualConsole} = require('jsdom');
+const {parse: parseJavaScript} = require('acorn');
 const output = mkdtempSync(path.join(tmpdir(), 'kristina-extension-test-'));
 before(() => execFileSync(process.env.PYTHON || 'python3', [
   'scripts/build_reconciliation_extension.py', '--output', output,
@@ -102,15 +104,20 @@ for (const target of ['firefox', 'chrome']) {
     }
     for (const name of readdirSync(directory).filter(n => /\.(?:m?js|css)$/.test(n))) {
       const source = readFileSync(path.join(directory, name), 'utf8');
-      // Anchor static declarations: vendor strings can contain ordinary prose "from".
-      for (const match of source.matchAll(/^\s*(?:import|export)\s+(?:[^;\n]*?\s+from\s*)?['"]([^'"]+)['"]/gm)) {
-        readFileSync(localAsset(directory, match[1]));
-      }
-      for (const match of source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]/g)) {
-        readFileSync(localAsset(directory, match[1]));
-      }
-      for (const match of source.matchAll(/url\(\s*['"]?([^)'"\s]+)/g)) {
-        readFileSync(localAsset(directory, match[1]));
+      if (name.endsWith('.css')) {
+        for (const match of source.matchAll(/url\(\s*['"]?([^)'"\s]+)/g)) readFileSync(localAsset(directory, match[1]));
+      } else {
+        // Parse actual imports, including minified bundles. Text inside vendor strings
+        // (e.g. a generated import wrapper or a CSS data URL) is not a JS dependency.
+        const queue = [parseJavaScript(source, {ecmaVersion: 'latest', sourceType: 'module'})];
+        while (queue.length) {
+          const node = queue.pop();
+          if (['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration', 'ImportExpression'].includes(node.type) && typeof node.source?.value === 'string') readFileSync(localAsset(directory, node.source.value));
+          for (const value of Object.values(node)) {
+            if (Array.isArray(value)) { for (const child of value) if (child?.type) queue.push(child); }
+            else if (value?.type) queue.push(value);
+          }
+        }
       }
     }
     // Check delivered ZIP contents, not only the unpacked build directory.
@@ -121,7 +128,7 @@ for (const target of ['firefox', 'chrome']) {
   });
 }
 
-async function page(t, target) {
+async function page(t, target, browserCompatibility = false) {
   const directory = path.join(output, target);
   const errors = [], network = [], workers = [], requests = [], downloads = [], clipboard = [], navigations = [];
   const localResources = {interceptors: [requestInterceptor(request => {
@@ -144,6 +151,16 @@ async function page(t, target) {
         globalThis.fetch = (...args) => { parentPort.postMessage({networkAttempt: String(args[0])}); throw Error('Network forbidden'); };
         globalThis.WebSocket = class { constructor(url) { parentPort.postMessage({networkAttempt: String(url)}); throw Error('Network forbidden'); } };
         globalThis.self = {postMessage: (data, transfer) => parentPort.postMessage(data, transfer)};
+        ${browserCompatibility ? `
+          globalThis.process = undefined;
+          delete Promise.try; delete Promise.withResolvers;
+          delete Map.prototype.getOrInsert; delete Map.prototype.getOrInsertComputed;
+          delete Uint8Array.prototype.toHex;
+          globalThis.Worker = class { constructor() { throw Error('Nested Worker forbidden'); } };
+          globalThis.XMLHttpRequest = class { constructor() { throw Error('XHR forbidden'); } };
+          globalThis.addEventListener = () => { throw Error('Extra global worker listener forbidden'); };
+          if (typeof DOMMatrix !== 'undefined') throw Error('This test requires a DOM-free Worker');
+        ` : ''}
         import(workerData).then(() => {
           if (typeof self.onmessage !== 'function') throw Error('Worker message handler missing');
           parentPort.on('message', data => self.onmessage({data}));
@@ -360,6 +377,49 @@ const textAfter = [
 async function downloadReport(p) {
   p.$('download-json').click();
   return JSON.parse(await p.downloads.at(-1).blob.text());
+}
+
+for (const target of ['firefox', 'chrome']) {
+  test(`${target}: PDF text through packaged Worker keeps pages, exports and clears results on a scanned page`, async t => {
+    const p = await page(t, target, true), {$} = p;
+    const fixture = await pdfFixturePair();
+    assert.match($('left-file').accept, /application\/pdf/);
+    await p.file('left', Buffer.from(fixture.left.data, 'base64'), fixture.left.name);
+    await p.file('right', Buffer.from(fixture.right.data, 'base64'), fixture.right.name);
+    await p.result();
+    const report = await downloadReport(p);
+    assert.equal(report.sources.left.format, 'pdf');
+    assert.equal(report.sources.left.page_count, 2);
+    assert.equal(report.rules.pdf_text_layer, true);
+    assert.deepEqual(report.summary, {left_blocks: 9, right_blocks: 9, matched: 5, changed: 3, only_left: 1, only_right: 1});
+    assert.deepEqual([...$('result-rows').querySelectorAll('.before .text-content')].map(n => n.textContent), PDF_LINES_A.flat());
+    assert.deepEqual([...$('result-rows').querySelectorAll('.after .text-content')].map(n => n.textContent), PDF_LINES_B.flat());
+    assert.match($('text-scope').textContent, /текстовый слой/);
+    assert.match($('left-meta').textContent, /2 стр\./);
+    assert.deepEqual([...$('result-rows').querySelectorAll('.before .pdf-page-label')].map(n => n.textContent), ['Страница 1', 'Страница 2']);
+    const added = [...$('change-list').querySelectorAll('button')].find(n => n.textContent.includes('Уведомление об отгрузке'));
+    assert.match(added.textContent, /Страница 2/);
+    added.click();
+    assert.match(p.dom.window.document.activeElement.textContent, /Уведомление об отгрузке/);
+    assert.equal($('download-xlsx').hidden, true);
+    assert.equal($('download-pdf').disabled, false);
+    $('download-html').click();
+    const html = await p.downloads.at(-1).blob.text();
+    assert.match(html, /Страница 2 · строка/);
+    assert.match(html, /PDF: проверен извлечённый текстовый слой/);
+    await askOffice(p, 'Подготовь письмо');
+    assert.match($('office-draft').value, /Страница 2/);
+    assert.match($('office-draft').value, /Пробелы и порядок строк восстановлены/);
+
+    const mixed = await pdfSource('mixed-scan.pdf', [PDF_LINES_A[0], []], {imagePages: [2]});
+    await p.file('right', Buffer.from(mixed.data, 'base64'), mixed.name);
+    await until(() => !$('compare').disabled);
+    assert.equal($('results').hidden, true, 'A raster page invalidates the entire previous comparison');
+    assert.match($('notice').textContent, /PDF|изображен|распознав/);
+    assert.equal($('download-pdf').disabled, true);
+    assert.equal($('office-draft').value, '');
+    assert.equal($('change-list').children.length, 0);
+  });
 }
 
 for (const target of ['firefox', 'chrome']) {

@@ -95,12 +95,13 @@ function contents(report) {
     add(`Разделитель CSV/TSV: ${delimiterName}. Текст сравнивается с учётом регистра. Числовые поля сравниваются как десятичные числа; единицы и валюты не пересчитываются.`);
     add('Поля вне правил не проверялись. Номер записи CSV включает заголовок и может отличаться от физической строки при переносах внутри ячейки.');
   }
+  if (report.kind === 'text' && Object.values(report.sources).some(source => source.format === 'pdf')) add('PDF: сравнивался извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении; оформление и нетекстовые элементы не сравнивались.');
   heading('Источники');
   for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
     const source = report.sources[side];
     add(`${label}: ${source.name}`);
     add(`SHA-256: ${source.sha256}`, {size: 10, muted: true});
-    add(report.kind === 'text' ? `Формат: ${source.format}; текстовых блоков: ${source.block_count}.` : `Строк данных: ${source.row_count}.${source.sheet ? ' Проверен только лист «' + source.sheet + '».' : ''}`, {muted: true});
+    add(report.kind === 'text' ? `Формат: ${source.format}; текстовых блоков: ${source.block_count}.${source.page_count ? ' Страниц PDF: ' + source.page_count + '.' : ''}` : `Строк данных: ${source.row_count}.${source.sheet ? ' Проверен только лист «' + source.sheet + '».' : ''}`, {muted: true});
   }
   const leftNotes = new Set(report.sources.left.notes || []);
   const rightNotes = new Set(report.sources.right.notes || []);
