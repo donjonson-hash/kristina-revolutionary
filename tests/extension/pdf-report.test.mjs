@@ -107,6 +107,22 @@ test('unsupported glyphs and controls are visibly escaped rather than replaced w
   assert.equal(text.includes('�'), false);
 });
 
+test('PDF exports moves and reflow with every source line and no false insertion/deletion colors', async () => {
+  const report = textFixture();
+  report.changed = []; report.summary.changed = 0;
+  const block = (record, text) => ({record, text, location: `Страница 1 · строка ${record}`});
+  report.moved = [{key: 'text-2', left: block(2, 'Стоимость: 125000'), right: block(8, 'Стоимость: 125000')}];
+  const originals = [block(3, 'Доставка включена'), block(4, 'в стоимость.')];
+  report.reflow = [{key: 'text-3', left: block(3, 'Доставка включена в стоимость.'), right: {record: 3, text: originals.map(row => row.text).join('\n'), location: 'Страница 1 · строки 3–4', source_blocks: originals}}];
+  report.summary.moved = 1; report.summary.reflow = 1;
+  const {text, streams} = await inspect(await renderPdf(report));
+  for (const expected of ['Перемещено без изменения текста', 'Изменены переносы строк', 'Стоимость: 125000', 'Доставка включена\nв стоимость.', 'блоки 3, 4', 'строка 8']) assert.ok(text.includes(expected), expected);
+  assert.equal(text.split('Стоимость: 125000').length - 1, 1, 'Identical moved text is printed once with both source coordinates');
+  assert.equal(text.includes('сопоставленного блока нет'), false);
+  assert.equal(text.includes('Различий по выполненным правилам не обнаружено'), false);
+  assert.equal(streams.some(stream => stream.includes('1 0.9 0.86 rg') || stream.includes('0.87 0.95 0.89 rg')), false);
+});
+
 test('a short explanatory note stays complete on one actual PDF page at a page boundary', async () => {
   const report = textFixture();
   const note = 'NOTE-BEGIN\nSecond note line.\nThird note line.\nFourth note line.\nNOTE-END';

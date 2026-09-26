@@ -1004,3 +1004,67 @@ test('XLSX limits report an error without losing the completed reconciliation', 
   $('download-html').click();
   assert.equal(p.downloads[0].name, 'kristina-reconciliation.html');
 });
+
+test('chrome: PDF moves and reflow retain original evidence through filters, office and exports, then reset for CSV', async t => {
+  const p = await page(t, 'chrome', true), {$} = p;
+  const header = 'Договор о поставке.', moved = 'Контакт: Анна Петрова.';
+  const anchor1 = 'Условия оплаты.', anchor2 = 'Оплата после получения счёта.', end = 'Подписи сторон.';
+  const first = 'Поставка осуществляется', second = 'в течение 15 дней.';
+  const left = await pdfSource('structural-a.pdf', [[header, moved, anchor1, anchor2, first], [second, end]]);
+  const right = await pdfSource('structural-b.pdf', [[header, anchor1, anchor2, `${first} ${second}`, end], [moved]]);
+  await p.file('left', Buffer.from(left.data, 'base64'), left.name);
+  await p.file('right', Buffer.from(right.data, 'base64'), right.name);
+  await p.result();
+  const report = await downloadReport(p);
+  assert.equal(report.moved.length, 1); assert.equal(report.reflow.length, 1);
+  assert.equal(report.changed.length + report.only_left.length + report.only_right.length, 0);
+  assert.match($('result-heading').textContent, /порядок.*переносы/);
+  assert.doesNotMatch($('result-heading').textContent, /совпада/);
+  assert.match($('audit-explanation').textContent, /порядок показа может отличаться/);
+  assert.match($('audit-explanation').textContent, /эвристик/);
+  assert.equal($('change-count').textContent, '2');
+
+  for (const category of ['moved', 'reflow']) {
+    const filter = $('totals').querySelector(`[data-category=${category}]`);
+    assert.ok(filter); assert.equal(filter.querySelector('strong').textContent, '1');
+    filter.click();
+    assert.equal(filter.getAttribute('aria-pressed'), 'true');
+    assert.equal($('result-rows').querySelectorAll('.document-pair').length, 1);
+    assert.equal($('result-rows').querySelector('.document-pair').dataset.category, category);
+    assert.equal($('result-rows').querySelectorAll('mark').length, 0, 'Structural differences must not appear as removed or added text');
+    assert.equal($('change-list').querySelectorAll('.change-excerpt.structural').length, 2);
+    $('next-change').click();
+    assert.equal(p.dom.window.document.activeElement.dataset.category, category);
+  }
+  const originals = report.reflow[0].left.source_blocks;
+  assert.deepEqual(originals.map(block => block.text), [first, second]);
+  assert.deepEqual(originals.map(block => block.page), [1, 2]);
+  const details = $('result-rows').querySelector('.before .source-blocks');
+  assert.ok(details); details.open = true;
+  assert.deepEqual([...details.querySelectorAll('.text-content')].map(node => node.textContent), [first, second]);
+  for (const original of originals) assert.ok(details.textContent.includes(original.location));
+  await askOffice(p, `Покажи блок ${originals[1].record} в A`);
+  assert.ok($('office-transcript').textContent.includes(originals[1].location));
+  const action = [...$('office-transcript').querySelectorAll('button')].at(-1);
+  assert.equal(action.dataset.key, report.reflow[0].key);
+  action.click();
+  assert.equal(p.dom.window.document.activeElement.dataset.category, 'reflow');
+  await askOffice(p, 'Подготовь письмо');
+  const draft = $('office-draft').value;
+  for (const label of ['Перемещено без изменения текста', 'Изменены переносы строк']) assert.ok(draft.includes(label));
+  for (const original of originals) { assert.ok(draft.includes(original.text)); assert.ok(draft.includes(original.location)); }
+  assert.doesNotMatch(draft, /Текстовых различий по указанным правилам не обнаружено/);
+  $('download-html').click();
+  const saved = new JSDOM(await p.downloads.at(-1).blob.text());
+  t.after(() => saved.window.close());
+  for (const label of ['Перемещено без изменения текста', 'Изменены переносы строк']) assert.ok(saved.window.document.body.textContent.includes(label));
+  for (const original of originals) assert.ok(saved.window.document.body.textContent.includes(original.location));
+
+  $('demo').click();
+  await p.result();
+  assert.equal($('totals').querySelector('[data-category=moved],[data-category=reflow]'), null);
+  assert.deepEqual([...$('totals').querySelectorAll('strong')].map(node => node.textContent), ['5', '2', '1', '1', '1']);
+  assert.equal($('office-draft').value, '');
+  assert.equal($('result-rows').querySelector('.source-blocks'), null);
+  assert.match($('commercial-summary').textContent, /Частичный расчёт: 4 из 5/);
+});
