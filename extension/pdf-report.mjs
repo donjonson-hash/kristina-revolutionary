@@ -113,7 +113,7 @@ function contents(report) {
   heading('Источники');
   for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
     const source = report.sources[side];
-    add(`${label}: ${source.name}`);
+    add(`${label}: ${source.name}`, {keepNext: 2});
     add(`SHA-256: ${source.sha256}`, {size: 10, muted: true});
     add(report.kind === 'text' ? `Формат: ${source.format}; текстовых блоков: ${source.block_count}.${source.page_count ? ' Страниц PDF: ' + source.page_count + '.' : ''}` : `Строк данных: ${source.row_count}.${source.sheet ? ' Проверен только лист «' + source.sheet + '».' : ''}`, {muted: true});
   }

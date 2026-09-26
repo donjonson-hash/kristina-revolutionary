@@ -144,6 +144,47 @@ test('an explanatory heading stays with its complete short paragraph at a page b
   assertPagesHaveBody(pageTexts);
 });
 
+// Padding puts each source group across a real page boundary before keepNext.
+// Source names also appear in the summary, so inspect only the evidence section.
+for (const [boundarySource, padding] of [['A', 14], ['B', 8]]) {
+  test(`source ${boundarySource} keeps its wrapped name, SHA-256, and format on one PDF page`, async () => {
+    const report = textFixture('Padding line.\n'.repeat(padding), 'After.');
+    for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
+      report.sources[side].name = `SOURCE-${label}-BEGIN ` + 'Long source name '.repeat(10) + ` SOURCE-${label}-END.pdf`;
+    }
+    const {pageTexts} = await inspect(await renderPdf(report));
+    assert.ok(pageTexts.length > 1, 'Fixture reaches a page boundary');
+    const sourcesPage = pageTexts.findIndex(text => text.includes('Источники'));
+    const evidencePages = pageTexts.slice(sourcesPage);
+    evidencePages[0] = evidencePages[0].slice(evidencePages[0].indexOf('Источники'));
+    for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
+      const source = report.sources[side];
+      const sourcePage = evidencePages.find(text => text.includes(`SOURCE-${label}-BEGIN`));
+      assert.ok(sourcePage, `Source ${label} is present`);
+      assert.ok(sourcePage.replace(/\s+/g, ' ').includes(source.name.replace(/\s+/g, ' ')), `Source ${label}: complete wrapped filename stays together`);
+      assert.ok(sourcePage.includes(`SHA-256: ${source.sha256}`), `Source ${label}: SHA-256 stays with filename`);
+      assert.ok(sourcePage.includes(`Формат: ${source.format}; текстовых блоков: ${source.block_count}.`), `Source ${label}: format and block count stay with filename`);
+    }
+    assert.ok(evidencePages[0].includes('SOURCE-A-BEGIN'), 'Sources heading stays with the first source');
+    assertPagesHaveBody(pageTexts);
+  });
+}
+
+test('a source name taller than a page still paginates without losing filename or evidence', async () => {
+  const report = textFixture();
+  const nameLines = Array.from({length: 65}, (_, index) => `LONG-SOURCE-${String(index).padStart(3, '0')}`);
+  report.sources.left.name = nameLines.join('\n');
+  const {pageTexts, text} = await inspect(await renderPdf(report));
+  assert.ok(pageTexts.length >= 3, 'The oversized filename spans pages');
+  for (const line of nameLines) assert.equal(text.split(line).length - 1, 2, `${line} appears in both summary and source evidence`);
+  for (const side of ['left', 'right']) {
+    const source = report.sources[side];
+    assert.equal(text.split(source.sha256).length - 1, 1);
+    assert.ok(text.includes(`Формат: ${source.format}; текстовых блоков: ${source.block_count}.`));
+  }
+  assertPagesHaveBody(pageTexts);
+});
+
 test('long single blocks and unbroken tokens paginate without dropping text', async () => {
   const marker = 'SOURCE-END-0123456789';
   const report = textFixture('Абзац\n'.repeat(100) + 'X'.repeat(4000) + marker, 'Новое');
