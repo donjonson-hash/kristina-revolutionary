@@ -360,3 +360,11 @@ main{padding:0 18px}
   .document-mode .document-pair,.document-mode .document-heads{column-gap:12px}
   .document-mode .document-record{padding-inline:22px}
 }
+
+/* Structural text differences keep source evidence without deletion/addition colours. */
+.change-excerpt.structural{background:#edf1fa;color:#344d78}
+.document-pair.moved .record-status,.document-pair.reflow .record-status{background:#edf1fa;color:#344d78}
+.source-blocks{font-size:12px;margin-top:12px;color:var(--muted)}
+.source-blocks summary{cursor:pointer}
+.source-block{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.source-block .text-content{margin-top:5px}
