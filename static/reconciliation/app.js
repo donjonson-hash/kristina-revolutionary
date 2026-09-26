@@ -363,7 +363,7 @@
     $('settings').hidden = textMode; $('text-scope').hidden = !textMode;
     $('results').classList.toggle('text-results', textMode);
     const pdfMode = textMode && Object.values(report.sources).some(source => source.format === 'pdf');
-    $('text-scope').textContent = pdfMode ? 'PDF: сравнивается извлечённый текстовый слой. Исходная вёрстка, рисунки и юридический смысл не проверяются; пробелы и порядок строк могут зависеть от устройства PDF.' : 'Сравнивается только текст: оформление, орфография и юридический смысл не проверяются.';
+    $('text-scope').textContent = pdfMode ? 'PDF: сравнивается извлечённый текстовый слой. Изображения не сравнивались; текст внутри них не распознавался. Исходная вёрстка и юридический смысл не проверяются; пробелы и порядок строк могут зависеть от устройства PDF.' : 'Сравнивается только текст: оформление, орфография и юридический смысл не проверяются.';
     $('search').placeholder = textMode ? 'Найти в тексте…' : 'Найти артикул…';
     $('search-label-text').textContent = textMode ? 'Найти текст в документах' : 'Найти позицию';
     $('totals').setAttribute('aria-label', textMode ? 'Показать фрагменты' : 'Показать позиции');
@@ -618,7 +618,7 @@
   if (window.matchMedia?.('(max-width:1379px)').matches) $('office-panel').open = false;
   officeEnable(); exportEnable();
   if (window.KristinaTransport) {
-    $('supported-formats').textContent = 'Таблицы CSV/Excel, тексты TXT/DOCX и текстовые PDF без изображений, форм и комментариев.';
+    $('supported-formats').textContent = 'Таблицы CSV/Excel, тексты TXT/DOCX и PDF с текстовым слоем, в том числе с логотипами и изображениями. Изображения не сравниваются; сканы без текста, формы и комментарии не поддерживаются.';
     $('source-privacy').textContent = 'Сравнение начнётся автоматически. Файлы обрабатываются локально, без отправки в LLM. До 2 MiB на файл.';
   }
   for (const side of ['left', 'right']) {

@@ -16,7 +16,7 @@ export function renderTextHtml(report) {
     size += bytes; parts.push(text);
   }
   append(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Сверка текста — Кристина</title><style>${style}</style></head><body><main><h1>Различия в тексте документов</h1><p>Кристина сравнила извлечённый текст локально, без LLM. Подсветка показывает текстовые изменения. Это не оценка юридического смысла, достоверности фактов или орфографии.</p><p>Показано содержимое текстовых блоков, а не исходная вёрстка. Различия переводов строк нормализованы; пробелы и регистр учитываются. Места в исходных документах указаны в каждой панели.</p>`);
-  if (Object.values(report.sources).some(source => source.format === 'pdf')) append('<p>PDF: проверен извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении; оформление и нетекстовые элементы не сравнивались.</p>');
+  if (Object.values(report.sources).some(source => source.format === 'pdf')) append('<p>PDF: проверен извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении; оформление и нетекстовые элементы не сравнивались. Изображения не сравнивались; текст внутри них не распознавался.</p>');
   append('<div class="totals">');
   for (const [category, label] of Object.entries(labels)) {
     if ((category === 'moved' || category === 'reflow') && !report[category]?.length) continue;

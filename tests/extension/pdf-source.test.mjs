@@ -75,7 +75,6 @@ test('raster-only and mixed text/raster documents never silently report partial 
   for (const input of [
     await pdfSource('scan.pdf', [[]], {imagePages: [1]}),
     await pdfSource('mixed.pdf', [['Readable first page'], []], {imagePages: [2]}),
-    await pdfSource('image-with-text.pdf', [['Readable text over an image']], {imagePages: [1]}),
   ]) await assert.rejects(readTextSource(input), /изображени|распознаван/i);
 });
 
@@ -96,9 +95,46 @@ test('ordinary standard-font PDF extracts complete Latin text without requiring 
   assert.deepEqual(parsed.blocks.map(block => block.text), ['Invoice No. 17', 'Quantity: 10', 'Price: 125000 EUR']);
 });
 
-test('inline raster content is rejected even when the page also contains readable text', async () => {
-  const input = await pdfSource('inline-image.pdf', [['Readable text']], {inlineImagePages: [1]});
-  await assert.rejects(readTextSource(input), /изображени|распознаван/i);
+test('raster and inline logos preserve all Cyrillic text and page evidence with explicit image scope', async () => {
+  for (const options of [{imagePages: [1, 2]}, {inlineImagePages: [1, 2]}]) {
+    const parsed = await readTextSource(await pdfSource('logos.pdf', PDF_LINES_A, options));
+    assert.deepEqual(parsed.blocks.map(block => block.text), PDF_LINES_A.flat());
+    assert.equal(parsed.meta.page_count, 2);
+    assert.equal(parsed.blocks[5].location, 'Страница 2 · строка 1');
+    assert.equal(parsed.meta.coverage, 'text_layer_only');
+    assert.match(parsed.meta.notes.join(' '), /изображения не сравнивались/i);
+    assert.match(parsed.meta.notes.join(' '), /Текст внутри изображений не распознаётся/);
+  }
+});
+
+test('a changed price is detected in PDFs with different image content', async () => {
+  const report = await compareText({
+    left: await pdfSource('before.pdf', [['Стоимость: 125000 рублей.']], {imagePages: [1]}),
+    right: await pdfSource('after.pdf', [['Стоимость: 128500 рублей.']], {inlineImagePages: [1]}),
+  });
+  assert.equal(report.summary.changed, 1);
+  assert.equal(report.changed[0].segments.left.filter(s => s.changed).map(s => s.text).join(''), '125000');
+  assert.equal(report.changed[0].segments.right.filter(s => s.changed).map(s => s.text).join(''), '128500');
+  assert.match(renderTextHtml(report), /Изображения не сравнивались/);
+});
+
+test('identical text with different images is explicitly a text-layer match only', async () => {
+  const report = await compareText({
+    left: await pdfSource('raster.pdf', [['Цена: 125000']], {imagePages: [1]}),
+    right: await pdfSource('inline.pdf', [['Цена: 125000']], {inlineImagePages: [1]}),
+  });
+  assert.equal(report.summary.matched, 1);
+  assert.equal(report.summary.changed, 0);
+  assert.notEqual(report.sources.left.sha256, report.sources.right.sha256);
+  for (const side of ['left', 'right']) {
+    assert.equal(report.sources[side].coverage, 'text_layer_only');
+    assert.match(report.sources[side].notes.join(' '), /изображения не сравнивались/i);
+  }
+});
+
+test('an inline scan on a later page rejects the entire document with its page number', async () => {
+  const input = await pdfSource('inline-scan.pdf', [['Readable text'], []], {inlineImagePages: [2]});
+  await assert.rejects(readTextSource(input), /Страница 2.*распознавание/);
 });
 
 test('a replacement Unicode character cannot silently become accepted comparison evidence', async () => {

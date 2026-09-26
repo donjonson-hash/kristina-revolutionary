@@ -25,9 +25,8 @@ try {
   if (sha256(worker) !== 'f2870db902eaff8397442c912b69459980ac91f6f4b5ed827167b12cf7057930' || sha256(display) !== '495588717f62303a839e91a5343deebf1b41f52e2f9f6361e73dee6ea6a4355e') throw new Error('Upstream PDF.js source checksum mismatch');
   // The application already owns the real Worker and its message listener.
   worker = replaceOnce(worker, 'if (typeof window === "undefined" && !isNodeJS && typeof self !== "undefined" && typeof self.postMessage === "function" && "onmessage" in self) {\n      this.initializeFromPort(self);\n    }', '/* Kristina: explicit in-process handler; preserve the application Worker listener. */');
-  // Fail at actual image operators, including Form XObject recursion; never decode images.
-  worker = replaceOnce(worker, 'if (type.name !== "Form") {\n                emptyXObjectCache.set', 'if (type.name === "Image") { throw new FormatError("PDF: изображения и сканы пока не поддерживаются; требуется распознавание или текстовая копия без изображений."); }\n              if (type.name !== "Form") {\n                emptyXObjectCache.set');
-  worker = replaceOnce(worker, 'switch (fn | 0) {\n          case OPS.setFont:\n            const fontNameArg', 'switch (fn | 0) {\n          case OPS.endInlineImage:\n          case OPS.paintInlineImageXObject:\n            throw new FormatError("PDF: изображения и сканы пока не поддерживаются; требуется распознавание или текстовая копия без изображений.");\n          case OPS.setFont:\n            const fontNameArg');
+  // Keep upstream text extraction: skip raster/inline images, recurse into Form XObjects.
+  // No rendering or image comparison is requested; scope is disclosed by the importer.
   // ErrorFont normally returns no glyphs: that would silently discard source text.
   worker = replaceOnce(worker, 'const font = textState.font;\n      const baseCharSpacing', 'const font = textState.font;\n      if (font.error) { throw new FormatError("PDF: не удалось прочитать шрифт и сопоставить символы Unicode."); }\n      if (font.isType3Font) { throw new FormatError("PDF: графические шрифты Type3 не поддерживаются."); }\n      const baseCharSpacing');
   // Never substitute an unmapped PDF character code as a Unicode character.
