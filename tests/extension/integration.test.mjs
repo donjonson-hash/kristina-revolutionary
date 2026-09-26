@@ -14,6 +14,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {xlsx} from './xlsx-fixture.mjs';
 import {docx} from './text-fixture.mjs';
 import {pdfSource, PDF_LINES_A, PDF_LINES_B} from './pdf-input-fixture.mjs';
+import {layoutPdf, salesLayout} from './pdf-layout-fixture.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(new URL('../browser/package.json', import.meta.url));
@@ -1079,3 +1080,28 @@ test('chrome: PDF moves and reflow retain original evidence through filters, off
   assert.equal($('result-rows').querySelector('.source-blocks'), null);
   assert.match($('commercial-summary').textContent, /Частичный расчёт: 4 из 5/);
 });
+
+
+for (const target of ['chrome', 'firefox']) {
+  test(`${target}: Form headings stay separate through offline Worker, viewer and exports`, async t => {
+    const p = await page(t, target, true), {$} = p;
+    const left = await layoutPdf('before.pdf', salesLayout());
+    const right = await layoutPdf('after.pdf', salesLayout({sales: '1,8–2,9', orders: '90–120', plan: '120%'}));
+    await p.file('left', Buffer.from(left.data, 'base64'), left.name);
+    await p.file('right', Buffer.from(right.data, 'base64'), right.name);
+    await p.result();
+    const report = await downloadReport(p);
+    assert.deepEqual(report.summary, {left_blocks: 8, right_blocks: 8, matched: 5, changed: 3, only_left: 0, only_right: 0});
+    const before = [...$('result-rows').querySelectorAll('.before .text-content')].map(n => n.textContent);
+    assert.ok(before.includes('РЕЗУЛЬТАТЫ'));
+    assert.ok(before.includes('Продажи в месяц: 1,3–2,6 млн ₽.'));
+    assert.equal(report.changed.some(item => item.left.text.includes('РЕЗУЛЬТАТЫ')), false);
+    $('download-html').click();
+    const html = await p.downloads.at(-1).blob.text();
+    assert.match(html, /Страница 1 · строка 4/);
+    assert.match(html, /РЕЗУЛЬТАТЫ/);
+    await askOffice(p, 'Подготовь письмо');
+    assert.match($('office-draft').value, /Страница 1 · строка 4/);
+    assert.match($('office-draft').value, /Изменённых блоков: 3/);
+  });
+}
