@@ -168,3 +168,14 @@ test('vendored code uses local static imports and contains no dynamic code const
   assert.doesNotMatch(vendor, /\b(?:eval|Function)\s*\(/);
   assert.doesNotMatch(vendor, /\bimport\s*\(/);
 });
+
+
+test('PDF export visibly discloses images excluded from a PDF text comparison', async () => {
+  const report = textFixture();
+  report.sources.left.format = 'pdf';
+  const {pageTexts} = await inspect(await renderPdf(report));
+  const firstPage = pageTexts[0].replace(/\s+/g, ' ');
+  assert.match(firstPage, /Изображения не сравнивались/);
+  assert.match(firstPage, /текст внутри них не распознавался/);
+  assert.ok(firstPage.indexOf('Изображения не сравнивались') < firstPage.indexOf('Обнаруженные различия'));
+});
