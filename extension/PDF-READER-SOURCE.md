@@ -74,8 +74,18 @@ page with no usable text, even if other pages contain text. Text-bearing pages m
 contain images; those images and any text within them are not compared. This scope
 is stated in the result, office draft and exported reports. It does not perform OCR or render original pages.
 
-Lines concatenate items in PDF.js source order and split at `hasEOL`; the application
-does not insert spaces or apply semantic matching. `disableNormalization: true`
+Lines concatenate items in PDF.js source order and split at `hasEOL`. Since Form
+XObjects can end without this marker, the importer also separates items by their
+page-space geometry: a different baseline (over half the larger em, with a 0.5 pt
+tolerance floor), a changed orientation (axis dot product below 0.999), or a gap
+between advance intervals exceeding two em. Font changes alone are not boundaries.
+Whitespace items retain their strings but do not replace the previous text geometry;
+geometry resets on flush and on each page and persists across streamed chunks.
+Vertical writing retains PDF.js boundaries. Missing/degenerate geometry causes
+separation rather than guessing adjacency. This bounded, linear heuristic neither
+sorts columns nor guarantees paragraph reconstruction; large superscripts and
+widely spaced text may split. The application does not insert spaces or apply
+semantic matching. `disableNormalization: true`
 preserves PDF.js text output without its optional character normalization, but PDF
 whitespace and reading order are reconstructed by PDF.js and are not guaranteed to
 match the visual document. Source notes state this limitation. Replacement characters,
