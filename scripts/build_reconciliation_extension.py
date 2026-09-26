@@ -5,7 +5,7 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.10.2"
+VERSION = "0.11.0"
 
 
 def build(output):
@@ -31,6 +31,7 @@ def build(output):
         directory.mkdir(parents=True, exist_ok=True)
         # Write only the explicit package allowlist, including in reused directories.
         files = {"index.html": html.encode(), "app.js": (assets / "app.js").read_bytes(), "style.css": (assets / "style.css").read_bytes()}
+        files["text-editor.js"] = (assets / "text-editor.js").read_bytes()
         files["office.js"] = (assets / "office.js").read_bytes()
         for name in ("transport.js", "worker.mjs", "engine.mjs", "commercial-summary.mjs", "report.mjs", "xlsx-report.mjs", "pdf-report.mjs", "pdf-source.mjs", "pdf-reader-vendor.mjs", "PDF-READER-LICENSE.txt", "PDF-READER-SOURCE.md", "pdf-vendor.mjs", "pdf-font.mjs", "PDF-LICENSES.txt", "PDF-SOURCE.md", "xlsx-source.mjs", "xlsx-vendor.mjs", "SHEETJS-LICENSE.txt", "text-source.mjs", "text-engine.mjs", "text-report.mjs", "text-zip.mjs", "xml-vendor.mjs", "XMLDOM-LICENSE.txt", "XMLDOM-SOURCE.md", "launcher.html", "launcher.css", "launcher.js", "icon.png"):
             files[name] = (ROOT / "extension" / name).read_bytes()
