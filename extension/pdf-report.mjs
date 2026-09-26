@@ -23,6 +23,7 @@ function contents(report) {
   const heading = text => { currentContext = text; add(text, {size: 14, heading: true, gap: 10}); };
   add('Кристина · отчёт о сверке', {size: 21, gap: 13});
   add('Сравнение выполнено локально. Исходная вёрстка документов не воспроизводится.', {muted: true});
+  if (report.kind === 'text' && Object.values(report.sources).some(source => source.format === 'pdf')) add('Изображения не сравнивались; текст внутри них не распознавался. Проверен только извлечённый текстовый слой PDF.');
   add(`Изменились: ${report.summary.changed}; только в A: ${report.summary.only_left}; только в B: ${report.summary.only_right}; совпали: ${report.summary.matched}.`);
   if (report.kind === 'text' && (report.moved?.length || report.reflow?.length)) {
     add(`Отдельно: перемещено без изменения текста — ${report.moved?.length || 0}; групп с изменением переносов строк — ${report.reflow?.length || 0}.`);
@@ -108,7 +109,7 @@ function contents(report) {
     add(`Разделитель CSV/TSV: ${delimiterName}. Текст сравнивается с учётом регистра. Числовые поля сравниваются как десятичные числа; единицы и валюты не пересчитываются.`);
     add('Поля вне правил не проверялись. Номер записи CSV включает заголовок и может отличаться от физической строки при переносах внутри ячейки.');
   }
-  if (report.kind === 'text' && Object.values(report.sources).some(source => source.format === 'pdf')) add('PDF: сравнивался извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении; оформление и нетекстовые элементы не сравнивались.');
+  if (report.kind === 'text' && Object.values(report.sources).some(source => source.format === 'pdf')) add('PDF: сравнивался извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении; оформление и нетекстовые элементы не сравнивались. Изображения не сравнивались; текст внутри них не распознавался.');
   heading('Источники');
   for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
     const source = report.sources[side];

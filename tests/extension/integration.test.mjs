@@ -13,7 +13,7 @@ import {Worker as NodeWorker} from 'node:worker_threads';
 import {setTimeout as delay} from 'node:timers/promises';
 import {xlsx} from './xlsx-fixture.mjs';
 import {docx} from './text-fixture.mjs';
-import {pdfFixturePair, pdfSource, PDF_LINES_A, PDF_LINES_B} from './pdf-input-fixture.mjs';
+import {pdfSource, PDF_LINES_A, PDF_LINES_B} from './pdf-input-fixture.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(new URL('../browser/package.json', import.meta.url));
@@ -382,7 +382,7 @@ async function downloadReport(p) {
 for (const target of ['firefox', 'chrome']) {
   test(`${target}: PDF text through packaged Worker keeps pages, exports and clears results on a scanned page`, async t => {
     const p = await page(t, target, true), {$} = p;
-    const fixture = await pdfFixturePair();
+    const fixture = {left: await pdfSource('Заказ.pdf', PDF_LINES_A, {imagePages: [1, 2]}), right: await pdfSource('Подтверждение.pdf', PDF_LINES_B, {inlineImagePages: [1, 2]})};
     assert.match($('left-file').accept, /application\/pdf/);
     await p.file('left', Buffer.from(fixture.left.data, 'base64'), fixture.left.name);
     await p.file('right', Buffer.from(fixture.right.data, 'base64'), fixture.right.name);
@@ -395,6 +395,9 @@ for (const target of ['firefox', 'chrome']) {
     assert.deepEqual([...$('result-rows').querySelectorAll('.before .text-content')].map(n => n.textContent), PDF_LINES_A.flat());
     assert.deepEqual([...$('result-rows').querySelectorAll('.after .text-content')].map(n => n.textContent), PDF_LINES_B.flat());
     assert.match($('text-scope').textContent, /текстовый слой/);
+    assert.equal($('text-scope').hidden, false);
+    assert.match($('text-scope').textContent, /Изображения не сравнивались/);
+    assert.match(report.sources.left.notes.join(' '), /изображения не сравнивались/i);
     assert.match($('left-meta').textContent, /2 стр\./);
     assert.deepEqual([...$('result-rows').querySelectorAll('.before .pdf-page-label')].map(n => n.textContent), ['Страница 1', 'Страница 2']);
     const added = [...$('change-list').querySelectorAll('button')].find(n => n.textContent.includes('Уведомление об отгрузке'));
@@ -407,9 +410,17 @@ for (const target of ['firefox', 'chrome']) {
     const html = await p.downloads.at(-1).blob.text();
     assert.match(html, /Страница 2 · строка/);
     assert.match(html, /PDF: проверен извлечённый текстовый слой/);
+    assert.match(html, /Изображения не сравнивались/);
     await askOffice(p, 'Подготовь письмо');
     assert.match($('office-draft').value, /Страница 2/);
     assert.match($('office-draft').value, /Пробелы и порядок строк восстановлены/);
+    assert.match($('office-draft').value, /Изображения не сравнивались/);
+
+    const sameText = await pdfSource('other-images.pdf', PDF_LINES_A, {inlineImagePages: [1, 2]});
+    await p.file('right', Buffer.from(sameText.data, 'base64'), sameText.name);
+    await p.result();
+    assert.equal($('result-heading').textContent, 'Извлечённый текст совпадает');
+    assert.match($('text-scope').textContent, /Изображения не сравнивались/);
 
     const mixed = await pdfSource('mixed-scan.pdf', [PDF_LINES_A[0], []], {imagePages: [2]});
     await p.file('right', Buffer.from(mixed.data, 'base64'), mixed.name);
