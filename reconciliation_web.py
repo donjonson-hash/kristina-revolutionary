@@ -223,6 +223,11 @@ async def stylesheet():
     return FileResponse(STATIC_ROOT / "style.css", media_type="text/css")
 
 
+@app.get("/assets/text-editor.js")
+async def text_editor_js():
+    return FileResponse(STATIC_ROOT / "text-editor.js", media_type="text/javascript")
+
+
 @app.get("/assets/office.js")
 async def office_javascript():
     return FileResponse(STATIC_ROOT / "office.js", media_type="text/javascript")
