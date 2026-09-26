@@ -77,6 +77,11 @@
   const textTitle = {changed: 'Текст изменился', only_left: 'Текст есть только в A', only_right: 'Текст есть только в B', matched: 'Текст совпал'};
   const textEntries = report => entries(report).sort((a, b) => Number(a.item.key.slice(5)) - Number(b.item.key.slice(5)));
   const textScope = 'Сравнивался извлечённый текст. Юридический смысл, достоверность фактов и орфография не оценивались.';
+  function textNormalization(report) {
+    return Object.values(report.sources).some(source => source.format === 'pdf')
+      ? 'Для PDF сравнивался извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении. Оформление и нетекстовые элементы не сравнивались.'
+      : 'Нормализованы только переводы строк; пробелы и регистр учитываются.';
+  }
   function textCounts(report) {
     return `Изменённых блоков: ${report.changed.length}; только в A: ${report.only_left.length}; только в B: ${report.only_right.length}; совпавших: ${report.matched.length}.`;
   }
@@ -84,7 +89,7 @@
     const show = full ? quote : short, lines = [];
     for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
       const source = report.sources[side];
-      lines.push(`${label} — ${show(source.name)}; текстовых блоков: ${source.block_count}.`);
+      lines.push(`${label} — ${show(source.name)}; текстовых блоков: ${source.block_count}.${source.page_count ? ' Страниц PDF: ' + source.page_count + '.' : ''}`);
       for (const note of source.notes || []) lines.push(`${label}: ${show(note)}`);
     }
     return lines;
@@ -146,8 +151,8 @@
       append(''); append('Просьба проверить перечисленные текстовые различия и уточнить, какую редакцию следует использовать.');
       append(''); append('Сведения о проверке:');
       append(`Текстовых блоков: A — ${report.sources.left.block_count}; B — ${report.sources.right.block_count}.`);
-      append('Значения в кавычках — точные исходные фрагменты; переносы строк записаны как \\n.');
-      append('Нормализованы переводы строк. Пробелы и регистр учитывались; исходная вёрстка не сравнивалась.');
+      append('Значения в кавычках — фрагменты извлечённого текста; переносы строк записаны как \\n.');
+      append(textNormalization(report));
       append(textScope);
       for (const line of letterSourceNotes(report)) append(line);
       return response(['Черновик готов: в нём перечислены все текстовые различия, без оценки их смысла. Текст можно отредактировать. Письмо не отправлено.'], [], parts.join(''));
@@ -186,7 +191,7 @@
       }
     }
     if (/юрид|законн|правомер|орфограф|пунктуац|граммат|достовер|факт|смысл|правильн|вычит|риск|обязательств|винов|причин/.test(q)) return response([textScope, 'Могу показать точные текстовые отличия и места в исходных документах.']);
-    if (/почему.*(?:равн|совпал|одинаков)|как.*(?:сравнив|сопостав)|правил|что проверял/.test(q)) return response(['Сравнивался извлечённый текст блоков. Нормализованы только переводы строк; пробелы и регистр учитываются. Подсветка показывает изменённые фрагменты, а не оценку их смысла.', ...textSources(report), textScope]);
+    if (/почему.*(?:равн|совпал|одинаков)|как.*(?:сравнив|сопостав)|правил|что проверял/.test(q)) return response(['Сравнивался извлечённый текст блоков. ' + textNormalization(report) + ' Подсветка показывает изменённые фрагменты, а не оценку их смысла.', ...textSources(report), textScope]);
     if (/добав|только\s+(?:в\s+)?[bб](?=$|[\s?!.])/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_right'), 'Текстовые блоки только в B:');
     if (/удал|только\s+(?:в\s+)?[aа](?=$|[\s?!.])/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_left'), 'Текстовые блоки только в A:');
     if (/отсутств|без пары/.test(q)) return textSelection(all.filter(entry => entry.category === 'only_left' || entry.category === 'only_right'), 'Текстовые блоки без пары:');
