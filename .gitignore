@@ -36,14 +36,8 @@ htmlcov/
 # Built browser extension packages
 dist/extension/
 
-# --- cleanup: бинарники и бэкапы (до миграции в LFS/Releases) ---
-*.apk
-*.bak
-*.backup
-*.tar.gz
-extension/*-vendor.mjs
-extension/pdf-font.mjs
-experiments/result.json
+
+
 
 # --- cleanup: бинарники и бэкапы (до миграции в LFS/Releases) ---
 *.apk
@@ -53,12 +47,26 @@ experiments/result.json
 extension/*-vendor.mjs
 extension/pdf-font.mjs
 experiments/result.json
+# --- Cleanup additions ---
 
-# --- cleanup: бинарники и бэкапы (до миграции в LFS/Releases) ---
-*.apk
+# Backup files (храним в VCS только исходники)
 *.bak
 *.backup
+*.orig
+
+# Build artifacts
+*.apk
+*.aab
 *.tar.gz
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+mobile_app/kristina_app/.dart_tool/
+
+# Vendor bundles (собираются scripts/build_*.mjs)
 extension/*-vendor.mjs
 extension/pdf-font.mjs
+
+# Experiment outputs
 experiments/result.json
