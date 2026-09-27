@@ -53,3 +53,12 @@ experiments/result.json
 extension/*-vendor.mjs
 extension/pdf-font.mjs
 experiments/result.json
+
+# --- cleanup: бинарники и бэкапы (до миграции в LFS/Releases) ---
+*.apk
+*.bak
+*.backup
+*.tar.gz
+extension/*-vendor.mjs
+extension/pdf-font.mjs
+experiments/result.json
