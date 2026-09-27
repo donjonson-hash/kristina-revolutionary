@@ -1,6 +1,5 @@
 # creative_sandbox.py — Creative Sandbox Mode for Kristina
 import random
-import asyncio
 import json
 import logging
 from datetime import datetime
@@ -225,7 +224,7 @@ class CreativeSandbox:
             end = response.rfind('}') + 1
             if start != -1:
                 return json.loads(response[start:end])
-        except:
+        except Exception:
             pass
         return {'title': 'Концепт', 'hook': 'Хук', 'description': response[:200], 'rationale': 'OK', 'visual_prompt': 'Design'}
     

@@ -149,7 +149,7 @@ def format_price_quote(project_analysis: dict) -> str:
     for item in pricing["includes"]:
         quote += f"\n• {item}"
     
-    quote += f"""
+    quote += """
 
 **Условия оплаты:**
 • 40% — предоплата

@@ -3,11 +3,10 @@ DialogMemory v4.3 — Память диалогов Кристины
 Хранит историю разговоров для контекста
 """
 
-import json
 import sqlite3
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 
 @dataclass
@@ -137,7 +136,6 @@ class DialogMemory:
             return "Новый разговор"
         
         # Формируем краткое описание
-        topics = []
         user_msgs = [m for m in context if m['role'] == 'user']
         
         if len(user_msgs) > 5:

@@ -3,7 +3,7 @@ Base Agent Class for Kristina Multi-Agent System
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from dataclasses import dataclass
 from datetime import datetime
 import logging

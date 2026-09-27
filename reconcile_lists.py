@@ -81,7 +81,8 @@ def _highlight_value(value: str, other: str) -> str:
 
 def render_html(report: dict) -> str:
     """Static paired document views; source values stay intact and escaped."""
-    esc = lambda value: html.escape(str(value), quote=True)
+    def esc(value):
+        return html.escape(str(value), quote=True)
     complete = report["status"] == "complete"
     title = "Сверка завершена" if complete else "Нужно уточнение — сравнение не выполнено"
     parts = _ReportBuffer("HTML")

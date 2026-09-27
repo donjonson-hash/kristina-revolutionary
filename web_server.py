@@ -5,15 +5,12 @@ Web Server for Kristina Control Panel v3.1
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Form
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import json
-import asyncio
 from datetime import datetime
-from typing import List, Dict, Optional
-import logging
-import os
+from typing import List, Dict
 import subprocess
 
 # Импорты из проекта
@@ -92,7 +89,7 @@ async def get_status():
                 }
         else:
             raise AttributeError("No mood_engine")
-    except Exception as e:
+    except Exception:
         current_mood = {
             "emoji": "🌅",
             "label": "Утреннее любопытство",
@@ -206,7 +203,7 @@ async def get_logs(lines: int = 20):
             if len(line) > 20 and ":" in line[11:20]:
                 try:
                     time_str = line[11:19]  # HH:MM:SS из systemd лога
-                except:
+                except Exception:
                     pass
             
             # Короткое сообщение (без timestamp systemd)

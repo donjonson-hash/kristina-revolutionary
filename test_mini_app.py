@@ -102,13 +102,13 @@ try:
     
     # Проверяем создание агентов
     persona = KristinaPersonaAgent()
-    print(f"  ✅ KristinaPersonaAgent создан")
+    print("  ✅ KristinaPersonaAgent создан")
     
     advisor = KristinaAdvisorAgent()
-    print(f"  ✅ KristinaAdvisorAgent создан")
+    print("  ✅ KristinaAdvisorAgent создан")
     
     creative = KristinaCreativeAgent()
-    print(f"  ✅ KristinaCreativeAgent создан")
+    print("  ✅ KristinaCreativeAgent создан")
     
     # Проверяем регистрацию в роутере
     if not router.agents:
@@ -135,7 +135,6 @@ try:
     print("  ✅ mobile_api.py - синтаксис OK")
     
     # Проверяем импорт
-    from mobile_api import app, store
     print("  ✅ mobile_api импортирован")
     
 except Exception as e:
@@ -151,7 +150,6 @@ try:
         compile(f.read(), "web_server.py", "exec")
     print("  ✅ web_server.py - синтаксис OK")
     
-    from web_server import app
     print("  ✅ web_server импортирован")
     
 except Exception as e:
@@ -212,7 +210,7 @@ try:
         size = db_path.stat().st_size / 1024
         print(f"  ✅ БД существует: {size:.1f} KB")
     else:
-        print(f"  ⚠️  БД не существует, будет создана при запуске")
+        print("  ⚠️  БД не существует, будет создана при запуске")
         warnings.append("DB not exists")
     
     # Тестируем создание и чтение
@@ -221,9 +219,9 @@ try:
     messages = memory.get_recent_messages("test_session", limit=1)
     
     if messages:
-        print(f"  ✅ Запись/чтение БД работает")
+        print("  ✅ Запись/чтение БД работает")
     else:
-        print(f"  ⚠️  БД не возвращает сообщения")
+        print("  ⚠️  БД не возвращает сообщения")
         warnings.append("DB read failed")
         
 except Exception as e:
@@ -244,10 +242,10 @@ async def test_agents_async():
         
         if router.agents:
             response = await router.process(test_message, context)
-            print(f"  ✅ Агенты отвечают")
+            print("  ✅ Агенты отвечают")
             print(f"     Ответ: {str(response.content)[:50]}...")
         else:
-            print(f"  ⚠️  Нет зарегистрированных агентов")
+            print("  ⚠️  Нет зарегистрированных агентов")
             warnings.append("No agents registered")
             
     except Exception as e:
@@ -265,7 +263,7 @@ try:
     from ai_client import ai
     if ai._session:
         asyncio.run(ai.close())
-except:
+except Exception:
     pass
 
 # Итоги

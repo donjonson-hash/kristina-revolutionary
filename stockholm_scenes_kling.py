@@ -3,7 +3,6 @@
 Формат: iPhone 17, вертикальное 9:16 (1080x1920)
 """
 
-import asyncio
 import logging
 import random
 from typing import Optional
@@ -95,7 +94,7 @@ class StockholmSceneGenerator:
         try:
             url = await self.kling.generate(prompt=iphone_prompt, aspect_ratio="9:16")
             if url:
-                logger.info(f"✅ Сцена сгенерирована")
+                logger.info("✅ Сцена сгенерирована")
                 return url
             return None
         except Exception as e:

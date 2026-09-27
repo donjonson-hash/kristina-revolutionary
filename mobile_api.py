@@ -4,8 +4,6 @@ FastAPI + WebSocket + JWT + Brain Unified
 """
 
 import os
-import json
-import asyncio
 import uuid
 import hashlib
 import logging
@@ -14,7 +12,7 @@ from typing import Optional, List, Dict, Any
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, File, UploadFile, status, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, File, UploadFile, Request
 
 # ═══════════════════════════════════════════════════════════════
 # ЛОГИРОВАНИЕ
@@ -114,7 +112,7 @@ mini_app_path = BASE_DIR / "mini_app"
 # Проверяем существование mini_app директории
 if mini_app_path.exists():
     app.mount("/mini_app", StaticFiles(directory=str(mini_app_path), html=True), name="mini_app")
-    print(f"✅ Mini App mounted at /mini_app")
+    print("✅ Mini App mounted at /mini_app")
 
 # Security
 security = HTTPBearer()
@@ -530,8 +528,9 @@ async def shutdown_event():
     logger.info("🛑 Shutting down gracefully...")
     try:
         # Закрываем соединения с БД
-        if 'pg' in globals() and pg:
-            await pg.disconnect()
+        _pg = globals().get('pg')
+        if _pg:
+            await _pg.disconnect()
             logger.info("🔌 Database disconnected")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")

@@ -7,7 +7,7 @@ KRISTINA LIFESTYLE SCENES v1.0
 import random
 import asyncio
 import logging
-from typing import Optional, Dict, List
+from typing import Optional
 from kling_api import KlingAPI
 
 logger = logging.getLogger(__name__)

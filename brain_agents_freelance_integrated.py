@@ -3,9 +3,9 @@ Freelance Agent — автоматическое распознавание
 Без команд, по ключевым словам как остальные режимы мозга
 """
 
+import asyncio
 import logging
-import re
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Optional
 from datetime import datetime
 from dataclasses import dataclass, field
 

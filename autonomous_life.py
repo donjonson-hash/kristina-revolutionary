@@ -5,7 +5,7 @@ Autonomous Life Module — автономная жизнь Кристины 24/7
 import asyncio
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Any, Optional
 
 from emotional_core import EmotionalCore

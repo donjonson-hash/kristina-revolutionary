@@ -2,10 +2,9 @@
 Proactive Messaging v2.0 — с генерацией через DeepSeek
 """
 
-import random
 import asyncio
 from datetime import datetime
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,6 @@ class ProactiveMessagingManager:
     def get_current_state(self) -> Optional[Dict]:
         """Получить текущее состояние из расписания"""
         now = datetime.now()
-        current_time = now.strftime("%H:%M")
         
         # Ищем ближайшую точку
         schedule_times = sorted(SCHEDULE.keys())
@@ -242,7 +240,7 @@ async def _send_proactive_async(application, time_str: str, config: Dict):
                 'time': time_str,
                 'message': message[:50]
             })
-        except:
+        except Exception:
             pass
             
     except Exception as e:

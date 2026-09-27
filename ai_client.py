@@ -1,7 +1,7 @@
 import os
 import logging
 import aiohttp
-from typing import List, Dict, Optional
+from typing import List, Dict
 from dotenv import load_dotenv
 
 from kristina_identity import build_system_prompt

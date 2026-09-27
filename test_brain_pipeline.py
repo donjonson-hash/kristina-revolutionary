@@ -53,7 +53,7 @@ async def test_brain_bridge():
     section("1. BrainBridge — мост к мозгу")
 
     try:
-        from brain_integration import BrainBridge, get_brain_bridge
+        from brain_integration import get_brain_bridge
         ok("import brain_integration")
     except Exception as e:
         fail("import brain_integration", str(e))
@@ -133,7 +133,7 @@ def test_emotional_core():
     section("2. EmotionalCore — эмоции")
 
     try:
-        from emotional_core import EmotionalCore, get_emotional_core
+        from emotional_core import get_emotional_core
         ok("import emotional_core")
     except Exception as e:
         fail("import emotional_core", str(e))
@@ -238,7 +238,7 @@ def test_persistent_memory():
     # удаляем тестовую БД
     try:
         os.remove(TEST_DB)
-    except:
+    except Exception:
         pass
 
 
@@ -277,7 +277,7 @@ async def test_dialog_memory():
     # cleanup
     try:
         os.remove(TEST_DB)
-    except:
+    except Exception:
         pass
 
 
@@ -290,7 +290,8 @@ async def test_agent_router():
     try:
         # Импортируем напрямую, минуя agents/__init__.py
         # чтобы не тянуть aiohttp и прочие тяжёлые зависимости
-        import importlib, importlib.util
+        import importlib
+        import importlib.util
         def _load_module(name, path):
             spec = importlib.util.spec_from_file_location(name, path)
             mod = importlib.util.module_from_spec(spec)
@@ -440,10 +441,10 @@ async def test_full_pipeline():
     base_prompt = "Ты Кристина, UX-дизайнер."
     full_prompt = base_prompt + brain_memory_text + brain_emotion_text + brain_recs_text
 
-    print(f"\n    --- Сгенерированный промпт (фрагмент) ---")
+    print("\n    --- Сгенерированный промпт (фрагмент) ---")
     for line in full_prompt.split("\n"):
         print(f"    | {line}")
-    print(f"    --- конец промпта ---\n")
+    print("    --- конец промпта ---\n")
 
     assert "Кристина" in full_prompt
     ok("промпт содержит базу")
@@ -458,7 +459,7 @@ async def test_full_pipeline():
     ctx["brain_recommendations"] = recs
     ok(f"brain_recommendations переданы в context: {recs}")
 
-    print(f"\n    Pipeline завершён успешно.")
+    print("\n    Pipeline завершён успешно.")
 
 
 # ═════════════════════════════════════════════════════════════
@@ -486,7 +487,7 @@ async def main():
     print(f"  Passed:  {PASSED}")
     print(f"  Failed:  {FAILED}")
     if ERRORS:
-        print(f"\n  Ошибки:")
+        print("\n  Ошибки:")
         for e in ERRORS:
             print(f"    {e}")
     print()

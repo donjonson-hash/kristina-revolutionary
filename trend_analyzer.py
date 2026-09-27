@@ -8,10 +8,9 @@ Trend Analyzer — LLM-анализ собранных сигналов спро
 
 import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from trend_collector import Signal
 from trend_scout_prompt import ANALYSIS_SYSTEM_PROMPT

@@ -10,17 +10,16 @@ KRISTINA BRAIN v5.0 UNIFIED
 # ═══════════════════════════════════════════════════════════════
 
 import random
-import json
 import asyncio
 import logging
-from typing import Dict, List, Any, Optional, Callable
-from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional
+from datetime import datetime
 
 # Внешние зависимости (из part5_llm)
 try:
     from event_bus_v2 import Event
     from brain_llm_integration import get_llm_bridge
-    from self_learning import get_learning_agent, SelfLearningAgent
+    from self_learning import get_learning_agent
     from emotional_core import get_emotional_core
 except ImportError:
     Event = None

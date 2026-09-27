@@ -3,13 +3,10 @@ Internal Dialogue Module — внутренний монолог Кристин�
 Публикует мысли в Telegram-канал (с фото или текст)
 """
 
-import asyncio
 import logging
-import random
 import os
 import aiohttp
-from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +68,7 @@ class InternalDialogue:
             
             # Если есть image_url — скачиваем и отправляем файлом
             if image_url:
-                logger.info(f"📥 Скачивание изображения...")
+                logger.info("📥 Скачивание изображения...")
                 image_data = await self._download_image(image_url)
                 
                 if image_data:
@@ -156,7 +153,7 @@ class InternalDialogue:
                 async with aiohttp.ClientSession() as s:
                     async with s.post(url, data=form, timeout=60) as r:
                         if r.status == 200:
-                            logger.info(f"✅ Фото опубликовано")
+                            logger.info("✅ Фото опубликовано")
                         else:
                             logger.error(f"❌ Ошибка: {r.status}")
             else:

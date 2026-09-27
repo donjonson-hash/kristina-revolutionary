@@ -68,7 +68,7 @@ class VoiceSynthesizer:
         try:
             if os.path.exists(path):
                 os.remove(path)
-        except:
+        except Exception:
             pass
     
     def get_status(self) -> dict:

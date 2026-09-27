@@ -15,8 +15,6 @@
 
 import asyncio
 import sys
-import os
-import json
 import datetime
 
 # ─── helpers ──────────────────────────────────────────────────
@@ -25,14 +23,18 @@ FAILED = 0
 ERRORS = []
 
 def ok(name: str):
-    global PASSED; PASSED += 1
+    global PASSED
+    PASSED += 1
     print(f"  OK  {name}")
 
 def fail(name: str, detail: str = ""):
-    global FAILED; FAILED += 1
+    global FAILED
+    FAILED += 1
     msg = f"  FAIL  {name}"
-    if detail: msg += f" -- {detail}"
-    print(msg); ERRORS.append(msg)
+    if detail:
+        msg += f" -- {detail}"
+    print(msg)
+    ERRORS.append(msg)
 
 def section(title: str):
     print(f"\n{'='*60}\n  {title}\n{'='*60}")
@@ -43,7 +45,7 @@ def section(title: str):
 # ═════════════════════════════════════════════════════════════
 def test_profession_profile():
     section("1. ProfessionProfile -- реестр профессий")
-    from avatar_platform.profession_profile import ProfessionProfile, PROFESSION_REGISTRY, get_profession
+    from avatar_platform.profession_profile import PROFESSION_REGISTRY, get_profession
 
     # реестр не пуст
     assert len(PROFESSION_REGISTRY) >= 5, f"В реестре {len(PROFESSION_REGISTRY)} профессий (ожидали >= 5)"
@@ -96,7 +98,7 @@ def test_user_profile():
 
     mods2 = user.apply_patterns(hour=20)  # вне паттернов
     assert len(mods2) == 0
-    ok(f"apply_patterns(20): mods пусты (ожидаемо)")
+    ok("apply_patterns(20): mods пусты (ожидаемо)")
 
     # delegation
     user.work_preferences["delegation_comfort"] = "высокий"
@@ -205,7 +207,7 @@ def test_task_manager():
     # assign
     tm.assign_task(task.id, "avatar_frontend_u2")
     assert task.status == TaskStatus.ASSIGNED
-    ok(f"assign: → avatar_frontend_u2")
+    ok("assign: → avatar_frontend_u2")
 
     # find best executor
     available = {
@@ -418,7 +420,7 @@ async def test_avatar_network():
        f"tasks={stats['tasks']['total_tasks']}, "
        f"messages={stats['message_bus']['total_messages']}")
 
-    print(f"\n    Полный сценарий команды завершён успешно.")
+    print("\n    Полный сценарий команды завершён успешно.")
 
 
 # ═════════════════════════════════════════════════════════════
@@ -444,8 +446,9 @@ async def main():
     print(f"  Passed:  {PASSED}")
     print(f"  Failed:  {FAILED}")
     if ERRORS:
-        print(f"\n  Ошибки:")
-        for e in ERRORS: print(f"    {e}")
+        print("\n  Ошибки:")
+        for e in ERRORS:
+            print(f"    {e}")
     print()
     if FAILED > 0:
         print("  ЕСТЬ ОШИБКИ")

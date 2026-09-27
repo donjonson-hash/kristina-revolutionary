@@ -5,7 +5,6 @@ Night Mode - режим сна Кристины
 import logging
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
-from typing import Optional
 import random
 
 logger = logging.getLogger(__name__)

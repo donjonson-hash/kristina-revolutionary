@@ -5,8 +5,7 @@ Document Processor v1.0
 
 import os
 import logging
-from typing import Optional, Dict, Any
-from io import BytesIO
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,6 @@ import aiosqlite
 import json
 import logging
 from typing import List, Dict, Optional, Any
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

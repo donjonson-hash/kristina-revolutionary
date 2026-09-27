@@ -142,7 +142,7 @@ Stockholm Sweden, Nordic atmosphere, 2026"""
                     ) as resp:
                         
                         if resp.status != 200:
-                            text = await resp.text()
+                            _text = await resp.text()
                             logger.error(f"❌ HTTP {resp.status}")
                             if attempt < max_retries - 1:
                                 await asyncio.sleep(5)

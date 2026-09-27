@@ -15,8 +15,8 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-from document_handler import handle_document, DOCUMENT_PROCESSOR_AVAILABLE
-from intent_detector import detect_proposal_intent, detect_meeting_intent
+from document_handler import handle_document
+from intent_detector import detect_proposal_intent
 from telegram.error import NetworkError
 from telegram_utils import split_message, parse_admin_ids, parse_report_days, next_weekly_run
 from kristina_identity import build_system_prompt

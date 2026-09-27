@@ -137,13 +137,13 @@ class KlingAPI:
                         images = resp.get("data", {}).get("task_result", {}).get("images", [])
                         if images:
                             url = images[0].get("url")
-                            logger.info(f"✅ Готово!")
+                            logger.info("✅ Готово!")
                             return url
                     elif status == "failed":
                         logger.error("❌ Failed")
                         return None
                     await asyncio.sleep(2)
-            except Exception as e:
+            except Exception:
                 await asyncio.sleep(2)
         logger.error("❌ Таймаут")
         return None

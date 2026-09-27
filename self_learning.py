@@ -4,12 +4,11 @@ Self-Learning Module — система самообучения Кристин�
 
 import asyncio
 import logging
-import json
 import os
 import sqlite3
 from dotenv import load_dotenv
 load_dotenv()
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Dict, List
 import aiohttp
 

@@ -5,7 +5,6 @@ entity and expose a stable API for the rest of Kristina.
 """
 from typing import Any, Dict, Optional
 import logging
-import asyncio
 import json
 import datetime
 from dataclasses import asdict

@@ -9,7 +9,6 @@ import aiosqlite
 import json
 import logging
 from pathlib import Path
-from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)

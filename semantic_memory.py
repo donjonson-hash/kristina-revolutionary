@@ -5,7 +5,7 @@
 
 import chromadb
 from chromadb.config import Settings
-from typing import List, Dict, Optional
+from typing import List, Dict
 import hashlib
 from datetime import datetime
 
@@ -69,7 +69,7 @@ class SemanticMemory:
                 n_results=n_results
             )
             return results['documents'][0] if results and results['documents'] else []
-        except Exception as e:
+        except Exception:
             return []
     
     def get_user_profile(self, user_id: str) -> Dict:
@@ -80,7 +80,7 @@ class SemanticMemory:
                 "facts": facts['documents'][:5] if facts else [],
                 "count": len(facts['documents']) if facts else 0
             }
-        except:
+        except Exception:
             return {"facts": [], "count": 0}
 
 

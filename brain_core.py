@@ -2,14 +2,12 @@
 Brain Core — базовые классы нейро-архитектуры Кристины
 """
 
-import asyncio
 import random
-import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum, auto
-from typing import Dict, List, Any, Optional, Callable, Set
+from enum import Enum
+from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 

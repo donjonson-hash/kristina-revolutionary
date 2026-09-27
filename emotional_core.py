@@ -282,7 +282,6 @@ class EmotionalCore:
     def _craft_emotional_prompt(self) -> str:
         """Промпт для LLM"""
         energy = self.state["energy"]
-        happiness = self.state["happiness"]
         
         modifiers = []
         if self._is_night():
