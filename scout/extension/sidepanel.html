@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Scout</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0f1115; color: #e6e8ee;
+    width: 360px; min-height: 480px; padding: 20px;
+  }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #8b90a0; font-size: 13px; margin-bottom: 20px; }
+  .step { display: none; }
+  .step.active { display: block; }
+  label { display: block; font-size: 13px; color: #aab0c0; margin: 14px 0 6px; }
+  input, textarea, select {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid #2a2f3a; background: #171a21; color: #e6e8ee;
+    font-size: 14px; resize: vertical;
+  }
+  textarea { min-height: 64px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .chip {
+    padding: 6px 12px; border-radius: 999px; font-size: 13px;
+    border: 1px solid #2a2f3a; background: #171a21; cursor: pointer;
+  }
+  .chip.on { background: #2d4a7a; border-color: #3d5a8a; }
+  .nav { display: flex; gap: 10px; margin-top: 24px; }
+  button {
+    flex: 1; padding: 11px; border: none; border-radius: 10px;
+    font-size: 14px; cursor: pointer;
+  }
+  .primary { background: #4a7dff; color: #fff; }
+  .ghost { background: transparent; color: #8b90a0; border: 1px solid #2a2f3a; }
+  .section { margin-bottom: 16px; }
+  .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .tag.rising { color: #ff7a7a; } .tag.growing { color: #7ddba3; }
+  .tag.noise { color: #8b90a0; } .tag.action { color: #ffd479; }
+  .card { background: #171a21; border: 1px solid #2a2f3a; border-radius: 12px; padding: 12px; margin-top: 8px; }
+  .card h3 { font-size: 14px; margin-bottom: 4px; }
+  .card p { font-size: 13px; color: #aab0c0; }
+  .meta { font-size: 12px; color: #8b90a0; margin: 4px 0 12px; }
+  .empty { color: #8b90a0; font-size: 13px; margin-top: 12px; }
+</style>
+</head>
+<body>
+  <h1>Scout</h1>
+  <p class="sub">Агент, который помнит вашу нишу и приходит сам</p>
+
+  <!-- Онбординг: шаг 1 -->
+  <div class="step" id="step1">
+    <label for="niche">Кто вы и что делаете?</label>
+    <textarea id="niche" placeholder="Например: пишу ньюслеттер про AI-инструменты для разработчиков"></textarea>
+    <div class="nav">
+      <button class="primary" onclick="go(2)">Далее</button>
+    </div>
+  </div>
+
+  <!-- Онбординг: шаг 2 -->
+  <div class="step" id="step2">
+    <label>Темы для наблюдения (выбери 3–5)</label>
+    <div class="chips" id="chips"></div>
+    <div class="nav">
+      <button class="ghost" onclick="go(1)">Назад</button>
+      <button class="primary" onclick="go(3)">Далее</button>
+    </div>
+  </div>
+
+  <!-- Онбординг: шаг 3 -->
+  <div class="step" id="step3">
+    <label for="frequency">Как часто приходить?</label>
+    <select id="frequency">
+      <option value="daily">Раз в день</option>
+      <option value="every_3_days">Раз в 3 дня</option>
+    </select>
+    <label>Тихие часы (не беспокоить)</label>
+    <div style="display:flex;gap:8px">
+      <input type="time" id="quietFrom" value="22:00">
+      <input type="time" id="quietTo" value="08:00">
+    </div>
+    <div class="nav">
+      <button class="ghost" onclick="go(2)">Назад</button>
+      <button class="primary" onclick="finishOnboarding()">Начать</button>
+    </div>
+  </div>
+
+  <!-- Дайджест -->
+  <div class="step" id="digest">
+    <div class="nav" style="margin:0 0 14px">
+      <button class="ghost" onclick="requestDigest()" style="flex:1">Проверить сейчас</button>
+      <button class="ghost" onclick="resetOnboarding()" style="flex:0 0 90px">Настройки</button>
+    </div>
+    <div id="digestContent"><p class="empty">Дайджестов пока нет — нажми «Проверить сейчас».</p></div>
+  </div>
+
+<script src="storage.js"></script>
+<script src="sidepanel.js"></script>
+</body>
+</html>
