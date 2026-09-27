@@ -9,12 +9,12 @@ on:
 
 jobs:
   lint:
-    name: Lint & Security
+    name: Lint and Security
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # нужна полная история для сканера секретов
+          fetch-depth: 0  # полная история нужна сканеру секретов
 
       - uses: actions/setup-python@v5
         with:
@@ -23,13 +23,14 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      - name: Ruff (default rules: E4,E7,E9,F — ловит F821 undefined name)
+      - name: Ruff check
+        # набор E4,E7,E9,F ловит F821 undefined name (как self.tiggers)
         run: ruff check agents database *.py
 
-      - name: Secret scan (history)
+      - name: Secret scan history
         run: bash scripts/check_history_secrets.sh
 
-      - name: Compile check (fail-fast до тестов)
+      - name: Compile check
         run: python -m compileall -q agents database *.py
 
   tests:
