@@ -368,3 +368,15 @@ main{padding:0 18px}
 .source-blocks summary{cursor:pointer}
 .source-block{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
 .source-block .text-content{margin-top:5px}
+
+/* The editable revision is visually separate from immutable comparison evidence. */
+.text-editor{margin:18px 0;padding:20px;border:1px solid #bbd4d0;border-radius:16px;background:#f3faf7}
+.editor-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.editor-heading h3{margin:4px 0;font-size:20px}.editor-heading .eyebrow{margin:0}
+.editor-actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 10px}
+#editor-status{font-weight:600;color:#245b4c}#editor-preview{max-height:300px;overflow:auto;padding:14px;background:#fff;border:1px solid #d1ded9;border-radius:8px}
+.fragment-editor{margin-top:16px;padding-top:14px;border-top:2px solid #92bcb1;text-align:left;font-style:normal}
+.draft-label{display:block;font-weight:600;color:#245b4c}.fragment-editor textarea{display:block;box-sizing:border-box;width:100%;min-height:90px;resize:vertical;margin:8px 0;padding:10px;border:1px solid #9cafaa;border-radius:8px;background:#fff;color:#172d28;font:inherit;font-weight:400;line-height:1.5;white-space:pre-wrap}
+.fragment-editor textarea:focus{outline:2px solid #276b58;outline-offset:2px}.fragment-editor .hint{font-weight:400}.accept-canonical{white-space:normal}
+
+.document-mode .document-record.absent.has-editor{display:block;font-size:inherit}.fragment-editor{width:100%}

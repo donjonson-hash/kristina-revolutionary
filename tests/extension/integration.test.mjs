@@ -97,7 +97,7 @@ for (const target of ['firefox', 'chrome']) {
       assert.equal(dom.window.document.querySelector('script:not([src])'), null, 'No inline executable scripts');
       if (name === 'index.html') {
         const scripts = [...dom.window.document.scripts].map(s => s.getAttribute('src'));
-        assert.deepEqual(new Set(scripts), new Set(['office.js', 'transport.js', 'app.js']));
+        assert.deepEqual(new Set(scripts), new Set(['office.js', 'text-editor.js', 'transport.js', 'app.js']));
         assert.ok(scripts.indexOf('office.js') < scripts.indexOf('app.js'));
         assert.ok(scripts.indexOf('transport.js') < scripts.indexOf('app.js'));
       }
@@ -1105,3 +1105,37 @@ for (const target of ['chrome', 'firefox']) {
     assert.match($('office-draft').value, /Изменённых блоков: 3/);
   });
 }
+
+for (const target of ['firefox', 'chrome']) test(`${target}: canonical editor, manual typing, filters, pagination, export and source reset`, async t => {
+  const p = await page(t, target), {$} = p;
+  const a = Array.from({length: 31}, (_, i) => `Пункт ${i}: оплата через 10 дней.`).join('\n');
+  const b = a.replace('Пункт 0: оплата через 10', 'Пункт 0: оплата через 30');
+  await p.file('left', a, 'canonical.txt'); await p.file('right', b, 'draft.txt'); await p.result();
+  assert.equal($('text-editor').hidden, false);
+  $('download-json').click(); const original = await p.downloads.at(-1).blob.text();
+  $('editor-start').click();
+  let field = $('result-rows').querySelector('textarea');
+  const key = field.dataset.key;
+  field.value = 'Моя правка <script>текст</script>'; field.dispatchEvent(new p.dom.window.Event('input'));
+  field.dispatchEvent(new p.dom.window.Event('blur'));
+  $('next').click(); $('previous').click();
+  assert.equal($('result-rows').querySelector('textarea').value, 'Моя правка <script>текст</script>');
+  $('totals').querySelector('[data-category="changed"]').click();
+  assert.equal($('result-rows').querySelector('textarea').dataset.key, key);
+  $('editor-download').click();
+  assert.equal(p.downloads.at(-1).name, 'kristina-edited-B.txt');
+  assert.equal(await p.downloads.at(-1).blob.text(), b.replace(b.split('\n')[0], 'Моя правка <script>текст</script>') + '\n');
+  $('result-rows').querySelector('.accept-canonical').click();
+  assert.equal($('result-rows').querySelector('textarea').value, a.split('\n')[0]);
+  $('editor-undo').click(); assert.equal($('result-rows').querySelector('textarea').value, 'Моя правка <script>текст</script>');
+  $('editor-all').click(); $('editor-download').click();
+  assert.equal(await p.downloads.at(-1).blob.text(), a + '\n', 'apply all ignores pagination and filter');
+  assert.match($('editor-status').textContent, /совпадает/);
+  $('download-json').click(); assert.equal(await p.downloads.at(-1).blob.text(), original, 'original comparison is unchanged');
+  $('editor-reset').click(); $('editor-download').click(); assert.equal(await p.downloads.at(-1).blob.text(), b + '\n');
+  const detached = $('result-rows').querySelector('textarea');
+  await p.file('right', a, 'fresh.txt'); await p.result();
+  assert.equal($('editor-workspace').hidden, true); assert.equal($('editor-start').hidden, false);
+  detached.value = 'stale'; detached.dispatchEvent(new p.dom.window.Event('input'));
+  $('editor-start').click(); $('editor-download').click(); assert.equal(await p.downloads.at(-1).blob.text(), a + '\n');
+});

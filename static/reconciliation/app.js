@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const MAX_FILE_BYTES = 2 * 1024 * 1024, PAGE_SIZE = 25;
   const state = {sources: {left: null, right: null}, metadata: null, suggested: [], delimiter: ',',
-    report: null, html: null, records: [], busy: false, revision: 0, filter: 'all', page: 0, active: -1};
+    report: null, html: null, records: [], editor: null, busy: false, revision: 0, filter: 'all', page: 0, active: -1};
   const loads = {left: 0, right: 0}, selectColumns = new WeakMap();
   let controller = null, exportController = null, changePage = 0;
   const officeHome = $('office-sidebar').parentElement;
@@ -145,6 +145,7 @@
     $('compare').textContent = value ? 'Обрабатываю…' : 'Применить настройки';
   }
   function clearResult() {
+    state.editor = null; $('text-editor').hidden = true; $('editor-error').hidden = true; $('editor-preview').textContent = ""; editorStatus();
     state.revision += 1;
     if (controller) controller.abort();
     if (exportController) exportController.abort();
@@ -355,6 +356,8 @@
   function renderResult() {
     const report = state.report, complete = report.status === 'complete', textMode = report.kind === 'text';
     reviewMode(complete, textMode);
+    $('text-editor').hidden = !(complete && textMode);
+    editorStatus();
     changePage = 0;
     exportEnable();
     renderCommercial();
@@ -416,6 +419,78 @@
     while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;
     container.append(document.createTextNode(a.slice(0, start).join('')), element('mark', a.slice(start, a.length - end).join('')), document.createTextNode(end ? a.slice(a.length - end).join('') : ''));
   }
+  function editorStatus() {
+    const editor = state.editor;
+    $('editor-workspace').hidden = !editor;
+    $('editor-start').hidden = !!editor;
+    if (!editor) return;
+    $('editor-status').textContent = editor.matchesCanonical ? 'Редакция B совпадает с извлечённым текстом A, включая порядок фрагментов.' : editor.changed ? 'Редакция B изменена. Остались отличия от эталона A.' : 'Редакция B пока содержит исходный текст B.';
+    $('editor-undo').disabled = !editor.canUndo;
+    $('editor-reset').disabled = !editor.changed;
+    $('editor-all').disabled = editor.matchesCanonical;
+    if ($('editor-preview-details').open) $('editor-preview').textContent = editor.text();
+  }
+  function editorAction(action, redraw = true) {
+    if (!state.editor) return;
+    try {
+      action(state.editor);
+      $('editor-error').hidden = true;
+      editorStatus();
+      if (redraw) {
+        const scroll = $('document-scroll').scrollTop;
+        renderRows(); $('document-scroll').scrollTop = scroll;
+      }
+      return true;
+    } catch (error) {
+      $('editor-error').textContent = error.message;
+      $('editor-error').hidden = false;
+      return false;
+    }
+  }
+  function editorPanel(item, panel) {
+    const editor = state.editor, revision = state.revision;
+    if (!editor) return;
+    panel.classList.add('has-editor');
+    const current = editor.get(item.key), box = element('div', undefined, 'fragment-editor');
+    const label = element('label', 'Редакция B', 'draft-label');
+    const field = element('textarea'); field.rows = Math.min(10, Math.max(3, (current || '').split('\n').length + 1));
+    field.value = current ?? ''; field.maxLength = 500000;
+    field.setAttribute('aria-label', `Редакция B · ${item.right?.location || item.left?.location || item.row?.location || item.key}`);
+    field.dataset.key = item.key;
+    field.addEventListener('input', () => {
+      if (revision !== state.revision || editor !== state.editor) return;
+      if (!editorAction(draft => draft.edit(item.key, field.value), false)) field.value = editor.get(item.key) ?? '';
+      absent.hidden = editor.get(item.key) !== null;
+    });
+    field.addEventListener('blur', () => editor.endEdit());
+    label.append(field); box.append(label);
+    const absent = element('p', 'Фрагмент отсутствует в редакции B. Начните ввод или добавьте его из A.', 'hint');
+    absent.hidden = current !== null; box.append(absent);
+    const accept = element('button', item.category === 'only_right' ? 'Удалить из редакции B' : item.category === 'only_left' ? 'Добавить из A' : item.category === 'moved' ? 'Взять из A и восстановить порядок' : 'Взять текст из A');
+    accept.type = 'button'; accept.className = 'button secondary accept-canonical';
+    accept.addEventListener('click', () => {
+      if (revision !== state.revision || editor !== state.editor) return;
+      editorAction(draft => draft.apply(item.key));
+      const restored = [...$('result-rows').querySelectorAll('textarea')].find(node => node.dataset.key === item.key);
+      restored?.focus({preventScroll: true});
+    });
+    box.append(accept); panel.append(box);
+  }
+  $('editor-start').addEventListener('click', () => {
+    if (state.report?.kind !== 'text' || state.report.status !== 'complete') return;
+    state.editor = window.KristinaTextEditor.create(state.report);
+    editorStatus(); renderRows();
+  });
+  $('editor-all').addEventListener('click', () => editorAction(editor => editor.applyAll()));
+  $('editor-undo').addEventListener('click', () => editorAction(editor => editor.undo()));
+  $('editor-reset').addEventListener('click', () => editorAction(editor => editor.reset()));
+  $('editor-preview-details').addEventListener('toggle', editorStatus);
+  $('editor-download').addEventListener('click', () => {
+    if (!state.editor) return;
+    const url = URL.createObjectURL(new Blob([state.editor.exportText()], {type: 'text/plain;charset=utf-8'}));
+    const link = element('a'); link.href = url; link.download = 'kristina-edited-B.txt';
+    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
   function textPanel(item, side) {
     const isLeft = side === 'left', row = item[side] || (item.category === (isLeft ? 'only_left' : 'only_right') ? item.row : null);
     const panel = element('section', undefined, 'document-record text-record ' + (isLeft ? 'before' : 'after'));
@@ -540,7 +615,9 @@
       const pair = element('article', undefined, 'document-pair ' + item.category.replace('_', '-')); pair.tabIndex = -1; pair.dataset.index = String(start + offset); pair.dataset.category = item.category;
       pair.classList.toggle('active-change', start + offset === state.active && item.category !== 'matched');
       const panel = textMode ? textPanel : recordPanel;
-      pair.append(panel(item, 'left'), panel(item, 'right')); root.append(pair);
+      const left = panel(item, 'left'), right = panel(item, 'right');
+      if (textMode) editorPanel(item, right);
+      pair.append(left, right); root.append(pair);
     }
     if (!records.length) root.append(element('p', textMode ? 'Нет фрагментов для выбранного фильтра.' : 'Нет позиций для выбранного фильтра.', 'zero-state'));
     $('page-info').textContent = `Страница ${state.page + 1} из ${pages}`;
