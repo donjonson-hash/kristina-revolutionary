@@ -4,6 +4,7 @@ Kristina Spontaneous — Живые сообщения от Кристины
 """
 
 import asyncio
+import os
 import random
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
@@ -11,13 +12,13 @@ from typing import Optional, List, Dict
 
 class KristinaSpontaneous:
     """Кристина пишет когда ей захочется"""
-    
+
     def __init__(self, orchestrator, dialog_memory):
         self.orch = orchestrator
         self.memory = dialog_memory
         self.last_check = {}
         self.min_interval = timedelta(hours=2)  # Минимум 2 часа между сообщениями
-        
+
         # Триггеры для сообщений
         self.triggers = {
             'bored': {
@@ -66,67 +67,67 @@ class KristinaSpontaneous:
                 ]
             }
         }
-    
+
     async def should_message(self, user_id: str) -> Optional[str]:
         """Проверить, стоит ли написать"""
-        
+
         # Проверяем интервал
         now = datetime.now()
         if user_id in self.last_check:
             if now - self.last_check[user_id] < self.min_interval:
                 return None
-        
+
         # Получаем историю
         history = await self.memory.get_context(user_id, limit=10)
-        
+
         if not history:
             return None  # Новый пользователь — не пишем первой
-        
+
         # Считаем время с последнего сообщения
         last_time = datetime.fromisoformat(history[-1]['time'])
         hours_passed = (now - last_time).total_seconds() / 3600
-        
+
         # Если меньше 2 часов — точно не пишем
         if hours_passed < 2:
             return None
-        
+
         # Если больше 24 часов — 100% пишем
         if hours_passed > 24:
             return await self._generate_message(user_id, history, 'miss_you')
-        
+
         # Проверяем триггеры по настроению
         current_mood = self.orch.mood_core.current_mood
-        
+
         # Триггер: скучно (если давно не писали)
         if hours_passed > 4 and random.random() < self.triggers['bored']['chance']:
             return await self._generate_message(user_id, history, 'bored')
-        
+
         # Триггер: вспомнила что-то
         if random.random() < self.triggers['memory']['chance']:
             return await self._generate_message(user_id, history, 'memory')
-        
+
         # Триггер: настроение
-        if current_mood.intensity > 0.7 and random.random() < self.tiggers['mood']['chance']:
+        if current_mood.intensity > 0.7 and random.random() < self.triggers['mood']['chance']:
             return await self._generate_message(user_id, history, 'mood')
-        
+
         # Триггер: любопытство
         if random.random() < self.triggers['question']['chance']:
             return await self._generate_message(user_id, history, 'question')
-        
+
         # Триггер: нужна помощь
         if random.random() < self.triggers['need']['chance']:
             return await self._generate_message(user_id, history, 'need')
-        
+
         self.last_check[user_id] = now
         return None
-    
+
     async def _generate_message(self, user_id: str, history: List[Dict], trigger_type: str) -> str:
         """Сгенерировать сообщение на основе триггера"""
-        
+
         # Извлекаем темы из истории
         user_msgs = [h['content'] for h in history if h['role'] == 'user']
         topics = self._extract_topics(user_msgs)
-        
+
         # Формируем контекст для генерации
         context = {
             'topic': random.choice(topics) if topics else 'жизнь',
@@ -157,29 +158,29 @@ class KristinaSpontaneous:
                 'боюсь ошибиться'
             ])
         }
-        
+
         # Выбираем шаблон
         templates = self.triggers.get(trigger_type, self.triggers['bored'])['messages']
         template = random.choice(templates)
-        
+
         # Заполняем шаблон
         message = template.format(**context)
-        
+
         # Сохраняем что мы написали
         await self.memory.add_message(user_id, 'assistant', message, 'spontaneous')
         self.last_check[user_id] = datetime.now()
-        
+
         return message
-    
+
     def _extract_topics(self, messages: List[str]) -> List[str]:
         """Извлечь темы из сообщений"""
         # Простая эвристика — ищем существительные
         words = ' '.join(messages).lower().split()
         # Фильтруем короткие слова и предлоги
-        topics = [w for w in words if len(w) > 4 and w not in 
+        topics = [w for w in words if len(w) > 4 and w not in
                  ['чтобы', 'когда', 'который', 'говорить', 'потому', 'сейчас', 'здесь']]
         return list(set(topics))[:5] or ['жизнь', 'работа', 'мечты']
-    
+
     def _extract_memory(self, history: List[Dict]) -> str:
         """Извлечь конкретное воспоминание"""
         user_msgs = [h['content'] for h in history if h['role'] == 'user']
@@ -190,11 +191,11 @@ class KristinaSpontaneous:
             if len(words) > 3:
                 return ' '.join(words[:5]) + '...'
         return 'наш разговор'
-    
+
     def _mood_to_text(self) -> str:
         """Преобразовать настроение в текст"""
         mood = self.orch.mood_core.current_mood
-        
+
         if mood.valence > 0.5:
             return random.choice(['весёлое', 'радостное', 'игривое', 'вдохновлённое'])
         elif mood.valence < -0.3:
@@ -206,20 +207,21 @@ class KristinaSpontaneous:
 # Тест
 if __name__ == "__main__":
     import asyncio
-    # from orchestrator import Orchestrator  # УДАЛЕНО: используем Brain v5.0
-    from brain_agents_part5_llm import get_brain
+    from brain_unified import get_brain
     from dialog_memory import DialogMemory
-    
+
     async def test():
-        orch = Orchestrator()
+        brain = get_brain()
         mem = DialogMemory()
-        spont = KristinaSpontaneous(orch, mem)
-        
-        # Тест с реальным user_id
-        msg = await spont.should_message('8229806914')
+        spont = KristinaSpontaneous(brain, mem)
+
+        # user_id из переменной окружения, чтобы не хардкодить чужой id
+        user_id = os.getenv("KRISTINA_TEST_USER_ID", "test_user")
+
+        msg = await spont.should_message(user_id)
         if msg:
-            print(f"📨 Кристина написала:\\n{msg}")
+            print(f"📨 Кристина написала:\n{msg}")
         else:
             print("⏳ Пока рано писать")
-    
+
     asyncio.run(test())
