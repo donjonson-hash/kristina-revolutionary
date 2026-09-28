@@ -13,26 +13,25 @@ const money = value => value === null ? 'не рассчитано' : String(val
 const location = row => row ? `${row.sheet ? 'лист «' + row.sheet + '», ' : ''}строка ${row.record}${row.cells ? ', ячейки ' + Object.values(row.cells).join(', ') : ''}` : 'позиции нет';
 
 function contents(report) {
-  const sections = []; let characters = 0, currentContext = '', technical = false;
+  const sections = []; let characters = 0, currentContext = '';
   function add(text, options = {}) {
     const segments = typeof text === 'string' ? [{text, changed: false}] : text;
     characters += segments.reduce((sum, segment) => sum + segment.text.length, 0);
     if (characters > MAX_PDF_CHARACTERS) throw new RangeError(LIMIT);
-    sections.push({segments, size: technical ? 10 : 10.5, gap: technical ? 3 : 4, context: currentContext, ...options});
+    sections.push({segments, size: 10.5, gap: 4, context: currentContext, ...options});
   }
   const heading = text => { currentContext = text; add(text, {size: 14, heading: true, gap: 10}); };
   add('Кристина · отчёт о сверке', {size: 21, gap: 13});
-  add('Сравнение выполнено локально. Исходная вёрстка документов не воспроизводится.', {muted: true});
-  if (report.kind === 'text' && Object.values(report.sources).some(source => source.format === 'pdf')) add('Изображения не сравнивались; текст внутри них не распознавался. Проверен только извлечённый текстовый слой PDF.');
+  add(report.kind === 'text' ? 'Сравнивается текст; оформление и изображения не проверяются.' : 'Сравниваются выбранные поля.', {muted: true});
   add(`Изменились: ${report.summary.changed}; только в A: ${report.summary.only_left}; только в B: ${report.summary.only_right}; совпали: ${report.summary.matched}.`);
   if (report.kind === 'text' && (report.moved?.length || report.reflow?.length)) {
     add(`Отдельно: перемещено без изменения текста — ${report.moved?.length || 0}; групп с изменением переносов строк — ${report.reflow?.length || 0}.`);
-    add('Эти группы не включены в число изменений текста и позиций только в A/B. Порядок пар служит для сопоставления; исходное расположение указано для каждой стороны.', {muted: true});
   }
-  add('Совпавшие пары опущены. Полное извлечённое содержимое доступно в HTML/JSON-отчёте. Исходные файлы следует хранить отдельно.', {muted: true});
+  add('Показаны только различия.', {muted: true});
   add('Красная подсветка — значение A; зелёная — значение B.', {muted: true});
   add(`A: ${report.sources.left.name}`);
   add(`B: ${report.sources.right.name}`);
+  for (const [side, label] of [['left', 'A'], ['right', 'B']]) if (report.sources[side].sheet) add(`${label}: проверен только лист «${report.sources[side].sheet}».`, {muted: true});
   if (report.commercial) {
     const summary = report.commercial;
     heading('Количество, цена и сумма');
@@ -48,24 +47,23 @@ function contents(report) {
   const rows = categories.flatMap(category => (report[category] || []).map(item => ({item, category})));
   const record = ({item, category}, side) => item[side]?.record ?? (category === `only_${side}` ? item.row.record : Infinity);
   rows.sort(report.kind === 'text' ? (a, b) => Number(a.item.key.slice(5)) - Number(b.item.key.slice(5)) : (a, b) => record(a, 'left') - record(b, 'left') || record(a, 'right') - record(b, 'right'));
-  if (!rows.length) add('Различий по выполненным правилам не обнаружено.');
+  if (!rows.length) add('Различий не обнаружено.');
   for (const {item, category} of rows) {
-    const context = `${item.key} · ${labels[category]}`;
+    const context = report.kind === 'text' ? labels[category] : `${item.key} · ${labels[category]}`;
     add(context, {size: 12, heading: true, fill: 'neutral', context});
     const only = category === 'only_left' || category === 'only_right';
     if (report.kind === 'text') {
       if (category === 'moved') {
         if (item.left.text !== item.right.text) throw new TypeError('PDF: текст перемещённого фрагмента различается. Повторите сверку.');
-        add(`A: ${item.left.location} · блок ${item.left.record}`, {muted: true, context});
-        add(`B: ${item.right.location} · блок ${item.right.record}`, {muted: true, context});
+        add(`A: ${item.left.location}`, {muted: true, context, keepNext: 2});
+        add(`B: ${item.right.location}`, {muted: true, context});
         add(item.left.text, {context});
         continue;
       }
       for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
         const block = only ? (category === `only_${side}` ? item.row : null) : item[side];
         if (!block) { add(`${label}: сопоставленного блока нет.`, {muted: true, context}); continue; }
-        const records = block.source_blocks ? 'блоки ' + block.source_blocks.map(part => part.record).join(', ') : 'блок ' + block.record;
-        add(`${label}: ${block.location} · ${records}`, {muted: true, context});
+        add(`${label}: ${block.location}`, {muted: true, context, keepNext: 1});
         let segments = [{text: block.text, changed: only}];
         if (category === 'changed') {
           segments = item.segments?.[side];
@@ -96,42 +94,6 @@ function contents(report) {
     }
     for (const item of summary.excluded) add(`${item.key} — исключено: ${item.reasons.join(' ')}`, {context: 'Исключённые позиции'});
   }
-  technical = true;
-  heading('Правила и границы проверки');
-  if (report.kind === 'text') {
-    add('Режим: сравнение извлечённого текста. Переводы строк приведены к единому виду; пробелы и регистр учитываются. Это не оценка юридического смысла, достоверности или орфографии. Отсутствие блока означает отсутствие сопоставленного текста, а не установленную причину изменения.');
-  } else {
-    add(`Ключ: A «${report.rules.key[0]}» ↔ B «${report.rules.key[1]}».`);
-    for (const [a, b, mode] of report.rules.fields) add(`A «${a}» ↔ B «${b}» — ${mode === 'number' ? 'число' : 'текст'}.`);
-    add(report.rules.strip ? 'Пробелы по краям значений и ключей удалялись перед сравнением.' : 'Пробелы по краям значений и ключей учитывались.');
-    const delimiter = report.rules.delimiter;
-    const delimiterName = delimiter === '\t' ? 'табуляция' : delimiter === ',' ? 'запятая' : delimiter === ';' ? 'точка с запятой' : `«${delimiter}»`;
-    add(`Разделитель CSV/TSV: ${delimiterName}. Текст сравнивается с учётом регистра. Числовые поля сравниваются как десятичные числа; единицы и валюты не пересчитываются.`);
-    add('Поля вне правил не проверялись. Номер записи CSV включает заголовок и может отличаться от физической строки при переносах внутри ячейки.');
-  }
-  if (report.kind === 'text' && Object.values(report.sources).some(source => source.format === 'pdf')) add('PDF: сравнивался извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении; оформление и нетекстовые элементы не сравнивались. Изображения не сравнивались; текст внутри них не распознавался.');
-  heading('Источники');
-  for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
-    const source = report.sources[side];
-    add(`${label}: ${source.name}`, {keepNext: 2});
-    add(`SHA-256: ${source.sha256}`, {size: 10, muted: true});
-    add(report.kind === 'text' ? `Формат: ${source.format}; текстовых блоков: ${source.block_count}.${source.page_count ? ' Страниц PDF: ' + source.page_count + '.' : ''}` : `Строк данных: ${source.row_count}.${source.sheet ? ' Проверен только лист «' + source.sheet + '».' : ''}`, {muted: true});
-  }
-  const leftNotes = new Set(report.sources.left.notes || []);
-  const rightNotes = new Set(report.sources.right.notes || []);
-  const commonNotes = [...leftNotes].filter(note => rightNotes.has(note));
-  if (commonNotes.length) {
-    heading('Пояснения для обоих файлов');
-    for (const note of commonNotes) add(note, {muted: true});
-  }
-  for (const [notes, other, label] of [[leftNotes, rightNotes, 'A'], [rightNotes, leftNotes, 'B']]) {
-    const unique = [...notes].filter(note => !other.has(note));
-    if (unique.length) {
-      heading(`Особенности файла ${label}`);
-      for (const note of unique) add(note, {muted: true});
-    }
-  }
-  add('Неподдерживаемые символы и управляющие коды обозначаются [U+XXXX], табуляция — \\t, возврат каретки — \\r. Точные исходные символы сохраняются в JSON.', {muted: true});
   return sections;
 }
 

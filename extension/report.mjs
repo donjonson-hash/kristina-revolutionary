@@ -96,18 +96,17 @@ export function renderHtml(report) {
   const output = new ReportBuffer('HTML'), complete = report.status === 'complete';
   const title = complete ? 'Сверка завершена' : 'Нужно уточнение — сравнение не выполнено';
   const append = text => output.append(text);
-  append(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>${title} — Кристина</title><style>${STYLE}</style></head><body><main><h1>${title}</h1><p>Кристина · помощник по сверке данных. Расчёт выполнен локальным кодом, без LLM.</p>`);
+  append(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>${title} — Кристина</title><style>${STYLE}</style></head><body><main><h1>${title}</h1><p>Изменения выделены цветом: слева — A, справа — B.</p>`);
+  append(`<p>A · ${escape(report.sources.left.name)}<br>B · ${escape(report.sources.right.name)}</p>`);
   if (!complete) {
     append('<h2>Уточнения</h2><ul>');
     for (const question of report.questions) append(`<li>${escape(question)}</li>`);
-    append('</ul><h2>Диагностика</h2><pre>' + escape(renderJson(report.issues)) + '</pre>');
+    append('</ul>');
   } else {
     commercialSection(report.commercial, append);
     append('<div class="totals">');
     for (const [key, label] of Object.entries(LABELS)) append(`<div><strong>${escape(report.summary[key])}</strong><span>${label}</span></div>`);
-    append('</div><p>Записи двух файлов показаны рядом и сопоставлены по ключу. Это представление исходных данных, а не исходная вёрстка документа. Подсветка отмечает изменившуюся часть значения; подписи указывают вид отличия.</p>');
-    append(`<p><strong>Ключ сопоставления:</strong> A — ${escape(report.rules.key[0])}; B — ${escape(report.rules.key[1])}.</p>`);
-    append('<p>Порядок соответствует записям A; позиции только в B добавлены в конце в порядке B. Номер записи в каждой панели относится к исходному файлу.</p>');
+    append('</div><p>Сравниваются выбранные поля. Номер строки указан рядом с каждой позицией.</p>');
     if (report.summary.left_rows && report.summary.right_rows && !report.summary.matched && !report.summary.changed) append('<p><strong>Нет сопоставленных позиций.</strong> Проверьте ключи: отсутствие пар не означает совпадение документов.</p>');
     const checked = [0, 1].map(index => new Map((report.rules.fields || []).map(field => [field[index], field[2]])));
     function paper(row, side, changes, only) {
@@ -150,13 +149,10 @@ export function renderHtml(report) {
       append('</div></section>');
     }
   }
-  append('<details class="metadata"><summary>Источники и правила сравнения</summary><h2>Источники</h2>');
   for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
     const source = report.sources[side];
-    append(`<div class="source"><strong>${label} · ${escape(source.name)}</strong><p>Строк данных: ${escape(source.row_count)}</p><p class="hash">SHA-256 исходных байтов: ${escape(source.sha256)}</p></div>`);
-    if (source.sheet) append(`<p>Проверен только лист «${escape(source.sheet)}».</p>`);
-    for (const note of source.notes || []) append(`<p>${escape(note)}</p>`);
+    if (source.sheet) append(`<p>${label}: проверен только лист «${escape(source.sheet)}».</p>`);
   }
-  append('<h2>Правила сравнения</h2><pre>' + escape(renderJson(report.rules)) + '</pre><p>Сравниваются только выбранные столбцы. Текст сравнивается с учётом регистра. Числа — только в выбранных числовых столбцах; единицы и валюты не пересчитываются. Номер записи включает заголовок: первая строка данных — запись 2. При переносах внутри CSV-ячейки это не номер физической строки файла.</p></details></main></body></html>');
+  append('</main></body></html>');
   return output.finish();
 }

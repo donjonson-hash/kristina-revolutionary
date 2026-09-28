@@ -75,14 +75,14 @@
 
 
   const textCategories = [...categories, 'moved', 'reflow'];
-  const structuralScope = 'Перемещения и переносы строк выделены отдельно. Переносы определяются эвристикой объединения строк, без оценки смысловой эквивалентности. Пары показаны в порядке сопоставления; координаты относятся к исходным файлам.';
+  const structuralScope = 'Перемещения и переносы строк показаны отдельно от изменений текста.';
   const originalBlocks = block => block ? (block.source_blocks?.length ? block.source_blocks : [block]) : [];
   const textTitle = {moved: 'Перемещено без изменения текста', reflow: 'Изменены переносы строк', changed: 'Текст изменился', only_left: 'Текст есть только в A', only_right: 'Текст есть только в B', matched: 'Текст совпал'};
   const textEntries = report => textCategories.flatMap(category => (report[category] || []).map(item => ({item, category}))).sort((a, b) => Number(a.item.key.slice(5)) - Number(b.item.key.slice(5)));
   const textScope = 'Сравнивался извлечённый текст. Юридический смысл, достоверность фактов и орфография не оценивались.';
   function textNormalization(report) {
     return Object.values(report.sources).some(source => source.format === 'pdf')
-      ? 'Для PDF сравнивался извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении. Оформление и нетекстовые элементы не сравнивались. Изображения не сравнивались; текст внутри них не распознавался.'
+      ? 'Сравнивается текст; оформление и изображения не проверяются.'
       : 'Нормализованы только переводы строк; пробелы и регистр учитываются.';
   }
   function textCounts(report) {
@@ -92,28 +92,17 @@
     const show = full ? quote : short, lines = [];
     for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
       const source = report.sources[side];
-      lines.push(`${label} — ${show(source.name)}; текстовых блоков: ${source.block_count}.${source.page_count ? ' Страниц PDF: ' + source.page_count + '.' : ''}`);
-      for (const note of source.notes || []) lines.push(`${label}: ${show(note)}`);
+      lines.push(`${label} — ${show(source.name)}.`);
     }
     return lines;
   }
-  function letterSourceNotes(report) {
-    const notes = new Map();
-    for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
-      for (const note of report.sources[side].notes || []) {
-        if (!notes.has(note)) notes.set(note, new Set());
-        notes.get(note).add(label);
-      }
-    }
-    return [...notes].map(([note, labels]) => `${labels.size === 2 ? 'Оба файла (A и B)' : [...labels][0]}: ${quote(note)}`);
-  }
   function textLines(item, category, full = false) {
     const show = full ? quote : short;
-    const lines = [`${show(item.key)}. ${textTitle[category]}.`];
+    const lines = [`${textTitle[category]}.`];
     for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
       const block = item[side] || (category === `only_${side}` ? item.row : null);
       if (block) {
-        for (const original of originalBlocks(block)) lines.push(`${label} · ${show(original.location)} (блок ${original.record}): ${show(original.text)}`);
+        for (const original of originalBlocks(block)) lines.push(`${label} · ${show(original.location)}: ${show(original.text)}`);
       }
       else lines.push(`${label}: сопоставленного текстового блока нет.`);
     }
@@ -126,13 +115,13 @@
     return response(lines, found.map(({item, category}) => action(item, category)));
   }
   function describeText(report) {
-    const lines = ['Я Кристина, ваш офисный помощник. Сравнила текст двух файлов.', ...textSources(report), textCounts(report), textScope];
+    const lines = ['Сравнила текст двух файлов.', ...textSources(report), textCounts(report), 'Сравнивается текст; оформление и изображения не проверяются.'];
     if (report.moved?.length || report.reflow?.length) lines.push(structuralScope);
     if (!textEntries(report).length) lines.push('В обоих файлах нет извлечённых текстовых блоков.');
     const changed = textEntries(report).filter(entry => entry.category !== 'matched');
     for (const {item, category} of changed.slice(0, 2)) lines.push(...textLines(item, category));
     if (changed.length > 2) lines.push(`Примеры: показано 2 из ${changed.length} различий. Полный текст — в документах и HTML-отчёте.`);
-    if (!changed.length && textEntries(report).length) lines.push('Извлечённый текст совпал по правилам сравнения.');
+    if (!changed.length && textEntries(report).length) lines.push('Текст совпадает.');
     lines.push('Можно открыть блок по номеру или фразе, показать добавления и удаления либо подготовить черновик письма.');
     return response(lines, textCategories.filter(category => report[category]?.length).map(category => ({label: `${textTitle[category]}: ${report[category].length}`, category})));
   }
@@ -153,15 +142,9 @@
       for (const {item, category} of textEntries(report).filter(entry => entry.category !== 'matched')) {
         for (const line of textLines(item, category, true)) append(line);
       }
-      if (!report.changed.length && !report.only_left.length && !report.only_right.length && !report.moved?.length && !report.reflow?.length) append('Текстовых различий по указанным правилам не обнаружено.');
+      if (!report.changed.length && !report.only_left.length && !report.only_right.length && !report.moved?.length && !report.reflow?.length) append('Текстовых различий не обнаружено.');
       append(''); append('Просьба проверить перечисленные текстовые различия и уточнить, какую редакцию следует использовать.');
-      append(''); append('Сведения о проверке:');
-      append(`Текстовых блоков: A — ${report.sources.left.block_count}; B — ${report.sources.right.block_count}.`);
-      append('Значения в кавычках — фрагменты извлечённого текста; переносы строк записаны как \\n.');
-      append(textNormalization(report));
-      if (report.moved?.length || report.reflow?.length) append(structuralScope);
-      append(textScope);
-      for (const line of letterSourceNotes(report)) append(line);
+      append(''); append('Сравнивается текст; оформление и изображения не проверяются.');
       return response(['Черновик готов: в нём перечислены все текстовые различия, без оценки их смысла. Текст можно отредактировать. Письмо не отправлено.'], [], parts.join(''));
     } catch (error) {
       if (!(error instanceof RangeError) || error.message !== 'draft_size') throw error;
@@ -372,11 +355,9 @@
       if (!report.changed.length && !report.only_left.length && !report.only_right.length) append('Различий по выбранным правилам не обнаружено.');
       append('');
       append(report.changed.length || report.only_left.length || report.only_right.length ? 'Просьба уточнить перечисленные различия и сообщить, какие данные следует использовать.' : 'Просьба подтвердить, что выбранных полей достаточно для поставленной задачи.');
-      append(''); append('Правила выполненной проверки:');
-      for (const line of ruleLines(report, false)) append(line);
-      for (const line of letterSourceNotes(report)) append(line);
-      append('Эта сверка не устанавливает причины различий, корректность непроверенных полей или фактическое исполнение обязательств.');
-      return response(['Черновик готов: он содержит все обнаруженные различия и правила текущей сверки. Проверьте адресата и текст перед отправкой. Письмо не отправлено.'], [], parts.join(''));
+      append(''); append('Сравнивались только выбранные поля.');
+      for (const line of sheetLines(report, false)) append(line);
+      return response(['Черновик готов: он содержит все обнаруженные различия. Проверьте адресата и текст перед отправкой. Письмо не отправлено.'], [], parts.join(''));
     } catch (error) {
       if (!(error instanceof RangeError) || error.message !== 'draft_size') throw error;
       return response(['Полный черновик превышает лимит 1 МиБ. Я не сформировала сокращённое письмо: скачайте полный HTML-отчёт и приложите его к сообщению.']);

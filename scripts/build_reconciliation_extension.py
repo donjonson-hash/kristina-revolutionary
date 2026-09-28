@@ -5,7 +5,7 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.11.0"
+VERSION = "0.12.0"
 
 
 def build(output):
@@ -24,7 +24,7 @@ def build(output):
         "description": "Сравню Excel, CSV, Word, TXT и текстовые PDF, выделю отличия и помогу подготовить письмо. Обработка внутри браузера.",
         "icons": {"128": "icon.png"},
         "action": {"default_title": "Кристина — сравнить документы", "default_popup": "launcher.html", "default_icon": {"128": "icon.png"}},
-        "content_security_policy": {"extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; connect-src 'none'; worker-src 'self'; base-uri 'none'; form-action 'none'"},
+        "content_security_policy": {"extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; img-src 'self' data: blob:; connect-src 'none'; worker-src 'self'; base-uri 'none'; form-action 'none'"},
     }
     for target in ("firefox", "chrome"):
         directory = output / target
@@ -33,7 +33,7 @@ def build(output):
         files = {"index.html": html.encode(), "app.js": (assets / "app.js").read_bytes(), "style.css": (assets / "style.css").read_bytes()}
         files["text-editor.js"] = (assets / "text-editor.js").read_bytes()
         files["office.js"] = (assets / "office.js").read_bytes()
-        for name in ("transport.js", "worker.mjs", "engine.mjs", "commercial-summary.mjs", "report.mjs", "xlsx-report.mjs", "pdf-report.mjs", "pdf-source.mjs", "pdf-reader-vendor.mjs", "PDF-READER-LICENSE.txt", "PDF-READER-SOURCE.md", "pdf-vendor.mjs", "pdf-font.mjs", "PDF-LICENSES.txt", "PDF-SOURCE.md", "xlsx-source.mjs", "xlsx-vendor.mjs", "SHEETJS-LICENSE.txt", "text-source.mjs", "text-engine.mjs", "text-report.mjs", "text-zip.mjs", "xml-vendor.mjs", "XMLDOM-LICENSE.txt", "XMLDOM-SOURCE.md", "launcher.html", "launcher.css", "launcher.js", "icon.png"):
+        for name in ("visual-review.mjs", "pdf-visual.mjs", "docx-visual.mjs", "transport.js", "worker.mjs", "engine.mjs", "commercial-summary.mjs", "report.mjs", "xlsx-report.mjs", "pdf-report.mjs", "pdf-source.mjs", "pdf-reader-vendor.mjs", "PDF-READER-LICENSE.txt", "PDF-READER-SOURCE.md", "pdf-vendor.mjs", "pdf-font.mjs", "PDF-LICENSES.txt", "PDF-SOURCE.md", "xlsx-source.mjs", "xlsx-vendor.mjs", "SHEETJS-LICENSE.txt", "text-source.mjs", "text-engine.mjs", "text-report.mjs", "text-zip.mjs", "xml-vendor.mjs", "XMLDOM-LICENSE.txt", "XMLDOM-SOURCE.md", "launcher.html", "launcher.css", "launcher.js", "icon.png"):
             files[name] = (ROOT / "extension" / name).read_bytes()
         target_manifest = dict(manifest)
         if target == "firefox":

@@ -22,8 +22,11 @@ function* sourceRows(report, side) {
 
 function* summaryRows(report) {
   yield ['Кристина — результат сверки', 'Значение', 'A', 'B', 'Изменение B − A', 'Источник A', 'Источник B'];
-  yield ['Формат отчёта', 'Зафиксированный результат: исходные значения и суммы сохранены как текст без формул и пересчёта.'];
-  yield ['Область проверки', 'Совпадение относится только к выбранным полям. Полные извлечённые данные находятся на листах «Данные A/B»; исходная вёрстка не воспроизводится.'];
+  yield ['Область проверки', 'Сравниваются выбранные поля. Исходные значения — на листах «Данные A/B».'];
+  for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
+    yield [`Файл ${label}`, report.sources[side].name];
+    if (report.sources[side].sheet) yield [`Лист ${label}`, report.sources[side].sheet, 'Другие листы не проверялись'];
+  }
   for (const key of ['matched', 'changed', 'only_left', 'only_right']) yield [labels[key], report.summary[key]];
   yield ['Записей данных A', report.summary.left_rows];
   yield ['Записей данных B', report.summary.right_rows];
@@ -61,25 +64,6 @@ function* dataRows(report, side) {
   for (const row of sourceRows(report, side)) yield [row.record, row.sheet, row.cells ? headers.map(header => row.cells[header] || '').join(', ') : '', ...headers.map(header => row.values[header])];
 }
 
-function* ruleRows(report) {
-  yield ['Раздел', 'A / параметр', 'B / значение', 'Режим / пояснение'];
-  yield ['Ключ сопоставления', ...report.rules.key, 'Идентификатор строки'];
-  for (const field of report.rules.fields) yield ['Проверенное поле', ...field];
-  yield ['Пробелы по краям', report.rules.strip ? 'Удалялись при сравнении' : 'Учитывались при сравнении', '', 'Исходные значения в книге сохранены без изменений'];
-  yield ['Текст', 'С учётом регистра'];
-  yield ['Числа', 'Только выбранные числовые поля; без пересчёта единиц и валют'];
-  yield ['Номер записи', 'Включает заголовок. Для CSV с переносами внутри ячейки это не номер физической строки.'];
-  for (const [side, label, index] of [['left', 'A', 0], ['right', 'B', 1]]) {
-    const source = report.sources[side], checked = new Set([report.rules.key[index], ...report.rules.fields.map(field => field[index])]);
-    yield [`Источник ${label}`, source.name];
-    yield [`SHA-256 ${label}`, source.sha256];
-    yield [`Записей ${label}`, source.row_count];
-    if (source.sheet) yield [`Выбранный лист ${label}`, source.sheet, '', 'Другие листы не проверялись'];
-    for (const note of source.notes || []) yield [`Особенность ${label}`, note];
-    for (const header of source.headers) if (!checked.has(header)) yield [`Не проверялось ${label}`, header, '', 'Значения сохранены на листе данных'];
-  }
-}
-
 /** @returns {Uint8Array} A complete, frozen tabular report; never an executable workbook. */
 export function renderXlsx(report) {
   if (!report || report.status !== 'complete') throw new Error('XLSX-отчёт доступен после завершения сверки. Сначала уточните правила сравнения.');
@@ -96,7 +80,6 @@ export function renderXlsx(report) {
     ['Различия', () => differenceRows(report), [28, 25, 24, 24, 40, 40, 14, 24, 14, 14, 24, 14], true],
     ['Данные A', () => dataRows(report, 'left'), [18, 24, 40, ...report.sources.left.headers.map(() => 26)], true],
     ['Данные B', () => dataRows(report, 'right'), [18, 24, 40, ...report.sources.right.headers.map(() => 26)], true],
-    ['Правила', () => ruleRows(report), [28, 70, 40, 70], true],
   ];
   // First pass validates every string and bounds XML/objects before workbook allocation.
   let cells = 0, rows = 0, estimatedBytes = 32768;

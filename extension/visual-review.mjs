@@ -1,0 +1,280 @@
+/* Documents first: original pages, local corrections, and two editable versions. */
+const sides = ['left', 'right'];
+const letter = side => side === 'left' ? 'A' : 'B';
+const other = side => side === 'left' ? 'right' : 'left';
+const el = (tag, text, className) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; };
+const button = (label, action, className = 'button secondary') => { const node = el('button', label, className); node.type = 'button'; node.addEventListener('click', action); return node; };
+const categories = ['matched', 'changed', 'only_left', 'only_right', 'moved', 'reflow'];
+const styleKeys = ['fontSize', 'fontFamily', 'fontWeight', 'fontStyle', 'textDecoration', 'color', 'backgroundColor', 'textAlign', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'paddingLeft', 'paddingRight', 'textIndent', 'lineHeight'];
+const style = (node, values = {}) => { for (const key of styleKeys) if (values[key] !== undefined) node.style[key] = values[key]; };
+function download(data, filename, mime) {
+  const url = URL.createObjectURL(new Blob([data], {type: mime})), anchor = el('a');
+  anchor.href = url; anchor.download = filename; document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+export async function mountVisualReview(root, {report, sources, signal, onRevision = () => {}}) {
+  const groups = categories.flatMap(category => (report[category] || []).map(item => ({...item, category})));
+  groups.sort((a, b) => Number(a.key.slice(5)) - Number(b.key.slice(5)));
+  const byKey = new Map(groups.map(group => [group.key, group]));
+  const drafts = Object.fromEntries(sides.map(side => [side, window.KristinaTextEditor.create(report, side)]));
+  let projectWord;
+  const viewers = {}, models = {}, pages = {left: 1, right: 1}, generations = {left: 0, right: 0}, ui = {};
+  const row = (group, side) => group[side] || (group.category === `only_${side}` ? group.row : null);
+  const sourceBlocks = side => groups.flatMap(group => { const block = row(group, side); return block ? block.source_blocks || [block] : []; }).sort((a, b) => a.record - b.record);
+  let disposed = false, selected = null, selectionGeneration = 0;
+  const typingTimers = {}; let diffKeys = new Set();
+  const alive = () => !disposed && !signal?.aborted;
+  root.replaceChildren(); root.classList.add('visual-review');
+  const toolbar = el('div', undefined, 'visual-toolbar'), progress = el('strong', '', 'visual-progress'); progress.setAttribute('role', 'status'); progress.setAttribute('aria-live', 'polite');
+  const navigation = el('div', undefined, 'visual-navigation');
+  const back = button('↑', () => jump(-1)), next = button('Следующее отличие ↓', () => jump(1)); back.setAttribute('aria-label', 'Предыдущее отличие');
+  navigation.append(back, next);
+  const all = button('Сделать B как A', () => act('right', draft => draft.replaceAll(drafts.left.entries()))); all.dataset.action = 'copy-all-right';
+  const tools = el('details', undefined, 'visual-more'); tools.append(el('summary', 'Ещё'));
+  tools.append(button('Сделать A как B', () => act('left', draft => draft.replaceAll(drafts.right.entries()))));
+  tools.append(button('Вернуть исходные документы', () => { for (const side of sides) drafts[side].reset(); refresh(); }));
+  const saveNote = el('p', 'Нажмите на текст, чтобы исправить. Подсветка показывает отличия текста.', 'visual-instruction');
+  const zoom = el('select'); zoom.setAttribute('aria-label', 'Масштаб документов');
+  for (const [value, label] of [['0', 'По ширине'], ['794', '100%'], ['1191', '150%']]) { const option = el('option', label); option.value = value; zoom.append(option); }
+  zoom.addEventListener('change', () => root.style.setProperty('--sheet-min-width', zoom.value + 'px'));
+  toolbar.append(progress, navigation, all, zoom, tools); root.append(toolbar, saveNote);
+  const status = el('p', '', 'visual-notice'); status.hidden = true; status.setAttribute('role', 'status'); root.append(status);
+  const grid = el('div', undefined, 'visual-columns'); root.append(grid);
+  const inspector = el('section', undefined, 'visual-inspector'); inspector.hidden = true; inspector.setAttribute('aria-label', 'Исправить выделенный текст');
+  const inspectorHead = el('div', undefined, 'visual-inspector-head');
+  const inspectorTitle = el('strong', 'Выделенный текст');
+  inspectorHead.append(inspectorTitle, button('Готово ✓', () => { for (const timer of Object.values(typingTimers)) clearTimeout(timer); selectionGeneration++; for (const side of sides) drafts[side].endEdit(); inspector.hidden = true; root.classList.remove('is-editing'); selected = null; refresh(); }));
+  inspector.append(inspectorHead);
+  const fields = el('div', undefined, 'visual-edit-fields'); inspector.append(fields); root.append(inspector);
+  const input = {};
+  for (const side of sides) {
+    const panel = el('section', undefined, 'visual-column'), heading = el('div', undefined, 'visual-column-heading');
+    const name = el('span', sources[side].name, 'visual-file-name'); name.title = sources[side].name;
+    const undo = button('↶', () => act(side, draft => draft.undo())); undo.setAttribute('aria-label', `Отменить правку ${letter(side)}`);
+    const save = button(`Скачать ${letter(side)}`, () => saveSide(side), 'button primary'); save.dataset.saveSide = side;
+    const menu = el('details', undefined, 'visual-more'); menu.append(el('summary', '⋯'));
+    menu.append(button(`Скачать ${letter(side)} как TXT`, () => download(drafts[side].exportText(), filename(side, 'txt'), 'text/plain;charset=utf-8')));
+    heading.append(el('span', letter(side), 'letter'), name, undo, save, menu); panel.append(heading);
+    const pageNav = el('div', undefined, 'visual-page-nav'), pageLabel = el('span'); pageNav.hidden = report.sources[side].format !== 'pdf';
+    const previous = button('←', () => { if (viewers[side]) { pages[side] = Math.max(1, pages[side] - 1); renderSide(side); } }), following = button('→', () => { if (viewers[side]) { pages[side] = Math.min(viewers[side].pageCount, pages[side] + 1); renderSide(side); } });
+    previous.disabled = following.disabled = true;
+    previous.setAttribute('aria-label', `Предыдущая страница ${letter(side)}`); following.setAttribute('aria-label', `Следующая страница ${letter(side)}`);
+    pageNav.append(previous, pageLabel, following); panel.append(pageNav);
+    const scroll = el('div', undefined, 'visual-scroll'); scroll.setAttribute('aria-label', `Документ ${letter(side)}`); panel.append(scroll); grid.append(panel);
+    ui[side] = {panel, scroll, pageLabel, previous, following, undo, save};
+    const fieldLabel = el('label', `Вариант ${letter(side)}`, 'visual-edit-label'), field = el('textarea'); field.rows = 3; field.maxLength = 500000;
+    field.setAttribute('aria-label', `Править вариант ${letter(side)}`); field.dataset.editSide = side; fieldLabel.append(field);
+    const copy = button(`Взять из ${letter(other(side))} ${side === 'right' ? '→' : '←'}`, () => copyTo(side)); copy.dataset.copyTo = side;
+    fieldLabel.append(copy); fields.append(fieldLabel); input[side] = field;
+    field.addEventListener('input', () => {
+      if (!alive() || !selected) return;
+      try { drafts[side].edit(selected, field.value); changed(); } catch (error) { field.value = drafts[side].get(selected) ?? ''; message(error.message); }
+      clearTimeout(typingTimers[side]); typingTimers[side] = setTimeout(() => { if (alive()) renderSide(side); }, 350);
+    });
+    field.addEventListener('blur', () => drafts[side].endEdit());
+  }
+  function filename(side, ext) { return sources[side].name.replace(/\.[^.]*$/, '') + `-редакция-${letter(side)}.${ext}`; }
+  function message(text = '') { if (!alive()) return; status.textContent = text; status.hidden = !text; }
+  function updateDifferences() {
+    const values = {}, orders = {};
+    for (const side of sides) {
+      values[side] = new Map(); orders[side] = [];
+      for (const entry of drafts[side].entries()) {
+        if (!values[side].has(entry.key)) { values[side].set(entry.key, []); orders[side].push(entry.key); }
+        values[side].get(entry.key).push(entry.text);
+      }
+    }
+    const shared = new Set(orders.left.filter(key => values.right.has(key)));
+    const indexes = Object.fromEntries(sides.map(side => [side, new Map(orders[side].filter(key => shared.has(key)).map((key, i) => [key, i]))]));
+    diffKeys = new Set(groups.filter(group => {
+      const a = values.left.has(group.key) ? values.left.get(group.key).join('\n') : null;
+      const b = values.right.has(group.key) ? values.right.get(group.key).join('\n') : null;
+      return a !== b || group.category === 'moved' && indexes.left.get(group.key) !== indexes.right.get(group.key);
+    }).map(group => group.key));
+  }
+  function different(group) { return diffKeys.has(group.key); }
+  function differences() { return groups.filter(different); }
+  function changed() {
+    if (!alive()) return;
+    updateDifferences();
+    const count = differences().length, equal = drafts.left.text() === drafts.right.text();
+    if (equal) diffKeys.clear();
+    progress.textContent = equal ? 'Тексты совпадают ✓' : count ? `Отличий: ${count}` : 'Отличается порядок текста';
+    next.disabled = back.disabled = equal;
+    all.disabled = equal;
+    for (const side of sides) ui[side].undo.disabled = !drafts[side].canUndo;
+    if (selected) inspectorTitle.textContent = different(byKey.get(selected)) ? 'Исправьте здесь или возьмите текст соседнего варианта' : 'Этот фрагмент совпадает ✓';
+    onRevision(drafts.left.changed || drafts.right.changed);
+    for (const node of root.querySelectorAll('[data-group]')) {
+      node.classList.toggle('has-difference', different(byKey.get(node.dataset.group)));
+      node.classList.toggle('is-selected', node.dataset.group === selected);
+    }
+  }
+  function act(side, callback) {
+    if (!alive()) return;
+    try { callback(drafts[side]); message(); refresh(); } catch (error) { message(error.message); }
+  }
+  function copyTo(side) {
+    if (!selected) return;
+    const value = drafts[other(side)].get(selected), group = byKey.get(selected);
+    act(side, draft => draft.set(selected, value, {relocate: group.category === 'moved'}));
+  }
+  function refresh() {
+    if (!alive()) return;
+    changed();
+    if (selected) for (const side of sides) input[side].value = drafts[side].get(selected) ?? '';
+    for (const side of sides) void renderSide(side);
+  }
+  async function select(key, focusSide) {
+    if (!alive()) return;
+    for (const timer of Object.values(typingTimers)) clearTimeout(timer); const selection = ++selectionGeneration; selected = key; inspector.hidden = false; root.classList.add('is-editing');
+    const group = byKey.get(key);
+    inspectorTitle.textContent = different(group) ? 'Исправьте здесь или возьмите текст соседнего варианта' : 'Можно править оба варианта';
+    for (const side of sides) {
+      if (!alive() || selection !== selectionGeneration) return;
+      input[side].value = drafts[side].get(key) ?? '';
+      const location = row(group, side), page = location?.page || location?.source_blocks?.[0]?.page;
+      if (page && pages[side] !== page) { pages[side] = page; await renderSide(side); }
+      if (!alive() || selection !== selectionGeneration) return;
+      const target = [...ui[side].scroll.querySelectorAll('[data-group]')].find(node => node.dataset.group === key);
+      if (target) alignTarget(ui[side].scroll, target);
+    }
+    changed(); if (focusSide) input[focusSide].focus({preventScroll: true});
+  }
+  function alignTarget(scroll, target) {
+    scroll.scrollTop += target.getBoundingClientRect().top - scroll.getBoundingClientRect().top - Math.min(140, scroll.clientHeight / 3);
+  }
+  function jump(direction) {
+    const diff = differences(); if (!diff.length) return;
+    const index = diff.findIndex(group => group.key === selected);
+    const nextIndex = index < 0 ? (direction > 0 ? 0 : diff.length - 1) : (index + direction + diff.length) % diff.length;
+    void select(diff[nextIndex].key);
+  }
+  function pdfEdits(side) {
+    const records = drafts[side].entries().map(entry => entry.record);
+    if (records.some((record, i) => i && record < records[i - 1])) throw new Error('Порядок фрагментов изменён. Скачайте эту редакцию как TXT в меню ⋯.');
+    const edits = [];
+    for (const group of groups) {
+      const block = row(group, side), value = drafts[side].get(group.key);
+      if (!block) { if (value !== null) throw new Error('Новый фрагмент добавлен. Для него выберите «Скачать как TXT» в меню ⋯ рядом со скачиванием.'); continue; }
+      const parts = block.source_blocks || [block], original = parts.map(part => part.text).join('\n');
+      if (value === original) continue;
+      const texts = value === null ? parts.map(() => '') : value.split('\n');
+      if (texts.length !== parts.length) throw new Error('Переносы строк изменены. Эту редакцию можно скачать как TXT в меню ⋯.');
+      parts.forEach((part, i) => edits.push({block: part, text: texts[i]}));
+    }
+    return edits;
+  }
+  async function renderSide(side) {
+    if (!alive()) return;
+    const generation = ++generations[side], {scroll} = ui[side], scrollTop = scroll.scrollTop; scroll.setAttribute('aria-busy', 'true');
+    try {
+      if (viewers[side]) {
+        const viewer = viewers[side], pageNumber = pages[side];
+        ui[side].previous.disabled = pageNumber <= 1; ui[side].following.disabled = pageNumber >= viewer.pageCount;
+        ui[side].pageLabel.textContent = `${pageNumber} / ${viewer.pageCount}`;
+        const paper = el('div', undefined, 'visual-pdf-page'), canvas = el('canvas');
+        canvas.setAttribute('aria-label', `Страница ${pageNumber} документа ${letter(side)}`);
+        let edits = [], editError;
+        try { edits = pdfEdits(side); } catch (error) { editError = error; }
+        try { await viewer.renderPage(pageNumber, canvas, {scale: 1.5, edits}); }
+        catch (error) { if (!edits.length) throw error; editError = error; await viewer.renderPage(pageNumber, canvas, {scale: 1.5}); }
+        if (!alive() || generation !== generations[side]) { canvas.width = canvas.height = 0; return; }
+        paper.append(canvas);
+        const layer = el('div', undefined, 'visual-hotspots');
+        for (const group of groups) {
+          const source = row(group, side); if (!source) continue;
+          for (const rect of viewer.rects(source).filter(rect => rect.page === pageNumber)) {
+            const target = button('', () => select(group.key, side), 'visual-hotspot');
+            target.dataset.group = group.key; target.setAttribute('aria-label', `${different(group) ? 'Отличие. ' : ''}Править ${letter(side)}: ${source.text.slice(0, 120)}`);
+            target.title = 'Нажмите, чтобы исправить';
+            Object.assign(target.style, {left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${Math.max(.3, rect.width * 100)}%`, height: `${Math.max(.7, rect.height * 100)}%`}); layer.append(target);
+          }
+        }
+        paper.append(layer); scroll.replaceChildren(paper);
+        if (editError) { const note = el('p', `На странице показан исходник. ${editError.message} Правка сохранена в редакторе.`, 'visual-inline-notice'); scroll.prepend(note); }
+      } else {
+        const paper = el('div', undefined, 'visual-paper');
+        const model = models[side]; if (model) paper.classList.add('visual-word');
+        if (model) {
+          paper.style.paddingLeft = `${model.page.marginLeft / model.page.width * 100}%`;
+          paper.style.paddingRight = `${model.page.marginRight / model.page.width * 100}%`;
+        }
+        const entries = model ? projectWord(model, docxSequence(side)).blocks : drafts[side].entries();
+        for (const entry of entries) {
+          const p = el(entry.heading ? `h${entry.heading}` : 'p', undefined, 'visual-paragraph');
+          style(p, entry.style);
+          if (entry.runs) for (const run of entry.runs) {
+            if (run.image) { const img = el('img'); img.src = run.image.src; img.alt = run.image.alt || ''; img.width = run.image.width; img.height = run.image.height; p.append(img); }
+            else { const span = el('span', run.text); style(span, run.style); p.append(span); }
+          }
+          else p.append(document.createTextNode(entry.text));
+          if (!p.hasChildNodes()) p.append(el('br'));
+          if (entry.key) {
+            p.dataset.group = entry.key; p.tabIndex = 0; p.setAttribute('role', 'button'); p.setAttribute('aria-label', `Править ${letter(side)}: ${entry.text.slice(0, 100) || 'Пустой абзац'}`);
+            p.addEventListener('click', () => select(entry.key, side));
+            p.addEventListener('keydown', event => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); select(entry.key, side); } });
+          }
+          paper.append(p);
+        }
+        scroll.replaceChildren(paper);
+      }
+      const absent = groups.filter(group => drafts[side].get(group.key) === null && drafts[other(side)].get(group.key) !== null);
+      if (absent.length) {
+        const missing = el('div', undefined, 'visual-missing'); missing.append(el('strong', `Нет в ${letter(side)}`));
+        for (const group of absent) { const add = button(`＋ ${drafts[other(side)].get(group.key).slice(0, 100) || 'Пустой абзац'}`, () => { selected = group.key; copyTo(side); }); add.title = `Добавить из ${letter(other(side))}`; add.dataset.missingKey = group.key; missing.append(add); }
+        scroll.append(missing);
+      }
+      scroll.scrollTop = scrollTop;
+      if (selected) { const target = [...scroll.querySelectorAll('[data-group]')].find(node => node.dataset.group === selected); if (target) alignTarget(scroll, target); }
+      changed();
+    } catch (error) { if (alive() && generation === generations[side]) { scroll.replaceChildren(el('p', `Не удалось показать страницу. ${error.message}`, 'visual-inline-notice')); message('Текст доступен в редакторе. Выберите «Следующее отличие».'); } }
+    finally { if (alive() && generation === generations[side]) scroll.setAttribute('aria-busy', 'false'); }
+  }
+  function docxSequence(side) {
+    const sequence = [];
+    for (const entry of drafts[side].entries()) {
+      const source = row(byKey.get(entry.key), side);
+      const original = source?.source_blocks?.[0] || source;
+      const previous = sequence.at(-1);
+      if (previous?.key === entry.key) previous.text += '\n' + entry.text;
+      else sequence.push({key: entry.key, ...(original ? {record: original.record} : {}), text: entry.text});
+    }
+    return sequence;
+  }
+  async function saveSide(side) {
+    if (!alive() || ui[side].save.disabled) return;
+    ui[side].save.disabled = true; message('Готовлю документ…');
+    try {
+      const format = report.sources[side].format;
+      if (format === 'pdf') {
+        const records = drafts[side].entries().map(entry => entry.record);
+        if (records.some((record, i) => i && record < records[i - 1])) throw new Error('Порядок фрагментов изменён. Скачайте эту редакцию как TXT в меню ⋯.');
+        if (!drafts[side].changed) download(Uint8Array.from(atob(sources[side].data), c => c.charCodeAt(0)), filename(side, 'pdf'), 'application/pdf');
+        else {
+          const {renderPdfRevision} = await import('./pdf-visual.mjs');
+          const data = await renderPdfRevision(sources[side], pdfEdits(side), {signal, blocks: sourceBlocks(side)});
+          if (!alive()) return;
+          download(data, filename(side, 'pdf'), 'application/pdf');
+        }
+      } else if (format === 'docx') {
+        const {writeDocxVisual} = await import('./docx-visual.mjs');
+        const data = await writeDocxVisual(sources[side], [], {sequence: docxSequence(side)});
+        if (!alive()) return;
+        download(data, filename(side, 'docx'), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      } else download(drafts[side].exportText(), filename(side, 'txt'), 'text/plain;charset=utf-8');
+      message(`Вариант ${letter(side)} готов к скачиванию.`);
+    } catch (error) { message(error.message); }
+    finally { if (alive()) ui[side].save.disabled = false; }
+  }
+  const dispose = () => { if (disposed) return; disposed = true; selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
+  signal?.addEventListener('abort', dispose, {once: true});
+  await Promise.all(sides.map(async side => {
+    const format = report.sources[side].format;
+    try {
+      if (format === 'pdf') { const {openPdfVisual} = await import('./pdf-visual.mjs'); viewers[side] = await openPdfVisual(sources[side], {signal}); }
+      if (format === 'docx') { const {readDocxVisual, projectDocxVisual} = await import('./docx-visual.mjs'); projectWord = projectDocxVisual; models[side] = await readDocxVisual(sources[side]); }
+    } catch (error) { message(`Вариант ${letter(side)} показан как текст. ${error.message}`); }
+  }));
+  if (alive()) refresh();
+  return {dispose, drafts, select, get changed() { return drafts.left.changed || drafts.right.changed; }};
+}
