@@ -69,3 +69,63 @@ test('DOCX projected preview and exported revision keep the same text, formattin
   assert.equal(projected.blocks[1].key,'third');assert.equal(projected.blocks[1].sourceRecord,3);
   assert.equal(model.blocks[2].text,'Цена 100 рублей');
 });
+
+function lists({photo=false}={}) {
+  const paragraph=(text,numId,level=0,extra='')=>`<w:p>${numId?`<w:pPr><w:numPr><w:ilvl w:val="${level}"/><w:numId w:val="${numId}"/></w:numPr></w:pPr>`:''}<w:r><w:t>${text}</w:t>${extra}</w:r></w:p>`;
+  return docx([],{
+    xml:`<w:document xmlns:w="${W}" xmlns:r="${R}" xmlns:a="${A}" xmlns:wp="${WP}" xmlns:pic="${PIC}"><w:body>${[
+      paragraph('Условия'),paragraph('Первый',7),paragraph('Подпункт один',7,1,photo?drawing:''),paragraph('Подпункт два',7,1),paragraph('Пояснение'),paragraph('Второй',7),paragraph('Новый подпункт',7,1),paragraph('С пятого',8),paragraph('Шестой',8),paragraph('Маркер',9),
+      '<w:p><w:pPr><w:pStyle w:val="InheritedList"/></w:pPr><w:r><w:t>Из стиля</w:t></w:r></w:p>',
+    ].join('')}</w:body></w:document>`,
+    extraEntries:{
+      'word/numbering.xml':`<w:numbering xmlns:w="${W}"><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="multilevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="right"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl><w:lvl w:ilvl="1"><w:start w:val="1"/><w:numFmt w:val="lowerLetter"/><w:lvlText w:val="%1.%2)"/><w:suff w:val="space"/><w:pPr><w:ind w:left="1440" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="●"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:i/><w:sz w:val="24"/><w:color w:val="336699"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId="7"><w:abstractNumId w:val="0"/></w:num><w:num w:numId="8"><w:abstractNumId w:val="0"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="5"/></w:lvlOverride></w:num><w:num w:numId="9"><w:abstractNumId w:val="1"/></w:num></w:numbering>`,
+      'word/styles.xml':`<w:styles xmlns:w="${W}"><w:style w:type="paragraph" w:styleId="BaseList"><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="7"/></w:numPr></w:pPr></w:style><w:style w:type="paragraph" w:styleId="InheritedList"><w:basedOn w:val="BaseList"/></w:style></w:styles>`,
+      'word/_rels/document.xml.rels':`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="numbering" Type="${R}/numbering" Target="numbering.xml"/><Relationship Id="styles" Type="${R}/styles" Target="styles.xml"/>${photo?`<Relationship Id="photo" Type="${R}/image" Target="media/photo.png"/>`:''}</Relationships>`,
+      ...(photo?{'word/media/photo.png':png}:{}),
+    },
+  });
+}
+const listLabels=view=>view.blocks.map(block=>block.list?.label||null);
+const visibleContent=view=>view.blocks.map(({text,heading,style,runs,list})=>({text,heading,style,runs,list}));
+test('DOCX lists retain body text separately from inherited, nested, restarted and bullet labels',async()=>{
+  const source=input(lists()),view=await readDocxVisual(source),extracted=await readTextSource(source);
+  assert.deepEqual(listLabels(view),[null,'1.','1.a)','1.b)',null,'2.','2.a)','5.','6.','●','3.']);
+  assert.deepEqual(view.blocks.map(b=>b.text),extracted.blocks.map(b=>b.text));
+  assert.equal(view.blocks[1].text,'Первый');
+  assert.equal(view.blocks[1].list.indent.left,36);assert.equal(view.blocks[1].list.indent.hanging,18);
+  assert.equal(view.blocks[2].list.indent.left,72);assert.equal(view.blocks[2].list.suffix,'space');
+  assert.equal(view.blocks[1].list.align,'right');assert.equal(view.blocks[9].list.fontFamily,'Arial');
+  assert.deepEqual(view.blocks[9].list.markerStyle,{fontWeight:'bold',fontStyle:'italic',fontSize:'12pt',color:'#336699'});
+});
+test('DOCX list text edits preserve numbering definitions, styles and paragraph properties byte for byte',async()=>{
+  const source=input(lists()),before=await unzipDocument(lists());
+  const raw=await writeDocxVisual(source,[{record:2,text:'Первый исправленный'},{record:3,text:'Подпункт исправленный'}]),after=await unzipDocument(raw);
+  const reloaded=await readDocxVisual(input(raw));
+  assert.equal(reloaded.blocks[1].text,'Первый исправленный');assert.equal(reloaded.blocks[2].text,'Подпункт исправленный');
+  assert.deepEqual(listLabels(reloaded),[null,'1.','1.a)','1.b)',null,'2.','2.a)','5.','6.','●','3.']);
+  for(const [name,bytes] of before)if(name!=='word/document.xml')assert.deepEqual(after.get(name),bytes,name);
+  const properties=bytes=>[...new TextDecoder().decode(bytes).matchAll(/<w:pPr>.*?<\/w:pPr>/g)].map(match=>match[0]);
+  assert.deepEqual(properties(after.get('word/document.xml')),properties(before.get('word/document.xml')));
+});
+test('DOCX projected and exported lists agree after insertion, deletion and reordering, including restarts',async()=>{
+  const source=input(lists()),model=await readDocxVisual(source);
+  const sequence=[{record:1,text:'Условия'},{record:6,text:'Перенесённый'},{text:'Вставленный пункт'},{record:3,text:'Подпункт один'},{record:7,text:'Подпункт два'},{record:8,text:'С пятого'},{record:9,text:'Шестой'},{record:5,text:'Пояснение'},{text:'Обычный абзац'},{record:10,text:'Маркер'},{text:'Ещё маркер'}];
+  const projected=projectDocxVisual(model,sequence),reloaded=await readDocxVisual(input(await writeDocxVisual(source,[],{sequence})));
+  assert.deepEqual(listLabels(projected),[null,'1.','2.','2.a)','2.b)','5.','6.',null,null,'●','●']);
+  assert.deepEqual(visibleContent(projected),visibleContent(reloaded));
+  assert.equal(model.blocks[5].list.label,'2.','Projecting a draft must leave original numbering unchanged');
+});
+test('DOCX list projection counts retained photos and uses the first paragraph template for a leading insertion',async()=>{
+  const source=input(lists({photo:true})),model=await readDocxVisual(source);
+  const sequence=[{text:'Новый начальный абзац'},{record:2,text:'Первый'},{record:4,text:'Подпункт два'},{record:6,text:'Второй'}];
+  const projected=projectDocxVisual(model,sequence),reloaded=await readDocxVisual(input(await writeDocxVisual(source,[],{sequence})));
+  assert.deepEqual(visibleContent(projected),visibleContent(reloaded));
+  assert.deepEqual(listLabels(projected),[null,'1.','1.a)','1.b)','2.']);
+  assert.equal(projected.blocks[2].retainedMedia,true);assert.equal(projected.blocks[2].text,'');
+  assert.equal(projected.blocks[2].runs[0].image.src,`data:image/png;base64,${Buffer.from(png).toString('base64')}`);
+  const listFirst=input(docx([], {xml:`<w:document xmlns:w="${W}"><w:body><w:p><w:pPr><w:numPr><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>Первый</w:t></w:r></w:p></w:body></w:document>`,extraEntries:Object.fromEntries([...await unzipDocument(lists())].filter(([name])=>['word/numbering.xml','word/styles.xml','word/_rels/document.xml.rels'].includes(name)))}));
+  const firstModel=await readDocxVisual(listFirst),firstSequence=[{text:'Вставка в начало'},{record:1,text:'Первый'}];
+  const firstProjected=projectDocxVisual(firstModel,firstSequence),firstReloaded=await readDocxVisual(input(await writeDocxVisual(listFirst,[],{sequence:firstSequence})));
+  assert.deepEqual(listLabels(firstProjected),['1.','2.']);
+  assert.deepEqual(visibleContent(firstProjected),visibleContent(firstReloaded));
+});

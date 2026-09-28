@@ -80,15 +80,15 @@ for (const extra of ['word/header1.xml', 'word/footer1.xml', 'word/footnotes.xml
   });
 }
 
-test('only applied/default style chains with numbering are rejected; unused list templates are harmless', async () => {
+test('applied list styles require their numbering definitions; unused list styles are harmless', async () => {
   const numbered = '<w:style w:type="paragraph" w:styleId="Numbered"><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style>';
   const styles = `<w:styles xmlns:w="${W}">${numbered}<w:style w:type="paragraph" w:styleId="Derived"><w:basedOn w:val="Numbered"/></w:style></w:styles>`;
   const unused = await readTextSource(input(docx(['item'], {extraEntries: {'word/styles.xml': styles}}), 'plain.docx'));
   assert.equal(unused.blocks[0].text, 'item');
   const xml = `<w:document xmlns:w="${W}"><w:body><w:p><w:pPr><w:pStyle w:val="Derived"/></w:pPr><w:r><w:t>item</w:t></w:r></w:p></w:body></w:document>`;
-  await assert.rejects(() => readTextSource(input(docx([], {xml, extraEntries: {'word/styles.xml': styles}}), 'numbered.docx')), /нумерацию/);
+  await assert.rejects(() => readTextSource(input(docx([], {xml, extraEntries: {'word/styles.xml': styles}}), 'numbered.docx')), /отсутствует определение/);
   const defaults = styles.replace('w:styleId="Numbered"', 'w:styleId="Numbered" w:default="1"');
-  await assert.rejects(() => readTextSource(input(docx(['item'], {extraEntries: {'word/styles.xml': defaults}}), 'default-numbered.docx')), /нумерацию/);
+  await assert.rejects(() => readTextSource(input(docx(['item'], {extraEntries: {'word/styles.xml': defaults}}), 'default-numbered.docx')), /отсутствует определение/);
   const cycle = styles.replace('<w:basedOn w:val="Numbered"/>', '<w:basedOn w:val="Derived"/>');
   await assert.rejects(() => readTextSource(input(docx([], {xml, extraEntries: {'word/styles.xml': cycle}}), 'cycle.docx')), /наследование/);
 });

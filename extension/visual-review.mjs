@@ -224,14 +224,31 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
         for (const entry of entries) {
           const p = el(entry.heading ? `h${entry.heading}` : 'p', undefined, 'visual-paragraph');
           style(p, entry.style);
-          if (entry.runs) for (const run of entry.runs) {
-            if (run.image) { const img = el('img'); img.src = run.image.src; img.alt = run.image.alt || ''; img.width = run.image.width; img.height = run.image.height; p.append(img); }
-            else { const span = el('span', run.text); style(span, run.style); p.append(span); }
+          let content = p;
+          if (entry.list) {
+            const list = entry.list, marker = el('span', list.label, 'visual-list-marker');
+            content = el('span', undefined, 'visual-list-content');
+            p.classList.add('visual-list-item'); p.dataset.listLevel = String(list.level);
+            marker.setAttribute('aria-hidden', 'true');
+            const hanging = Math.max(0, list.indent?.hanging ?? 18), left = Math.max(0, list.indent?.left ?? (list.level + 1) * 36);
+            const aligned = list.align === 'right' ? hanging : list.align === 'center' ? hanging / 2 : 0;
+            p.style.paddingLeft = `${Math.max(0, left - hanging - aligned)}pt`;
+            p.style.textIndent = '0';
+            p.style.setProperty('--list-marker-width', list.suffix === 'tab' ? `max(0px, calc(${hanging}pt - .3em))` : '0px');
+            p.style.setProperty('--list-gap', list.suffix === 'space' ? '.3em' : list.suffix === 'tab' ? `calc(${aligned}pt + .3em)` : '0px');
+            marker.style.textAlign = list.align;
+            if (list.fontFamily) marker.style.fontFamily = list.fontFamily;
+            style(marker, list.markerStyle);
+            p.append(marker, content);
           }
-          else p.append(document.createTextNode(entry.text));
-          if (!p.hasChildNodes()) p.append(el('br'));
+          if (entry.runs) for (const run of entry.runs) {
+            if (run.image) { const img = el('img'); img.src = run.image.src; img.alt = run.image.alt || ''; img.width = run.image.width; img.height = run.image.height; content.append(img); }
+            else { const span = el('span', run.text); style(span, run.style); content.append(span); }
+          }
+          else content.append(document.createTextNode(entry.text));
+          if (!content.hasChildNodes()) content.append(el('br'));
           if (entry.key) {
-            p.dataset.group = entry.key; p.tabIndex = 0; p.setAttribute('role', 'button'); p.setAttribute('aria-label', `Править ${letter(side)}: ${entry.text.slice(0, 100) || 'Пустой абзац'}`);
+            p.dataset.group = entry.key; p.tabIndex = 0; p.setAttribute('role', 'button'); p.setAttribute('aria-label', `Править ${letter(side)}: ${entry.list ? entry.list.label + ' ' : ''}${entry.text.slice(0, 100) || 'Пустой абзац'}`);
             p.addEventListener('click', () => select(entry.key, side));
             p.addEventListener('keydown', event => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); select(entry.key, side); } });
           }
@@ -298,6 +315,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     } catch (error) { message(`Вариант ${letter(side)} показан как текст. ${error.message}`); }
   }));
   if (alive()) {
+    if (Object.values(models).some(model => model.blocks.some(block => block.list))) saveNote.textContent += ' Нумерация показана для ориентира; сравнивается и редактируется текст пунктов.';
     if (restoredState !== undefined) {
       for (const side of sides) {
         if (viewers[side] && restoredState.pages[side] > viewers[side].pageCount) { dispose(); throw new Error('Не удалось восстановить сохранённую работу: страница не найдена.'); }

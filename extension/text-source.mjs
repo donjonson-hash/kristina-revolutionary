@@ -1,6 +1,7 @@
 /** Bounded TXT, plain-paragraph DOCX and PDF text-layer extraction, offline. */
 import {DOMParser} from './xml-vendor.mjs';
 import {unzipDocument} from './text-zip.mjs';
+import {parseDocxNumbering} from './docx-numbering.mjs';
 export const MAX_TEXT_SOURCE_BYTES = 2 * 1024 * 1024;
 export const MAX_TEXT_CHARS = 500000;
 export const MAX_TEXT_BLOCKS = 2000;
@@ -60,7 +61,8 @@ function checkPackage(entries) {
       if (name === '_rels/.rels' && type === 'officeDocument') { if (target !== 'word/document.xml' || rel.getAttribute('TargetMode') === 'External') fail('DOCX: неподдерживаемый основной документ.'); foundMain = true; }
       else if (['header', 'footer', 'footnotes', 'endnotes', 'comments', 'numbering', 'aFChunk', 'subDocument', 'oleObject'].includes(type)) {
         if (type !== 'numbering') fail('DOCX содержит колонтитулы, сноски, комментарии, рисунки или вложенные документы. Эти части не поддерживаются.');
-        // A numbering part may contain unused templates; actual numPr is refused.
+        // Resolve used list templates after bounded XML and package validation.
+        if (name !== 'word/_rels/document.xml.rels' || target !== 'numbering.xml' || !entries.has('word/numbering.xml')) fail('DOCX: неподдерживаемая связь автоматической нумерации.');
       } else if (type === 'customXml') {
         if (name !== 'word/_rels/document.xml.rels' || !/^\.\.\/customXml\/item\d+\.xml$/.test(target) || !emptyBibliography.has(target.slice(3))) fail('DOCX: пользовательские XML-данные не поддерживаются.');
       } else if (type === 'customXmlProps') {
@@ -77,7 +79,6 @@ function checkPackage(entries) {
   // Unknown Word parts could contain user-visible text, so never silently drop.
   for (const name of entries.keys()) if (name.startsWith('word/') && !name.endsWith('/') && !/^word\/(?:document\.xml|styles\.xml|stylesWithEffects\.xml|settings\.xml|webSettings\.xml|fontTable\.xml|numbering\.xml|theme\/theme\d+\.xml|_rels\/document\.xml\.rels|media\/[^/]+\.(?:png|jpe?g))$/i.test(name)) fail(`DOCX: дополнительная часть ${name} не поддерживается.`);
   for (const name of entries.keys()) if (!name.startsWith('word/') && !name.startsWith('customXml/') && !name.endsWith('/') && !['[Content_Types].xml', '_rels/.rels', 'docProps/core.xml', 'docProps/app.xml', 'docProps/custom.xml'].includes(name) && !/^docProps\/thumbnail\.(?:jpeg|jpg|png|wmf)$/i.test(name)) fail(`DOCX: дополнительная часть ${name} не поддерживается.`);
-  validateNumbering(docs);
   return {doc: docs.get('word/document.xml'), docs, entries, links, emptyBibliography: emptyBibliography.size > 0};
 }
 
@@ -112,39 +113,6 @@ function validateBibliography(docs) {
 
 const wordAttribute = (node, name) => { for (const uri of W) { const value = node.getAttributeNS(uri, name); if (value !== null) return value; } return null; };
 function walkElements(root) { const list = [], stack = [root]; while (stack.length) { const node = stack.pop(); list.push(node); stack.push(...elements(node)); } return list; }
-function validateNumbering(docs) {
-  const numbered = () => fail('DOCX содержит автоматическую нумерацию в применённых стилях. Преобразуйте номера в обычный текст.');
-  const paragraphs = walkElements(docs.get('word/document.xml').documentElement).filter(node => w(node, 'p'));
-  const used = new Set();
-  for (const filename of ['word/styles.xml', 'word/stylesWithEffects.xml']) {
-    const doc = docs.get(filename); if (!doc) continue;
-    const root = doc.documentElement, styles = new Map(); let defaultStyle = null;
-    for (const node of elements(root)) {
-      if (w(node, 'docDefaults') && walkElements(node).some(child => w(child, 'numPr'))) numbered();
-      if (!w(node, 'style')) continue;
-      const id = wordAttribute(node, 'styleId');
-      if (!id || styles.has(id)) fail('DOCX: неоднозначные идентификаторы стилей.'); styles.set(id, node);
-      if (wordAttribute(node, 'type') === 'paragraph' && ['1', 'true', 'on'].includes(wordAttribute(node, 'default'))) {
-        if (defaultStyle !== null) fail('DOCX: несколько стилей абзаца по умолчанию.'); defaultStyle = id;
-      }
-    }
-    for (const paragraph of paragraphs) {
-      const pr = elements(paragraph).find(child => w(child, 'pPr'));
-      const applied = pr && elements(pr).find(child => w(child, 'pStyle'));
-      let id = applied ? wordAttribute(applied, 'val') : defaultStyle;
-      const chain = new Set();
-      while (id !== null) {
-        if (chain.has(id) || chain.size >= 64) fail('DOCX: циклическое или слишком глубокое наследование стилей.');
-        chain.add(id); used.add(id); const style = styles.get(id);
-        if (!style) fail('DOCX: применённый стиль абзаца отсутствует в документе.');
-        if (walkElements(style).some(node => w(node, 'numPr'))) numbered();
-        const base = elements(style).find(node => w(node, 'basedOn')); id = base ? wordAttribute(base, 'val') : null;
-      }
-    }
-  }
-  const numbering = docs.get('word/numbering.xml');
-  if (numbering && walkElements(numbering.documentElement).some(node => w(node, 'pStyle') && used.has(wordAttribute(node, 'val')))) numbered();
-}
 
 function docxBlocks(doc, entries, docs) {
   const root = doc.documentElement;
@@ -152,14 +120,15 @@ function docxBlocks(doc, entries, docs) {
   const bodies = elements(root).filter(node => w(node, 'body'));
   if (bodies.length !== 1 || elements(root).length !== 1) fail('DOCX: неподдерживаемая структура основного документа.');
   const body = bodies[0], output = [];
-  const reject = node => fail(`DOCX: элемент ${node.localName} не поддерживается. Принимайте исправления и преобразуйте поля, списки, таблицы и дополнительные объекты в обычный текст.`);
+  const reject = node => fail(`DOCX: элемент ${node.localName} не поддерживается. Принимайте исправления и преобразуйте поля, таблицы и дополнительные объекты в обычный текст.`);
   // Reject visible content that is not represented by w:t, irrespective of prefix.
   const inspect = [root];
   while (inspect.length) {
     const node = inspect.pop();
     if (w(node, 'drawing')) { validateDocxDrawing(node, entries, docs); continue; }
     if (!W.has(node.namespaceURI)) reject(node);
-    if (/^(?:ins|del|moveFrom|moveTo|fldSimple|fldChar|instrText|delText|numPr|numberingChange|drawing|pict|object|txbxContent|tbl|sdt|dataBinding|altChunk|subDoc|sym|footnoteReference|endnoteReference|commentReference|headerReference|footerReference)$/.test(node.localName) || /Change$/.test(node.localName)) reject(node);
+    if (w(node, 'numPr') && (!w(node.parentNode, 'pPr') || !w(node.parentNode.parentNode, 'p'))) reject(node);
+    if (/^(?:ins|del|moveFrom|moveTo|fldSimple|fldChar|instrText|delText|numberingChange|drawing|pict|object|txbxContent|tbl|sdt|dataBinding|altChunk|subDoc|sym|footnoteReference|endnoteReference|commentReference|headerReference|footerReference)$/.test(node.localName) || /Change$/.test(node.localName)) reject(node);
     inspect.push(...elements(node));
   }
   function formatting(node) {
@@ -226,6 +195,7 @@ export async function readTextSource(item) {
     notes.push('Каждый основной абзац DOCX — отдельный блок, включая пустые абзацы. Мягкие переносы и табуляция сохранены; отображаемые номера страниц, стили и параметры форматирования не сравниваются.');
     notes.push('Скрытое форматированием содержимое основных абзацев включено в извлечённый текст. Свойства файла и эскиз документа не сравниваются.');
     if (checked.emptyBibliography) notes.push('Пустой служебный шаблон библиографии не сравнивается; пользовательских записей в нём нет.');
+    if (checked.listData.paragraphs.some(Boolean)) notes.push('Номера и маркеры списков сохранены в документе; сравнивается только текст пунктов, без автоматической нумерации.');
     if (checked.links) notes.push('Сравнивается видимый текст гиперссылок; адреса не открываются и не сравниваются.');
   }
   if (texts.length > MAX_TEXT_BLOCKS) fail('Документ содержит более 2000 текстовых блоков. Разделите его.');
@@ -298,6 +268,7 @@ export function validateDocxDrawing(drawing, entries, docs) {
 export async function readDocxPackage(raw) {
   const checked = checkPackage(await unzipDocument(raw));
   checked.texts = docxBlocks(checked.doc, checked.entries, checked.docs);
+  checked.listData = parseDocxNumbering(checked.docs);
   const pictures = walkElements(checked.doc.documentElement).filter(node => w(node,'drawing'));
   if (pictures.length > 100 || pictures.reduce((sum,node) => sum + validateDocxDrawing(node,checked.entries,checked.docs).pixels,0) > 50000000) fail('DOCX: слишком много изображений для просмотра. Разделите документ.');
   if (checked.texts.length > MAX_TEXT_BLOCKS || checked.texts.reduce((n,t) => n + [...t].length,0) > MAX_TEXT_CHARS) fail('DOCX превышает ограничение по объёму текста.');
