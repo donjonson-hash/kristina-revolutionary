@@ -83,7 +83,7 @@ export async function mountSessionUI(root, {onResume, onFinish, onOperating = ()
     } catch (error) {
       // A failed restoration must leave the stored documents intact.
       if (error.token !== undefined) row.token = error.token;
-      corrupt = true; showError(Object.assign(error, {code: error.code === 'incompatible' ? 'incompatible' : 'corrupt'}));
+      corrupt = true; showError({code: error.code === 'incompatible' ? 'incompatible' : 'corrupt'});
     } finally { operating = false; onOperating(false); paint(); if (active() && !failed) changed(); }
   }
   async function finish() {

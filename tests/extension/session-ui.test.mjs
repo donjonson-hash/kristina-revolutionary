@@ -150,6 +150,16 @@ test('retry after a transient initial read failure obtains the saved token befor
   assert.match(p.status(), /Сохранено/);
 });
 
+test('native browser errors with read-only codes show a recoverable restoration failure', async t => {
+  const p = await harness(t, {row: {token: 'saved', payload: payload('work')}, callbacks: {
+    onResume: async () => { throw new DOMException('Read failed', 'UnknownError'); },
+  }});
+  p.click('session-resume'); await tick();
+  assert.match(p.status(), /Не удалось восстановить/);
+  assert.equal(p.root.querySelector('#session-delete').disabled, false);
+  assert.equal(p.current().token, 'saved');
+});
+
 test('corrupt stored data stays visible with explicit deletion using its token', async t => {
   const clears = [];
   const p = await harness(t, {store: {
