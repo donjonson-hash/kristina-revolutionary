@@ -165,6 +165,31 @@ export function createDocxRowEditor(report, side = 'right', model) {
     commit({entries:sequenceForPlan(plan, additions), rowPlan:plan});
     return `${row.id}-1`;
   }
+  function rowTextReplacement(sourceEditor, key) {
+    const source = editors.get(sourceEditor);
+    if (!source) throw new Error('Для переноса строки нужны два документа Word с таблицами.');
+    if (signature(geometry(source.content)) !== signature(geometry(model.content))) throw new Error('У документов разная структура таблиц. Переносите текст по ячейкам.');
+    const selected = source.originalEntries.filter(entry => entry.key === key);
+    const positions = [];
+    for (const table of tables(source.content)) for (const row of table.rows) {
+      const records = row.cells.flatMap(cell => cell.content.map(paragraph => paragraph.record));
+      if (selected.some(entry => records.includes(entry.record))) positions.push({table, row, records});
+    }
+    if (!positions.length) throw new Error('Выберите ячейку исходной строки таблицы.');
+    if (positions.length !== 1 || selected.some(entry => !positions[0].records.includes(entry.record))) throw new Error('Выбранный фрагмент относится к нескольким строкам. Переносите текст по ячейкам.');
+    const {table:fromTable, row:fromRow, records:fromRecords} = positions[0];
+    const targetTable = tables(model.content).find(table => table.index === fromTable.index);
+    const targetRow = targetTable.rows.find(row => row.source === fromRow.source);
+    if (!fromRow.mutable || !targetRow.mutable) throw new Error('В этой строке есть вертикально объединённые ячейки. Переносите текст по ячейкам.');
+    const from = source.state();
+    const exists = state => state.rowPlan.tables.find(table => table.table === fromTable.index)?.rows.some(row => row.source === fromRow.source);
+    if (!exists(from) || !exists(draft)) throw new Error('Этой строки нет в одном из документов. Отмените удаление, чтобы перенести её текст.');
+    const sourceEntries = new Map(from.entries.map(entry => [entry.record, entry]));
+    const targetRecords = targetRow.cells.flatMap(cell => cell.content.map(paragraph => paragraph.record));
+    const replacements = new Map(targetRecords.map((record, index) => [record, sourceEntries.get(fromRecords[index]).text]));
+    const next = validate({rowPlan:draft.rowPlan, entries:draft.entries.map(entry => replacements.has(entry.record) ? {...entry, text:replacements.get(entry.record)} : entry)});
+    return {next, equal:signature(next) === signature(draft), key:draft.entries.find(entry => entry.record === targetRecords[0]).key};
+  }
   const api = {
     snapshot: () => ({version:2, side, nextId, entries:copy(draft.entries), rowPlan:copy(draft.rowPlan), history:copy(history)}),
     restore(snapshot) {
@@ -193,6 +218,19 @@ export function createDocxRowEditor(report, side = 'right', model) {
     applyAll() { replaceAll(canonical); },
     replaceAll,
     copyRowFrom,
+    rowTextCopyState(sourceEditor, key) {
+      try {
+        const {equal} = rowTextReplacement(sourceEditor, key);
+        return {available:true, equal, reason:equal ? 'Текст этой строки уже совпадает.' : ''};
+      } catch (error) {
+        return {available:false, equal:false, reason:error.message};
+      }
+    },
+    replaceRowTextFrom(sourceEditor, key) {
+      const {next, key:targetKey} = rowTextReplacement(sourceEditor, key);
+      commit(next);
+      return targetKey;
+    },
     insertRow(tableIndex, currentRow, where = 'after') {
       if (!['before', 'after'].includes(where)) throw new Error('Неизвестное положение новой строки.');
       const row = selectedRow(tableIndex, currentRow), plan = copy(draft.rowPlan), target = plan.tables.find(table => table.table === tableIndex);
@@ -218,6 +256,6 @@ export function createDocxRowEditor(report, side = 'right', model) {
     get changed() { return signature(draft) !== signature(original); },
     get matchesCanonical() { return text(draft.entries) === text(canonical); },
   };
-  editors.set(api, {content:model.content, state:() => validate(draft)});
+  editors.set(api, {content:model.content, originalEntries, state:() => validate(draft)});
   return api;
 }

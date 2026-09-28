@@ -220,10 +220,44 @@ test('Word row controls protect vertical merges and reject forged restored row s
   const sources = {left: tableSource(), right: tableSource('200')}, p = await setup(t, '', '', {sources});
   const first = p.root.querySelector('.visual-table'); first.rows[1].cells[0].querySelector('.visual-paragraph').click();
   for (const selector of ['[data-insert-row="before"]','[data-insert-row="after"]','[data-delete-row]']) assert.equal(p.root.querySelector(selector + '[data-row-side="left"]').disabled, true);
+  assert.equal(p.root.querySelector('[data-copy-row-text-from="left"]').disabled, true);
   const before = p.root.innerHTML, state = p.review.snapshot();
   state.drafts.left.rowPlan.tables[0].rows.splice(1,1);
   await assert.rejects(() => mountVisualReview(p.root, {sources,report:p.report,restoredState:state}), /объедин|поврежд|план/);
   assert.equal(p.root.innerHTML, before);
+});
+
+test('existing row action copies all text from a matching cell selection and preserves independent rows through resume and undo', async t => {
+  const {tableSource, table, cell, paragraph} = await import('./table-fixture.mjs');
+  const make = (note, count, price, total) => tableSource('', {body: table([
+    [cell('Товар'), cell('Количество'), cell('Цена')],
+    [cell([paragraph('Первый'), paragraph(note)]), cell(count), cell(price)],
+    [cell('Итого', '<w:gridSpan w:val="2"/>'), cell(total)],
+  ])});
+  const sources = {left: make('Синий', '2', '100', '200'), right: make('Красный', '3', '120', '360')}, p = await setup(t, '', '', {sources});
+  const key = p.review.drafts.left.entries().find(entry => entry.text === 'Первый').key;
+  const own = p.review.drafts.right.insertRow(1, 2, 'before'); p.review.drafts.right.edit(own, 'Своя строка B');
+  await p.review.select(key);
+  const control = p.root.querySelector('[data-copy-row-text-from="left"]');
+  assert.equal(control.hidden, false); assert.equal(control.disabled, false, 'other cells differ even though selected text matches');
+  assert.match(control.textContent, /строку B как A/);
+  const sourceBefore = p.review.drafts.left.snapshot(), before = p.review.drafts.right.snapshot();
+  control.click();
+  assert.deepEqual(p.review.drafts.left.snapshot(), sourceBefore);
+  assert.deepEqual(p.review.drafts.right.rowPlan(), before.rowPlan);
+  assert.deepEqual(p.review.drafts.right.entries().map(entry => entry.text), ['Товар','Количество','Цена','Своя строка B','','','Первый','Синий','2','100','Итого','360']);
+  assert.equal(control.disabled, true);
+  assert.equal(p.root.querySelectorAll('.visual-table')[1].rows.length, 4);
+  const state = p.review.snapshot(); p.review.dispose();
+  const restored = await setup(t, '', '', {sources, restoredState: state});
+  assert.equal(restored.root.querySelector('[data-copy-row-text-from="left"]').disabled, true);
+  restored.root.querySelector('[aria-label="Отменить правку B"]').click();
+  assert.deepEqual(restored.review.drafts.right.snapshot().entries, before.entries);
+  await restored.review.select(restored.review.drafts.right.entries().find(entry => entry.text === 'Красный').key);
+  restored.root.querySelector('[data-copy-row-text-from="right"]').click();
+  assert.deepEqual(restored.review.drafts.left.entries().map(entry => entry.text), ['Товар','Количество','Цена','Первый','Красный','3','120','Итого','200']);
+  assert.equal(restored.review.snapshot().selected, restored.review.drafts.left.entries().find(entry => entry.text === 'Первый').key, 'selection follows the row actually updated');
+  assert.equal(JSON.stringify(restored.report), p.before);
 });
 
 test('one row transfer preserves other edits, updates without duplicates, resumes and undoes independently', async t => {

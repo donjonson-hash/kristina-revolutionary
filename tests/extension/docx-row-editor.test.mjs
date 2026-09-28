@@ -5,9 +5,14 @@ import {readDocxVisual, writeDocxVisual} from '../../extension/docx-visual.mjs';
 import {compareText} from '../../extension/text-engine.mjs';
 import oldEditor from '../../static/reconciliation/text-editor.js';
 import {tableSource, table, cell, paragraph} from './table-fixture.mjs';
+import {unzipDocument} from '../../extension/text-zip.mjs';
+import {W} from './text-fixture.mjs';
 const body = value => paragraph('До') + table([[cell('Наименование'), cell('Штук'), cell('Цена')], [cell([paragraph('Стул'), paragraph('Синий')]), cell('2'), cell(value)], [cell('Доставка', '<w:gridSpan w:val="2"/>'), cell('0')]]) + paragraph('После');
 async function pair(leftBody = body('100'), rightBody = body('200')) {
   const left = tableSource('', {body:leftBody}), right = tableSource('', {body:rightBody});
+  return sourcePair(left, right);
+}
+async function sourcePair(left, right) {
   const report = await compareText({left, right}), models = {left:await readDocxVisual(left), right:await readDocxVisual(right)};
   return {report, models, sources:{left,right}, left:createDocxRowEditor(report, 'left', models.left), right:createDocxRowEditor(report, 'right', models.right)};
 }
@@ -240,4 +245,106 @@ test('single-row copy enforces character, row and block limits without partial m
     state.nextId = count + 1; target.restore(state); const before = target.snapshot();
     assert.throws(() => target.copyRowFrom(source,added),expected); assert.deepEqual(target.snapshot(),before);
   }
+});
+
+test('existing-row text copy replaces all paragraphs in one undo, keeps target identities and survives restart in either direction', async () => {
+  const {left,right,report,models} = await pair();
+  for (const [source,target,side] of [[left,right,'right'],[right,left,'left']]) {
+    const selected = source.entries().find(entry => entry.text === 'Стул').key;
+    const colour = source.entries().find(entry => entry.text === 'Синий').key;
+    source.edit(colour,'Красный'); source.edit(selected,'Новый стул');
+    target.edit(target.entries()[0].key,'Своя правка вступления');
+    const before = target.snapshot(), sourceBefore = source.snapshot(), revision = target.revision;
+    assert.deepEqual(target.rowTextCopyState(source,selected),{available:true,equal:false,reason:''});
+    assert.deepEqual(target.snapshot(),before);
+    target.replaceRowTextFrom(source,selected);
+    assert.equal(target.get(colour),'Красный'); assert.equal(target.get(selected),'Новый стул');
+    assert.equal(target.entries()[0].text,'Своя правка вступления');
+    assert.deepEqual(target.entries().map(({record,key}) => ({record,key})),before.entries.map(({record,key}) => ({record,key})));
+    assert.deepEqual(target.rowPlan(),before.rowPlan); assert.deepEqual(source.snapshot(),sourceBefore);
+    assert.equal(target.revision,revision + 1); assert.equal(target.snapshot().history.length,before.history.length + 1);
+    const saved = target.snapshot(); target.replaceRowTextFrom(source,selected);
+    assert.deepEqual(target.snapshot(),saved); assert.equal(target.revision,revision + 1);
+    assert.equal(target.rowTextCopyState(source,selected).equal,true);
+    const restored = createDocxRowEditor(report,side,models[side]); restored.restore(saved);
+    restored.undo(); assert.deepEqual(restored.entries(),before.entries); assert.deepEqual(restored.rowPlan(),before.rowPlan);
+    source.reset(); target.reset();
+  }
+});
+
+test('existing row identity survives unrelated insertions and deletions and repeated labels without copying the neighboring row', async () => {
+  const contents = table([[cell('Название'),cell('Кол-во'),cell('Цена')], [cell('Повтор'),cell('2'),cell('100')], [cell('Повтор'),cell('2'),cell('100')], [cell('Итог','<w:gridSpan w:val="2"/>'),cell('200')]]);
+  const {left,right} = await pair(contents,contents);
+  const original = left.entries(), key = original[7].key;
+  left.edit(key,'99');
+  const a = left.insertRow(1,1); left.edit(a,'Только A');
+  const b = right.insertRow(1,3); right.edit(b,'Только B');
+  right.deleteRow(1,2);
+  const before = right.snapshot();
+  right.replaceRowTextFrom(left,key);
+  assert.equal(right.get(key),'99'); assert.equal(right.get(b),'Только B'); assert.equal(right.get(a),null);
+  assert.equal(right.get(original[3].key),null);
+  assert.deepEqual(right.rowPlan(),before.rowPlan);
+  assert.deepEqual(right.entries().filter(entry => entry.key !== key),before.entries.filter(entry => entry.key !== key));
+});
+
+test('existing-row action and readonly state consistently reject missing, added, incompatible and vertically merged rows', async () => {
+  const cases = [];
+  const absentSource = await pair(), sourceKey = absentSource.left.entries().find(entry => entry.text === 'Стул').key;
+  absentSource.left.deleteRow(1,2); cases.push([absentSource,sourceKey,/Отмените удаление/]);
+  const absentTarget = await pair(), targetKey = absentTarget.left.entries().find(entry => entry.text === 'Стул').key;
+  absentTarget.right.deleteRow(1,2); cases.push([absentTarget,targetKey,/Отмените удаление/]);
+  const added = await pair(); cases.push([added,added.left.insertRow(1,2),/исходной строки/]);
+  const wrong = await pair(body('100'),body('200') + paragraph('Другая структура')); cases.push([wrong,wrong.left.entries()[1].key,/разная структура/]);
+  const vertical = await sourcePair(tableSource(),tableSource());
+  cases.push([vertical,vertical.left.entries().find(entry => entry.text === 'Группа').key,/вертикально/]);
+  cases.push([vertical,vertical.left.entries().find(entry => entry.text === 'Печать').key,/вертикально/]);
+  const outside = await pair(); cases.push([outside,outside.left.entries()[0].key,/исходной строки/]);
+  for (const [{left,right},key,pattern] of cases) {
+    const sourceBefore = left.snapshot(), before = right.snapshot();
+    const state = right.rowTextCopyState(left,key);
+    assert.equal(state.available,false); assert.equal(state.equal,false); assert.match(state.reason,pattern);
+    assert.throws(() => right.replaceRowTextFrom(left,key),error => error.message === state.reason);
+    assert.deepEqual(right.snapshot(),before); assert.deepEqual(left.snapshot(),sourceBefore);
+  }
+  assert.equal(outside.right.rowTextCopyState({},'x').available,false);
+  assert.throws(() => outside.right.replaceRowTextFrom({},'x'),/два документа Word/);
+});
+
+test('existing-row replacement enforces total character limit before changing text or history', async () => {
+  const {left,right} = await pair();
+  const key = left.entries().find(entry => entry.text === 'Стул').key;
+  left.edit(key,'X'.repeat(300000)); right.edit(right.entries()[0].key,'Y'.repeat(250000));
+  const before = right.snapshot(), sourceBefore = left.snapshot();
+  const state = right.rowTextCopyState(left,key);
+  assert.equal(state.available,false); assert.match(state.reason,/500 000/);
+  assert.throws(() => right.replaceRowTextFrom(left,key),/500 000/);
+  assert.deepEqual(right.snapshot(),before); assert.deepEqual(left.snapshot(),sourceBefore);
+});
+
+test('existing horizontally merged row exports new text while retaining target lists, formatting, picture and other package parts', async () => {
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const picture = `<w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${R}"><wp:inline><wp:extent cx="952500" cy="952500"/><a:graphic><a:graphicData><a:blip r:embed="photo"/></a:graphicData></a:graphic></wp:inline></w:drawing>`;
+  const numbered = value => paragraph(value,'<w:numPr><w:numId w:val="1"/></w:numPr>');
+  const contents = value => table([[cell([numbered('Комплект'),numbered(value)],'<w:gridSpan w:val="2"/>'),cell([`<w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="336699"/></w:rPr><w:t>${value}</w:t>${picture}</w:r></w:p>`])], [cell('Итого','<w:gridSpan w:val="2"/>'),cell('100')]]);
+  const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nkXcAAAAASUVORK5CYII=','base64'));
+  const extraEntries = {
+    'word/media/photo.png':png,
+    'word/numbering.xml':`<w:numbering xmlns:w="${W}"><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>`,
+    'word/_rels/document.xml.rels':`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="photo" Type="${R}/image" Target="media/photo.png"/></Relationships>`,
+  };
+  const {left,right,models,sources} = await sourcePair(tableSource('',{body:contents('110'),extraEntries}),tableSource('',{body:contents('100'),extraEntries}));
+  const key = left.entries()[0].key, plan = right.rowPlan();
+  right.replaceRowTextFrom(left,key);
+  const bytes = await writeDocxVisual(sources.right,[],{sequence:right.entries(),rowPlan:right.rowPlan()});
+  const result = await readDocxVisual({name:'row-text.docx',data:Buffer.from(bytes).toString('base64')});
+  assert.deepEqual(result.blocks.map(block => block.text),['Комплект','110','110','Итого','100']);
+  assert.deepEqual(right.rowPlan(),plan);
+  assert.equal(result.content[0].rows[0].cells[0].colSpan,2);
+  assert.deepEqual(result.blocks.map(block => block.list),models.right.blocks.map(block => block.list));
+  assert.equal(result.blocks[2].style.textAlign,'right');
+  assert.deepEqual(result.blocks[2].runs.find(run => run.text)?.style,{fontWeight:'bold',color:'#336699'});
+  assert.deepEqual(result.blocks.flatMap(block => block.runs).filter(run => run.image),models.right.blocks.flatMap(block => block.runs).filter(run => run.image));
+  const before = await unzipDocument(Buffer.from(sources.right.data,'base64')), after = await unzipDocument(bytes);
+  for (const [name,content] of before) if (name !== 'word/document.xml') assert.deepEqual(after.get(name),content);
 });
