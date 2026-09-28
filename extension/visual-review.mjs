@@ -103,19 +103,24 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     const scroll = el('div', undefined, 'visual-scroll'); scroll.setAttribute('aria-label', `Документ ${letter(side)}`); panel.append(scroll); grid.append(panel);
     ui[side] = {panel, scroll, pageLabel, previous, following, undo, save};
     scroll.addEventListener('scroll', () => { if (!alive()) return; const position = readScroll(side), before = scrollPositions[side]; if (position.top !== before.top || position.left !== before.left) { scrollPositions[side] = position; stateChanged(); } });
-    const fieldLabel = el('label', `Вариант ${letter(side)}`, 'visual-edit-label'), field = el('textarea'); field.rows = 3; field.maxLength = 500000;
-    field.setAttribute('aria-label', `Править вариант ${letter(side)}`); field.dataset.editSide = side; fieldLabel.append(field);
-    const copy = button(`Взять из ${letter(other(side))} ${side === 'right' ? '→' : '←'}`, () => copyTo(side)); copy.dataset.copyTo = side;
+    const fieldLabel = el('div', undefined, 'visual-edit-label'), field = el('textarea'); field.rows = 3; field.maxLength = 500000;
+    field.id = `visual-edit-${side}`;
+    const caption = el('label', `Вариант ${letter(side)} · Выделенный текст`, 'visual-edit-caption'); caption.htmlFor = field.id;
+    field.setAttribute('aria-label', `Править вариант ${letter(side)}`); field.dataset.editSide = side; fieldLabel.append(caption, field);
+    const copy = button(`Взять текст из ${letter(other(side))} ${side === 'right' ? '→' : '←'}`, () => copyTo(side)); copy.dataset.copyTo = side;
     fieldLabel.append(copy);
-    const rowTools = el('div', undefined, 'visual-row-tools'), rowHint = el('small'); rowTools.hidden = true;
-    const above = button('Строка выше', () => editRow(side, 'before'));
-    const below = button('Строка ниже', () => editRow(side, 'after'));
+    const rowTools = el('section', undefined, 'visual-row-tools'), rowTitle = el('strong', '', 'visual-row-title'), rowHint = el('small'); rowTools.hidden = true;
+    rowTitle.id = `visual-row-title-${side}`; rowHint.id = `visual-row-hint-${side}`;
+    rowTools.setAttribute('aria-labelledby', rowTitle.id);
+    const above = button('+ Добавить выше', () => editRow(side, 'before'));
+    const below = button('+ Добавить ниже', () => editRow(side, 'after'));
     const remove = button('Удалить строку', () => editRow(side, 'delete'));
-    const transfer = button('', () => copyRowTo(other(side))); transfer.dataset.copyRowFrom = side; transfer.hidden = true;
+    const transfer = button('', () => copyRowTo(other(side)), 'button primary visual-row-transfer'); transfer.dataset.copyRowFrom = side; transfer.hidden = true;
+    transfer.title = 'Перенести все ячейки этой строки. Остальные правки соседнего варианта сохранятся.';
     above.dataset.insertRow = 'before'; below.dataset.insertRow = 'after'; remove.dataset.deleteRow = '';
-    for (const control of [above, below, remove]) control.dataset.rowSide = side;
-    rowTools.append(transfer, above, below, remove, rowHint); fieldLabel.append(rowTools);
-    Object.assign(ui[side], {copy, rowTools, rowHint, above, below, remove, transfer});
+    for (const control of [above, below, remove]) { control.dataset.rowSide = side; control.setAttribute('aria-describedby', rowHint.id); }
+    rowTools.append(rowTitle, rowHint, transfer, above, below, remove); fieldLabel.append(rowTools);
+    Object.assign(ui[side], {copy, rowTools, rowTitle, rowHint, above, below, remove, transfer});
     fields.append(fieldLabel); input[side] = field;
     field.addEventListener('input', () => {
       if (!alive() || !selected) return;
@@ -167,9 +172,13 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
       }
       if (position) {
         const locked = position.row.mutable === false;
+        controls.rowTitle.textContent = `${position.row.id ? 'Новая строка' : 'Строка таблицы'} · ${position.index}`;
+        controls.rowTools.classList.toggle('is-locked', locked);
         controls.above.disabled = controls.below.disabled = locked;
         controls.remove.disabled = locked || position.count === 1;
-        controls.rowHint.textContent = locked ? 'Строка с вертикальным объединением: здесь доступна правка текста.' : position.count === 1 ? 'Последнюю строку таблицы можно очистить, но нельзя удалить.' : `Строка ${position.index}. Удаление можно отменить кнопкой ↶.`;
+        const transferable = !!drafts[other(side)].copyRowFrom;
+        controls.rowHint.textContent = locked ? 'Здесь одна ячейка занимает несколько строк. Текст можно исправлять. Для добавления строки выберите другую строку таблицы.' : position.row.id ? transferable ? `В ${letter(other(side))} копируется вся строка. В ${letter(side)} она остаётся. Повторное действие обновляет её текст.` : 'Заполните ячейки новой строки.' : transferable ? `Добавьте пустую строку, заполните её и перенесите в ${letter(other(side))}.` : 'Добавьте пустую строку и заполните её.';
+        if (!locked && position.count === 1) controls.rowHint.textContent += ' Последнюю строку нельзя удалить.';
       }
       const absent = !!selected && value(side, selected) === null;
       const unavailable = absent && (models[side]?.hasTables || byKey.get(selected)?.dynamic);
@@ -448,7 +457,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   const dispose = () => { if (disposed) return; disposed = true; selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
   signal?.addEventListener('abort', dispose, {once: true});
   if (alive()) {
-    if (Object.values(models).some(model => model.hasTables)) saveNote.textContent += ' Нажмите на ячейку: можно исправить текст, добавить или удалить строку. Любое действие можно отменить.';
+    if (Object.values(models).some(model => model.hasTables)) saveNote.textContent += sides.every(side => drafts[side].copyRowFrom) ? ' Новая строка: добавьте → заполните → перенесите в соседний вариант. Отмена — ↶.' : ' Новая строка: добавьте → заполните. Отмена — ↶.';
     if (Object.values(models).some(model => model.blocks.some(block => block.list))) saveNote.textContent += ' Нумерация показана для ориентира; сравнивается и редактируется текст пунктов.';
     if (restoredState !== undefined) {
       for (const side of sides) {
