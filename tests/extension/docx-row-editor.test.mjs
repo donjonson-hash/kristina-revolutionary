@@ -127,3 +127,117 @@ test('allocator validates persisted high watermark and advances when copied rows
   const restart = createDocxRowEditor(report,'left',models.left); restart.restore(saved);
   assert.notEqual(restart.insertRow(1,2),key);
 });
+
+test('single-row copy isolates both drafts, remaps records, preserves horizontal merges and exports the target', async () => {
+  const {left,right,sources} = await pair();
+  const own = right.insertRow(1,2); right.edit(own,'Только B');
+  const key = left.insertRow(1,3); left.edit(key,'Новая доставка'); left.edit(key.replace(/-1$/, '-2'),'350');
+  const unrelated = left.insertRow(1,1); left.edit(unrelated,'Не переносить');
+  left.edit(left.entries()[0].key,'Правка только A');
+  const sourceBefore = left.snapshot(), targetBefore = right.snapshot();
+  assert.equal(right.copyRowFrom(left,key),key);
+  assert.deepEqual(left.snapshot(),sourceBefore);
+  assert.equal(right.get(own),'Только B'); assert.equal(right.get(unrelated),null);
+  assert.equal(right.entries()[0].text,'До'); assert.equal(right.get(key),'Новая доставка');
+  const copied = right.rowPlan().tables[0].rows.find(row => row.id === 'row-left-1');
+  assert.deepEqual(copied.records,[-4,-5]);
+  assert.equal(copied.template,3);
+  const exported = await writeDocxVisual(sources.right,[],{sequence:right.entries(),rowPlan:right.rowPlan()});
+  const result = await readDocxVisual({name:'row-copy.docx',data:Buffer.from(exported).toString('base64')});
+  const rows = result.content.find(item => item.type === 'table').rows;
+  assert.equal(rows.length,5); assert.equal(rows.at(-1).cells[0].colSpan,2);
+  assert.deepEqual(result.blocks.map(item => item.text),right.entries().map(item => item.text));
+  right.undo(); assert.deepEqual(right.entries(),targetBefore.entries); assert.deepEqual(right.rowPlan(),targetBefore.rowPlan);
+});
+
+test('copying a present row updates only its cells in one undo, is idempotent and survives restoration and return transfer', async () => {
+  const {left,right,models,report} = await pair();
+  const key = right.insertRow(1,2); right.edit(key,'Из B'); left.copyRowFrom(right,key);
+  const saved = left.snapshot(), revision = left.revision;
+  left.copyRowFrom(right,key); assert.deepEqual(left.snapshot(),saved); assert.equal(left.revision,revision);
+  right.edit(key,'Обновление'); right.edit(key.replace(/-1$/,'-2'),'12');
+  const before = left.snapshot(); left.copyRowFrom(right,key);
+  assert.equal(left.get(key),'Обновление'); assert.equal(left.rowPlan().tables[0].rows.length,4);
+  left.undo(); assert.deepEqual(left.entries(),before.entries); assert.deepEqual(left.rowPlan(),before.rowPlan);
+  const restored = createDocxRowEditor(report,'left',models.left); restored.restore(left.snapshot());
+  restored.edit(key,'Вернуть в B'); right.copyRowFrom(restored,key);
+  assert.equal(right.get(key),'Вернуть в B'); assert.equal(right.rowPlan().tables[0].rows.length,4);
+  right.deleteRow(1,3); right.copyRowFrom(restored,key);
+  assert.equal(right.rowPlan().tables[0].rows.length,4);
+  assert.notEqual(right.insertRow(1,3),key);
+});
+
+test('copy keeps source row order in either transfer order and keeps target-only rows', async () => {
+  for (const reverse of [false,true]) {
+    const {left,right} = await pair();
+    const first = left.insertRow(1,2), second = left.insertRow(1,3);
+    const independent = right.insertRow(1,2); right.edit(independent,'Независимая');
+    for (const key of reverse ? [second,first] : [first,second]) right.copyRowFrom(left,key);
+    const ids = right.rowPlan().tables[0].rows.map(row => row.id).filter(Boolean);
+    assert.deepEqual(ids,['row-right-1','row-left-1','row-left-2']);
+    assert.equal(right.get(independent),'Независимая');
+  }
+});
+
+test('copy skips deleted anchors without resurrecting them and refuses when none survive', async () => {
+  const {left,right} = await pair();
+  const key = left.insertRow(1,2);
+  right.deleteRow(1,2); right.copyRowFrom(left,key);
+  assert.deepEqual(right.rowPlan().tables[0].rows.map(row => row.source || row.id),[1,'row-left-1',3]);
+  right.undo(); right.deleteRow(1,2); right.copyRowFrom(left,key);
+  assert.deepEqual(right.rowPlan().tables[0].rows.map(row => row.source || row.id),[1,'row-left-1']);
+  const separate = right.insertRow(1,1); right.deleteRow(1,1); right.deleteRow(1,2);
+  assert.equal(right.get(separate),'');
+  const before = right.snapshot();
+  assert.throws(() => right.copyRowFrom(left,key),/соседние исходные строки удалены/);
+  assert.deepEqual(right.snapshot(),before);
+});
+
+test('copy rejects incompatible documents, fake editors and conflicting restored row identity atomically', async () => {
+  const incompatible = await pair(body('100'),body('200') + paragraph('Лишний абзац'));
+  const wrongKey = incompatible.left.insertRow(1,2), initial = incompatible.right.snapshot();
+  assert.throws(() => incompatible.right.copyRowFrom(incompatible.left,wrongKey),/разная структура/);
+  assert.deepEqual(incompatible.right.snapshot(),initial);
+  const {left,right} = await pair(), key = left.insertRow(1,2);
+  assert.throws(() => right.copyRowFrom({entries:left.entries,rowPlan:left.rowPlan},key),/два документа Word/);
+  assert.throws(() => right.copyRowFrom(left,left.entries()[0].key),/добавленной строки/);
+  right.copyRowFrom(left,key);
+  const conflict = right.snapshot(); conflict.rowPlan.tables[0].rows[2].template = 1;
+  right.restore(conflict); const before = right.snapshot();
+  assert.throws(() => right.copyRowFrom(left,key),/другая структура/);
+  assert.deepEqual(right.snapshot(),before);
+});
+
+test('copy rejects crossed shared row anchors atomically after a restored order change', async () => {
+  const {left,right} = await pair();
+  const first = left.insertRow(1,2), middle = left.insertRow(1,3), last = left.insertRow(1,4);
+  right.copyRowFrom(left,first); right.copyRowFrom(left,last);
+  const saved = right.snapshot(), rows = saved.rowPlan.tables[0].rows;
+  [rows[2],rows[3]] = [rows[3],rows[2]];
+  const byRecord = new Map(saved.entries.map(entry => [entry.record,entry]));
+  const firstEntries = rows[2].records.map(record => byRecord.get(record)), lastEntries = rows[3].records.map(record => byRecord.get(record));
+  const start = saved.entries.findIndex(entry => entry.record < 0); saved.entries.splice(start,6,...firstEntries,...lastEntries);
+  right.restore(saved); const before = right.snapshot();
+  assert.throws(() => right.copyRowFrom(left,middle),/Порядок соседних строк/);
+  assert.deepEqual(right.snapshot(),before);
+});
+
+test('single-row copy enforces character, row and block limits without partial mutations', async () => {
+  const {left,right} = await pair();
+  const key = left.insertRow(1,2); left.edit(key,'X'.repeat(300000));
+  right.edit(right.entries()[0].key,'Y'.repeat(250000)); const large = right.snapshot();
+  assert.throws(() => right.copyRowFrom(left,key),/500 000/); assert.deepEqual(right.snapshot(),large);
+  for (const [columns,count,expected] of [[1,999,/1000 строк/],[3,665,/2000 текстовых блоков/]]) {
+    const contents = table([Array.from({length:columns},(_,index) => cell(String(index), columns === 1 ? '<w:gridSpan w:val="3"/>' : ''))]);
+    const pairOfEditors = await pair(contents,contents), source = pairOfEditors.left, target = pairOfEditors.right;
+    const added = source.insertRow(1,1), state = target.snapshot();
+    let record = -1;
+    for (let index = 1; index <= count; index++) {
+      const id = `row-right-${index}`, records = Array.from({length:columns},() => record--);
+      state.rowPlan.tables[0].rows.push({id,template:1,records});
+      state.entries.push(...records.map((record,index) => ({key:`${id}-${index + 1}`,record,text:''})));
+    }
+    state.nextId = count + 1; target.restore(state); const before = target.snapshot();
+    assert.throws(() => target.copyRowFrom(source,added),expected); assert.deepEqual(target.snapshot(),before);
+  }
+});

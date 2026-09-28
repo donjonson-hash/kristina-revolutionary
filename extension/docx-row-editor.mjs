@@ -10,6 +10,7 @@ const unavailable = () => { throw new Error('Этой строки нет в д�
 const exact = (value, names) => value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every(key => names.includes(key));
 const tables = content => content.filter(item => item.type === 'table');
 const geometry = content => content.map(item => item.type === 'paragraph' ? 'p' : {index:item.index, columns:item.widths.length, rows:item.rows.map(row => row.cells.map(cell => [cell.column, cell.colSpan, cell.rowSpan, cell.content.length]))});
+const editors = new WeakMap();
 
 export function createDocxRowEditor(report, side = 'right', model) {
   if (!['left', 'right'].includes(side) || report?.kind !== 'text' || report.status !== 'complete' || !Array.isArray(model?.content) || !tables(model.content).length) throw new Error('Нужна завершённая проверка Word с таблицами.');
@@ -132,7 +133,39 @@ export function createDocxRowEditor(report, side = 'right', model) {
     if (mapped.length !== expected.length || mapped.some((entry, i) => entry.record !== expected[i])) throw new Error('У документов разная структура. Переносите текст по ячейкам.');
     commit({entries:mapped, rowPlan:plan});
   }
-  return {
+  function copyRowFrom(sourceEditor, key) {
+    const source = editors.get(sourceEditor);
+    if (!source) throw new Error('Для переноса строки нужны два документа Word с таблицами.');
+    if (signature(geometry(source.content)) !== signature(geometry(model.content))) throw new Error('У документов разная структура таблиц. Переносите текст по ячейкам.');
+    const from = source.state(), entry = from.entries.find(item => item.key === key);
+    const fromTable = from.rowPlan.tables.find(table => table.rows.some(row => row.id && row.records.includes(entry?.record)));
+    const fromIndex = fromTable?.rows.findIndex(row => row.id && row.records.includes(entry?.record));
+    const row = fromTable?.rows[fromIndex];
+    if (!row) throw new Error('Выберите ячейку добавленной строки для переноса.');
+    const plan = copy(draft.rowPlan), target = plan.tables.find(table => table.table === fromTable.table);
+    const presentTable = plan.tables.find(table => table.rows.some(item => item.id === row.id));
+    let present = presentTable?.rows.find(item => item.id === row.id);
+    if (present && (presentTable !== target || present.template !== row.template || present.records.length !== row.records.length)) throw new Error('У этой строки другая структура в двух документах. Отмените её изменение перед переносом.');
+    if (!present) {
+      if (target.rows.length >= 1000) throw new Error('В таблице может быть не больше 1000 строк.');
+      if (draft.entries.length + row.records.length > 2000) throw new Error('В документе может быть не больше 2000 текстовых блоков.');
+      const identity = item => item.id || `source-${item.source}`;
+      const remaining = new Map(target.rows.map((item, index) => [identity(item), index]));
+      const before = fromTable.rows.slice(0, fromIndex).reverse().find(item => remaining.has(identity(item)));
+      const after = fromTable.rows.slice(fromIndex + 1).find(item => remaining.has(identity(item)));
+      if (!before && !after) throw new Error('Не удалось найти место для строки: соседние исходные строки удалены. Отмените удаление и повторите перенос.');
+      if (before && after && remaining.get(identity(before)) >= remaining.get(identity(after))) throw new Error('Порядок соседних строк в документах отличается. Отмените изменение порядка перед переносом.');
+      const position = after ? remaining.get(identity(after)) : remaining.get(identity(before)) + 1;
+      let record = Math.min(0, ...draft.entries.map(item => item.record)) - 1;
+      present = {id:row.id, template:row.template, records:row.records.map(() => record--)};
+      target.rows.splice(position, 0, present);
+    }
+    const sourceEntries = new Map(from.entries.map(item => [item.record, item]));
+    const additions = new Map(present.records.map((record, index) => [record, {record, key:`${row.id}-${index + 1}`, text:sourceEntries.get(row.records[index]).text}]));
+    commit({entries:sequenceForPlan(plan, additions), rowPlan:plan});
+    return `${row.id}-1`;
+  }
+  const api = {
     snapshot: () => ({version:2, side, nextId, entries:copy(draft.entries), rowPlan:copy(draft.rowPlan), history:copy(history)}),
     restore(snapshot) {
       if (!snapshot || ![1,2].includes(snapshot.version) || snapshot.side !== side || !Array.isArray(snapshot.history) || snapshot.history.length > 20) bad();
@@ -159,6 +192,7 @@ export function createDocxRowEditor(report, side = 'right', model) {
     apply(key) { const group = groups.get(key); if (!group) unavailable(); replace(key, group[otherSide].length ? text(group[otherSide]) : null); },
     applyAll() { replaceAll(canonical); },
     replaceAll,
+    copyRowFrom,
     insertRow(tableIndex, currentRow, where = 'after') {
       if (!['before', 'after'].includes(where)) throw new Error('Неизвестное положение новой строки.');
       const row = selectedRow(tableIndex, currentRow), plan = copy(draft.rowPlan), target = plan.tables.find(table => table.table === tableIndex);
@@ -184,4 +218,6 @@ export function createDocxRowEditor(report, side = 'right', model) {
     get changed() { return signature(draft) !== signature(original); },
     get matchesCanonical() { return text(draft.entries) === text(canonical); },
   };
+  editors.set(api, {content:model.content, state:() => validate(draft)});
+  return api;
 }
