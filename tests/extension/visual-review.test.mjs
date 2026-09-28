@@ -176,5 +176,52 @@ test('incompatible table copy gives a readable message and keeps the current tab
   p.root.querySelector('[data-action="copy-all-right"]').click();
   assert.deepEqual(p.review.drafts.right.snapshot(), before);
   assert.equal(p.root.querySelectorAll('.visual-table').length, 1);
-  assert.match(p.root.textContent, /Добавление, удаление и перенос абзацев, строк и столбцов пока недоступны/);
+  assert.match(p.root.textContent, /разная структура/);
+});
+
+test('Word row controls edit new cells, restore their selection, copy the structure and undo deletion', async t => {
+  const {tableSource, table, cell, paragraph} = await import('./table-fixture.mjs');
+  const source = price => tableSource('', {body: paragraph('Начало') + table([
+    [cell('Товар'), cell('Цена'), cell('Срок')],
+    [cell('Первый'), cell(price), cell('5 дней')],
+    [cell('Второй'), cell('200'), cell('10 дней')],
+  ]) + paragraph('Конец')});
+  const sources = {left: source('100'), right: source('120')}, p = await setup(t, '', '', {sources});
+  const first = p.root.querySelector('.visual-table'); first.rows[1].cells[0].querySelector('.visual-paragraph').click();
+  p.root.querySelector('[data-insert-row="after"][data-row-side="left"]').click();
+  assert.deepEqual([...p.root.querySelectorAll('.visual-table')].map(t => t.rows.length), [4,3]);
+  const key = p.review.snapshot().selected; assert.match(key, /^row-left-/);
+  const field = p.root.querySelector('[data-edit-side="left"]');
+  field.value = 'Новая позиция <A & B>'; field.dispatchEvent(new p.dom.window.Event('input'));
+  assert.equal(p.root.querySelector('[data-edit-side="right"]').disabled, true);
+  const state = p.review.snapshot();
+  const {validateSessionPayload} = await import('../../extension/session-store.mjs');
+  assert.equal(validateSessionPayload({version:1,sources,report:p.report,review:state}).review.selected, key);
+  assert.equal(JSON.stringify(p.report), p.before);
+  p.review.dispose();
+  const restored = await setup(t, '', '', {sources, restoredState: JSON.parse(JSON.stringify(state))});
+  assert.equal(restored.review.snapshot().selected, key);
+  assert.equal(restored.root.querySelector('[data-edit-side="left"]').value, field.value);
+  assert.equal(restored.root.querySelectorAll('.visual-table')[0].rows.length, 4);
+  restored.root.querySelector('[data-action="copy-all-right"]').click();
+  assert.deepEqual([...restored.root.querySelectorAll('.visual-table')].map(t => t.rows.length), [4,4]);
+  assert.equal(restored.review.drafts.right.get(key), 'Новая позиция <A & B>');
+  assert.match(restored.root.querySelector('.visual-progress').textContent, /совпадают/);
+  restored.root.querySelector('[data-delete-row][data-row-side="right"]').click();
+  assert.equal(restored.root.querySelectorAll('.visual-table')[1].rows.length, 3);
+  assert.equal(restored.review.snapshot().selected, null);
+  restored.root.querySelector('[aria-label="Отменить правку B"]').click();
+  assert.equal(restored.root.querySelectorAll('.visual-table')[1].rows.length, 4);
+  assert.equal(restored.review.drafts.right.get(key), 'Новая позиция <A & B>');
+});
+
+test('Word row controls protect vertical merges and reject forged restored row state without replacing UI', async t => {
+  const {tableSource} = await import('./table-fixture.mjs');
+  const sources = {left: tableSource(), right: tableSource('200')}, p = await setup(t, '', '', {sources});
+  const first = p.root.querySelector('.visual-table'); first.rows[1].cells[0].querySelector('.visual-paragraph').click();
+  for (const selector of ['[data-insert-row="before"]','[data-insert-row="after"]','[data-delete-row]']) assert.equal(p.root.querySelector(selector + '[data-row-side="left"]').disabled, true);
+  const before = p.root.innerHTML, state = p.review.snapshot();
+  state.drafts.left.rowPlan.tables[0].rows.splice(1,1);
+  await assert.rejects(() => mountVisualReview(p.root, {sources,report:p.report,restoredState:state}), /объедин|поврежд|план/);
+  assert.equal(p.root.innerHTML, before);
 });

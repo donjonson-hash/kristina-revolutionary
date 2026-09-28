@@ -84,16 +84,25 @@ export function readDocxStructure(doc, docs = new Map()) {
     if (align === 'right' || align === 'end') table.style.marginLeft = 'auto';
     const look = child(pr, 'tblLook'), mask = /^[a-f\d]{1,4}$/i.test(attr(look) || '') ? parseInt(attr(look), 16) : 0;
     const flag = (name, bit) => attr(look, name) !== null ? ['1', 'true', 'on'].includes(attr(look, name)) : !!(mask & bit);
+    table.styleRules = {
+      borders: tableBorders,
+      flags: Object.fromEntries([['firstRow', 0x20], ['lastRow', 0x40], ['firstColumn', 0x80], ['lastColumn', 0x100], ['noHBand', 0x200], ['noVBand', 0x400]].map(([name, bit]) => [name, flag(name, bit)])),
+      inherited: inherited.map(s => ({
+        base: cellStyle(child(s, 'tcPr')),
+        conditions: elements(s).filter(n => is(n, 'tblStylePr')).map(n => ({name: attr(n, 'type'), style: cellStyle(child(n, 'tcPr'))})),
+      })),
+    };
     let previous = new Map();
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r]; contents(row, ['trPr', 'tc']); emptyProperties(child(row, 'trPr'));
       if (child(child(row, 'trPr'), 'gridBefore') || child(child(row, 'trPr'), 'gridAfter') || child(child(row, 'trPr'), 'tblPrEx')) fail('таблицы с пропущенными ячейками пока не поддерживаются.');
-      const cells = elements(row).filter(n => is(n, 'tc')), rowModel = {cells: []}, next = new Map(); let column = 0;
+      const cells = elements(row).filter(n => is(n, 'tc')), rowModel = {source: r + 1, mutable: true, cells: []}, next = new Map(); let column = 0;
       for (const cell of cells) {
         contents(cell, ['tcPr', 'p']); const cp = child(cell, 'tcPr'); emptyProperties(cp);
         if (child(cp, 'hMerge') || child(cp, 'textDirection') && attr(child(cp, 'textDirection')) !== 'lrTb') fail('эта разновидность объединения или поворота ячеек пока не поддерживается.');
         const span = number(attr(child(cp, 'gridSpan')), 1, 64, 1), merge = child(cp, 'vMerge'), mergeValue = attr(merge) || 'continue';
         if (column + span > widths.length || merge && !['restart', 'continue'].includes(mergeValue)) fail('некорректное объединение ячеек.');
+        if (merge) rowModel.mutable = false;
         const ps = elements(cell).filter(n => is(n, 'p'));
         if (!ps.length) fail('ячейка не содержит абзаца.');
         if (merge && mergeValue === 'continue') {
@@ -121,7 +130,7 @@ export function readDocxStructure(doc, docs = new Map()) {
             for (const condition of conditions) for (const spec of elements(s).filter(n => is(n, 'tblStylePr') && attr(n, 'type') === condition)) Object.assign(style, cellStyle(child(spec, 'tcPr')));
           }
           Object.assign(style, cellStyle(cp));
-          const c = {column: column + 1, colSpan: span, rowSpan: 1, style, content: ps.map((p, i) => paragraph(p, {table: tableIndex, row: r + 1, column: column + 1, paragraph: i + 1}))};
+          const c = {column: column + 1, colSpan: span, rowSpan: 1, style, ownStyle: cellStyle(cp), content: ps.map((p, i) => paragraph(p, {table: tableIndex, row: r + 1, column: column + 1, paragraph: i + 1}))};
           rowModel.cells.push(c); if (merge) next.set(column, c);
         }
         column += span;
@@ -134,7 +143,82 @@ export function readDocxStructure(doc, docs = new Map()) {
   return {paragraphs, locations, content, hasTables: tableIndex > 0};
 }
 
-export const TABLE_EDIT_NOTICE = 'В документе с таблицами пока можно менять текст в существующих абзацах и ячейках. Добавление, удаление и перенос абзацев, строк и столбцов пока недоступны.';
+export const TABLE_EDIT_NOTICE = 'Добавление, удаление и перенос отдельных абзацев и столбцов таблицы пока недоступны. Чтобы добавить или удалить целую строку, используйте кнопки строк таблицы.';
 export function validateTableSequence(records, sequence) {
   if (sequence.length !== records.length || sequence.some((item, i) => item.record !== records[i])) throw new Error(TABLE_EDIT_NOTICE);
+}
+
+function restyleTable(table) {
+  const rules = table.styleRules;
+  if (!rules) return;
+  const flags = rules.flags, borders = rules.borders;
+  table.rows.forEach((row, r) => row.cells.forEach(cell => {
+    const column = cell.column - 1, span = cell.colSpan, conditions = ['wholeTable'];
+    const bandRow = r - (flags.firstRow ? 1 : 0), bandColumn = column - (flags.firstColumn ? 1 : 0);
+    if (!flags.noHBand && bandRow >= 0) conditions.push(bandRow % 2 ? 'band2Horz' : 'band1Horz');
+    if (!flags.noVBand && bandColumn >= 0) conditions.push(bandColumn % 2 ? 'band2Vert' : 'band1Vert');
+    if (column === 0 && flags.firstColumn) conditions.push('firstCol');
+    if (column + span === table.widths.length && flags.lastColumn) conditions.push('lastCol');
+    if (r === 0 && flags.firstRow) conditions.push('firstRow');
+    if (r === table.rows.length - 1 && flags.lastRow) conditions.push('lastRow');
+    const style = {};
+    for (const [edge, value] of Object.entries({top: borders[r === 0 ? 'top' : 'insideH'], bottom: borders[r === table.rows.length - 1 ? 'bottom' : 'insideH'], left: borders[column === 0 ? 'left' : 'insideV'], right: borders[column + span === table.widths.length ? 'right' : 'insideV']})) if (value) style['border' + edge[0].toUpperCase() + edge.slice(1)] = value;
+    for (const inherited of rules.inherited) {
+      Object.assign(style, inherited.base);
+      for (const condition of conditions) for (const spec of inherited.conditions) if (spec.name === condition) Object.assign(style, spec.style);
+    }
+    cell.style = Object.assign(style, cell.ownStyle);
+  }));
+}
+
+/** Shared, DOM-free validation for drafts, projection and native DOCX export. */
+export function normalizeDocxRowPlan(content, rowPlan) {
+  const invalid = () => fail('некорректный план строк таблицы.');
+  if (!Array.isArray(content)) invalid();
+  const records = [], templates = {}, tables = content.filter(item => item.type === 'table');
+  const flatten = output => {
+    for (const item of output) {
+      if (item.type === 'paragraph') records.push(item.record);
+      else for (const row of item.rows) for (const cell of row.cells) for (const p of cell.content) records.push(p.record);
+    }
+    if (records.length > 2000) fail('документ содержит более 2000 текстовых блоков. Разделите его.');
+    return {content: output, records, templates};
+  };
+  if (rowPlan === undefined) return flatten(content);
+  const keys = (object, expected) => object && typeof object === 'object' && !Array.isArray(object) && Object.keys(object).length === expected.length && expected.every(key => Object.hasOwn(object, key));
+  if (!keys(rowPlan, ['version', 'tables']) || rowPlan.version !== 1 || !Array.isArray(rowPlan.tables) || rowPlan.tables.length !== tables.length || !tables.length) invalid();
+  const plans = new Map(), ids = new Set(), negatives = new Set();
+  for (const plan of rowPlan.tables) {
+    if (!keys(plan, ['table', 'rows']) || !Number.isInteger(plan.table) || plans.has(plan.table) || !tables.some(table => table.index === plan.table) || !Array.isArray(plan.rows) || !plan.rows.length || plan.rows.length > 1000) invalid();
+    plans.set(plan.table, plan);
+  }
+  const output = content.map(item => {
+    if (item.type !== 'table') return {...item};
+    const plan = plans.get(item.index), sourceRows = item.rows, kept = new Set(); let previous = 0;
+    const rows = plan.rows.map(entry => {
+      if (keys(entry, ['source'])) {
+        if (!Number.isInteger(entry.source) || entry.source <= previous || entry.source > sourceRows.length) invalid();
+        previous = entry.source; kept.add(previous);
+        const original = sourceRows[previous - 1];
+        return {...original, source: previous, cells: original.cells.map(cell => ({...cell, content: cell.content.map(p => ({...p}))}))};
+      }
+      if (!keys(entry, ['id', 'template', 'records']) || typeof entry.id !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,79}$/.test(entry.id) || ids.has(entry.id) || !Number.isInteger(entry.template) || entry.template < 1 || entry.template > sourceRows.length || !Array.isArray(entry.records)) invalid();
+      const original = sourceRows[entry.template - 1];
+      if (!original.mutable) fail('Строки с вертикальным объединением нельзя использовать как образец новой строки.');
+      if (entry.records.length !== original.cells.length) invalid();
+      // Every immutable merged row must stay. Thus this original boundary is
+      // also the actual insertion boundary, even after neighbouring deletions.
+      for (let r = 0; r < previous; r++) if (sourceRows[r].cells.some(cell => r + cell.rowSpan > previous)) fail('Нельзя вставить строку внутри вертикального объединения.');
+      ids.add(entry.id);
+      return {id: entry.id, template: entry.template, mutable: true, cells: original.cells.map((cell, i) => {
+        const record = entry.records[i];
+        if (!Number.isSafeInteger(record) || record >= 0 || negatives.has(record)) invalid();
+        negatives.add(record); templates[record] = cell.content[0].record;
+        return {...cell, rowSpan: 1, content: [{type: 'paragraph', record}]};
+      })};
+    });
+    for (let r = 0; r < sourceRows.length; r++) if (!kept.has(r + 1) && !sourceRows[r].mutable) fail('Строку с вертикальным объединением нельзя удалить.');
+    const table = {...item, rows}; restyleTable(table); return table;
+  });
+  return flatten(output);
 }

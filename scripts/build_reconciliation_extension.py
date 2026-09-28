@@ -5,7 +5,7 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.15.0"
+VERSION = "0.16.0"
 
 
 def build(output):
@@ -33,7 +33,7 @@ def build(output):
         files = {"index.html": html.encode(), "app.js": (assets / "app.js").read_bytes(), "style.css": (assets / "style.css").read_bytes()}
         files["text-editor.js"] = (assets / "text-editor.js").read_bytes()
         files["office.js"] = (assets / "office.js").read_bytes()
-        for name in ("docx-structure.mjs", "docx-numbering.mjs", "session-store.mjs", "session-ui.mjs", "visual-review.mjs", "pdf-visual.mjs", "docx-visual.mjs", "transport.js", "worker.mjs", "engine.mjs", "commercial-summary.mjs", "report.mjs", "xlsx-report.mjs", "pdf-report.mjs", "pdf-source.mjs", "pdf-reader-vendor.mjs", "PDF-READER-LICENSE.txt", "PDF-READER-SOURCE.md", "pdf-vendor.mjs", "pdf-font.mjs", "PDF-LICENSES.txt", "PDF-SOURCE.md", "xlsx-source.mjs", "xlsx-vendor.mjs", "SHEETJS-LICENSE.txt", "text-source.mjs", "text-engine.mjs", "text-report.mjs", "text-zip.mjs", "xml-vendor.mjs", "XMLDOM-LICENSE.txt", "XMLDOM-SOURCE.md", "launcher.html", "launcher.css", "launcher.js", "icon.png"):
+        for name in ("docx-row-editor.mjs", "docx-structure.mjs", "docx-numbering.mjs", "session-store.mjs", "session-ui.mjs", "visual-review.mjs", "pdf-visual.mjs", "docx-visual.mjs", "transport.js", "worker.mjs", "engine.mjs", "commercial-summary.mjs", "report.mjs", "xlsx-report.mjs", "pdf-report.mjs", "pdf-source.mjs", "pdf-reader-vendor.mjs", "PDF-READER-LICENSE.txt", "PDF-READER-SOURCE.md", "pdf-vendor.mjs", "pdf-font.mjs", "PDF-LICENSES.txt", "PDF-SOURCE.md", "xlsx-source.mjs", "xlsx-vendor.mjs", "SHEETJS-LICENSE.txt", "text-source.mjs", "text-engine.mjs", "text-report.mjs", "text-zip.mjs", "xml-vendor.mjs", "XMLDOM-LICENSE.txt", "XMLDOM-SOURCE.md", "launcher.html", "launcher.css", "launcher.js", "icon.png"):
             files[name] = (ROOT / "extension" / name).read_bytes()
         target_manifest = dict(manifest)
         if target == "firefox":
