@@ -1,6 +1,7 @@
 /** Local semantic DOCX presentation and lossless-package paragraph edits. */
 import {readTextSource, readDocxPackage, validateDocxDrawing, MAX_TEXT_CHARS, MAX_TEXT_BLOCKS, MAX_TEXT_SOURCE_BYTES} from './text-source.mjs';
 import {renderDocxNumbering} from './docx-numbering.mjs';
+import {validateTableSequence} from './docx-structure.mjs';
 const W = new Set(['http://schemas.openxmlformats.org/wordprocessingml/2006/main','http://purl.oclc.org/ooxml/wordprocessingml/main']);
 const elements = node => Array.from(node?.childNodes || []).filter(child => child.nodeType === 1);
 const is = (node, name) => W.has(node.namespaceURI) && node.localName === name;
@@ -58,7 +59,7 @@ export async function readDocxVisual(source) {
   const checked=await load(source), formatting=stylesFor(checked), body=child(checked.doc.documentElement,'body');
   const lists=renderDocxNumbering(checked.listData);
   const imageSources=new Map();
-  const blocks=elements(body).filter(n=>is(n,'p')).map((p,i)=>{
+  const blocks=checked.structure.paragraphs.map((p,i)=>{
     const runs=[];
     function visit(node,style={}) {
       if (is(node,'r')) style={...style,...formatting.run(node)};
@@ -73,7 +74,7 @@ export async function readDocxVisual(source) {
   const section=child(body,'sectPr'),size=child(section,'pgSz'),margin=child(section,'pgMar');
   const px=(node,name,fallback,min,max)=>finite(attr(node,name),min,max)?Number(attr(node,name))/15:fallback;
   const page={width:px(size,'w',794,1440,31680),height:px(size,'h',1123,1440,31680),marginTop:px(margin,'top',72,0,4320),marginRight:px(margin,'right',72,0,4320),marginBottom:px(margin,'bottom',72,0,4320),marginLeft:px(margin,'left',72,0,4320)};
-  return {format:'docx',blocks,page,listData:checked.listData,notes:['Заголовки, списки, стили текста и встроенные фотографии сохранены. Разбиение на страницы в браузере может отличаться от Word.']};
+  return {format:'docx',blocks,page,content:checked.structure.content,hasTables:checked.structure.hasTables,listData:checked.listData,notes:['Заголовки, таблицы, списки, стили текста и встроенные фотографии сохранены. Разбиение на страницы в браузере может отличаться от Word.']};
 }
 
 function validateText(text) {
@@ -125,6 +126,7 @@ function revisedRuns(runs,text) {
 /** Project exactly the paragraph content/styles/images that writeDocxVisual exports. */
 export function projectDocxVisual(model,sequence) {
   if(!model||!Array.isArray(model.blocks)||!Array.isArray(sequence))throw new Error('Некорректная редакция DOCX.');
+  if(model.hasTables)validateTableSequence(model.blocks.map(b=>b.record),sequence);
   const originals=new Map(model.blocks.map(block=>[block.record,block])),seen=new Set(),blocks=[];let chars=0;
   for(const item of sequence) {
     if(item.record!==undefined&&(!originals.has(item.record)||seen.has(item.record)))throw new Error('Некорректный или повторный номер абзаца.');
@@ -164,9 +166,10 @@ async function zip(entries) {
 
 /** edits changes existing records. Optional sequence replaces paragraph order, permits insertion/deletion. */
 export async function writeDocxVisual(source,edits=[],options={}) {
-  const checked=await load(source),body=child(checked.doc.documentElement,'body'),paragraphs=elements(body).filter(n=>is(n,'p'));
+  const checked=await load(source),body=child(checked.doc.documentElement,'body'),paragraphs=checked.structure.paragraphs;
   if(!Array.isArray(edits)||options.sequence!==undefined&&!Array.isArray(options.sequence))throw new Error('Некорректная редакция DOCX.');
   const selected=options.sequence || paragraphs.map((_,i)=>({record:i+1,text:checked.texts[i]}));
+  if(checked.structure.hasTables)validateTableSequence(paragraphs.map((_,i)=>i+1),selected);
   const patches=new Map();
   for(const edit of edits){if(!Number.isInteger(edit.record)||edit.record<1||edit.record>paragraphs.length||patches.has(edit.record))throw new Error('Некорректный номер абзаца.');patches.set(edit.record,validateText(edit.text));}
   const seen=new Set(),output=[];let chars=0;
@@ -183,8 +186,10 @@ export async function writeDocxVisual(source,edits=[],options={}) {
     const p=paragraphs[i];editParagraph(p,'');const next=output.findIndex(item=>item.record>i+1);output.splice(next===-1?output.length:next,0,{record:i+1,node:p});
   }
   if(output.length>MAX_TEXT_BLOCKS)throw new Error('Редакция DOCX содержит более 2000 абзацев.');
-  for(const p of paragraphs)if(p.parentNode===body)body.removeChild(p);
-  const section=child(body,'sectPr');for(const {node} of output)body.insertBefore(node,section||null);
+  if(!checked.structure.hasTables){
+    for(const p of paragraphs)if(p.parentNode===body)body.removeChild(p);
+    const section=child(body,'sectPr');for(const {node} of output)body.insertBefore(node,section||null);
+  }
   checked.entries.set('word/document.xml',encoder.encode(checked.doc.toString()));
   return zip(checked.entries);
 }

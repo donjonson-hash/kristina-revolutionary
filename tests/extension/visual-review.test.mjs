@@ -139,3 +139,42 @@ test('Word list markers stay outside editable text through copy and session rest
   assert.match(resumed.root.querySelector('.visual-instruction').textContent, /текст пунктов/);
   assert.equal(resumed.root.querySelector('.visual-list-item').style.paddingLeft, '18pt');
 });
+
+test('Word tables show merged cells, edit the selected cell in both drafts, and restore grid and undo', async t => {
+  const {tableSource} = await import('./table-fixture.mjs');
+  const sources = {left: tableSource('100'), right: tableSource('200')};
+  const p = await setup(t, '', '', {sources});
+  assert.equal(p.root.querySelectorAll('.visual-table').length, 2);
+  const table = p.root.querySelector('.visual-table');
+  assert.equal(table.rows[0].cells[0].colSpan, 3);
+  assert.equal(table.rows[1].cells[0].rowSpan, 2);
+  assert.equal(table.rows[2].cells[0].querySelectorAll('.visual-paragraph').length, 2);
+  assert.equal(table.querySelectorAll('.has-difference').length, 2);
+  table.querySelector('.has-difference').click();
+  const key = p.report.changed[0].key, field = p.root.querySelector('[data-edit-side="left"]');
+  field.value = '150 <НДС & доставка>'; field.dispatchEvent(new p.dom.window.Event('input'));
+  p.root.querySelector('[data-copy-to="right"]').click();
+  assert.equal(p.review.drafts.right.get(key), field.value);
+  assert.equal(p.root.querySelectorAll('.visual-table').length, 2);
+  assert.equal(p.root.querySelectorAll('.visual-table script').length, 0);
+  const state = JSON.parse(JSON.stringify(p.review.snapshot())); p.review.dispose();
+  const restored = await setup(t, '', '', {sources, restoredState: state});
+  assert.equal(restored.root.querySelector('.visual-table').rows[1].cells[0].rowSpan, 2);
+  assert.equal(restored.review.drafts.right.get(key), '150 <НДС & доставка>');
+  restored.root.querySelector('[aria-label="Отменить правку B"]').click();
+  assert.equal(restored.review.drafts.right.get(key), '200');
+  assert.equal(restored.review.drafts.left.get(key), '150 <НДС & доставка>');
+  restored.root.querySelector('[data-action="copy-all-right"]').click();
+  assert.equal(restored.review.drafts.right.text(), restored.review.drafts.left.text());
+  assert.equal(restored.root.querySelectorAll('.visual-table .has-difference').length, 0);
+});
+
+test('incompatible table copy gives a readable message and keeps the current table draft intact', async t => {
+  const {tableSource, paragraph} = await import('./table-fixture.mjs');
+  const p = await setup(t, '', '', {sources: {left: tableSource('', {body: paragraph('Другой документ')}), right: tableSource()}});
+  const before = p.review.drafts.right.snapshot();
+  p.root.querySelector('[data-action="copy-all-right"]').click();
+  assert.deepEqual(p.review.drafts.right.snapshot(), before);
+  assert.equal(p.root.querySelectorAll('.visual-table').length, 1);
+  assert.match(p.root.textContent, /Добавление, удаление и перенос абзацев, строк и столбцов пока недоступны/);
+});

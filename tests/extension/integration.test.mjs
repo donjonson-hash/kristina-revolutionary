@@ -77,8 +77,8 @@ for (const target of ['firefox', 'chrome']) {
     const directory = path.join(output, target);
     const manifest = JSON.parse(readFileSync(path.join(directory, 'manifest.json'), 'utf8'));
     assert.equal(manifest.manifest_version, 3);
-    assert.equal(manifest.version, '0.14.0');
-    for (const name of ['session-store.mjs', 'session-ui.mjs', 'docx-numbering.mjs']) {
+    assert.equal(manifest.version, '0.15.0');
+    for (const name of ['session-store.mjs', 'session-ui.mjs', 'docx-numbering.mjs', 'docx-structure.mjs']) {
       assert.equal(
         readFileSync(path.join(directory, name), 'utf8'),
         readFileSync(path.join(root, 'extension', name), 'utf8'),

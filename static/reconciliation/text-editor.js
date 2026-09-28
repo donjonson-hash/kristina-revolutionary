@@ -26,10 +26,18 @@
     }
     for (const side of ['left', 'right']) sources[side].sort((a, b) => a.record - b.record);
     const canonical = clone(sources[otherSide]), original = clone(sources[side]);
+    const hasTables = report.sources?.[side]?.format === 'docx' && categories.some(category => (report[category] || []).some(item => {
+      const block = item[side] || (category === `only_${side}` ? item.row : null);
+      return (block?.source_blocks || [block]).some(part => part?.table);
+    }));
+    function validateTableEntries(entries) {
+      if (hasTables && (entries.length !== original.length || entries.some((entry, i) => entry.record !== original[i].record))) throw new Error('В документе с таблицами пока можно менять текст в существующих абзацах и ячейках. Добавление, удаление и перенос абзацев, строк и столбцов пока недоступны.');
+    }
     const ranks = new Map(canonical.map(entry => [entry.key, groups.get(entry.key)[otherSide][0].record]));
     let draft = clone(original), history = [], coalesce = null, revision = 0;
     const signature = entries => JSON.stringify(entries);
     function commit(next, typingKey = null) {
+      validateTableEntries(next);
       if (text(next).length > MAX_CHARS) throw new Error('Редакция слишком велика: максимум 500 000 символов.');
       if (!typingKey) coalesce = null;
       if (signature(next) === signature(draft)) return;
@@ -91,6 +99,7 @@
         return {key: entry.key, record: entry.record, text: entry.text};
       });
       if (text(result).length > MAX_CHARS) fail();
+      validateTableEntries(result);
       return result;
     }
     return {

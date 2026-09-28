@@ -408,3 +408,10 @@ main{padding:0 18px}
 .visual-pdf-page,.visual-paper{box-sizing:border-box;min-width:var(--sheet-min-width,0px)}.visual-toolbar select{padding:9px;border:1px solid #d5ded9;border-radius:8px;background:white;font-size:12px;color:#345243}
 
 .visual-review.is-editing .visual-scroll{padding-bottom:290px}
+
+/* Word tables keep their source grid and cell editing targets. */
+.visual-word .visual-table { border-collapse: collapse; table-layout: fixed; width: 100%; max-width: 100%; margin: 12px 0; color: inherit; font: inherit; }
+.visual-word .visual-table td { border: 1px dotted #c9cdd3; padding: 4pt 5pt; vertical-align: top; overflow-wrap: anywhere; }
+.visual-word .visual-table .visual-paragraph { margin: 0; min-height: 1.3em; }
+.visual-word .visual-table .visual-paragraph + .visual-paragraph { margin-top: 4pt; }
+.visual-word .visual-table img { max-width: 100%; height: auto; }

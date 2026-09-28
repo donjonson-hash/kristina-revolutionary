@@ -77,8 +77,8 @@ function levelDefinition(n,index) {
 }
 
 /** docs are already bounded, safely parsed package XMLs. */
-export function parseDocxNumbering(docs) {
-  const body=child(docs.get('word/document.xml')?.documentElement,'body'),paragraphs=elements(body).filter(n=>is(n,'p'));
+export function parseDocxNumbering(docs, sourceParagraphs) {
+  const body=child(docs.get('word/document.xml')?.documentElement,'body'),paragraphs=sourceParagraphs || elements(body).filter(n=>is(n,'p'));
   const info=styles(docs.get('word/styles.xml')),effectInfo=docs.has('word/stylesWithEffects.xml')?styles(docs.get('word/stylesWithEffects.xml')):null;
   if(effectInfo) effectInfo.map=new Map([...info.map,...effectInfo.map]);
   const abstract=new Map(),instances=new Map(),definitions={};const root=docs.get('word/numbering.xml')?.documentElement;

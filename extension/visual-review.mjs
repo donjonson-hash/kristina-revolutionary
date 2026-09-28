@@ -5,7 +5,7 @@ const other = side => side === 'left' ? 'right' : 'left';
 const el = (tag, text, className) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; };
 const button = (label, action, className = 'button secondary') => { const node = el('button', label, className); node.type = 'button'; node.addEventListener('click', action); return node; };
 const categories = ['matched', 'changed', 'only_left', 'only_right', 'moved', 'reflow'];
-const styleKeys = ['fontSize', 'fontFamily', 'fontWeight', 'fontStyle', 'textDecoration', 'color', 'backgroundColor', 'textAlign', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'paddingLeft', 'paddingRight', 'textIndent', 'lineHeight'];
+const styleKeys = ['fontSize', 'fontFamily', 'fontWeight', 'fontStyle', 'textDecoration', 'color', 'backgroundColor', 'textAlign', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'paddingLeft', 'paddingRight', 'textIndent', 'lineHeight', 'width', 'verticalAlign', 'paddingTop', 'paddingBottom', 'borderTop', 'borderRight', 'borderBottom', 'borderLeft'];
 const style = (node, values = {}) => { for (const key of styleKeys) if (values[key] !== undefined) node.style[key] = values[key]; };
 function download(data, filename, mime) {
   const url = URL.createObjectURL(new Blob([data], {type: mime})), anchor = el('a');
@@ -221,7 +221,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
           paper.style.paddingRight = `${model.page.marginRight / model.page.width * 100}%`;
         }
         const entries = model ? projectWord(model, docxSequence(side)).blocks : drafts[side].entries();
-        for (const entry of entries) {
+        function paragraph(entry) {
           const p = el(entry.heading ? `h${entry.heading}` : 'p', undefined, 'visual-paragraph');
           style(p, entry.style);
           let content = p;
@@ -252,8 +252,28 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
             p.addEventListener('click', () => select(entry.key, side));
             p.addEventListener('keydown', event => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); select(entry.key, side); } });
           }
-          paper.append(p);
+          return p;
         }
+        if (model?.hasTables) {
+          const byRecord = new Map(entries.map(entry => [entry.record, entry]));
+          for (const item of model.content) {
+            if (item.type === 'paragraph') { paper.append(paragraph(byRecord.get(item.record))); continue; }
+            const table = el('table', undefined, 'visual-table');
+            table.setAttribute('aria-label', `Таблица ${item.index}, вариант ${letter(side)}`); style(table, item.style);
+            const colgroup = el('colgroup'), total = item.widths.reduce((n, w) => n + w, 0);
+            for (const width of item.widths) { const col = el('col'); if (total) col.style.width = `${width / total * 100}%`; colgroup.append(col); }
+            table.append(colgroup); const tbody = el('tbody'); table.append(tbody);
+            for (const row of item.rows) {
+              const tr = el('tr'); tbody.append(tr);
+              for (const cell of row.cells) {
+                const td = el('td'); td.colSpan = cell.colSpan; td.rowSpan = cell.rowSpan; style(td, cell.style);
+                for (const p of cell.content) td.append(paragraph(byRecord.get(p.record)));
+                tr.append(td);
+              }
+            }
+            paper.append(table);
+          }
+        } else for (const entry of entries) paper.append(paragraph(entry));
         scroll.replaceChildren(paper);
       }
       const absent = groups.filter(group => drafts[side].get(group.key) === null && drafts[other(side)].get(group.key) !== null);
@@ -315,6 +335,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     } catch (error) { message(`Вариант ${letter(side)} показан как текст. ${error.message}`); }
   }));
   if (alive()) {
+    if (Object.values(models).some(model => model.hasTables)) saveNote.textContent += ' Нажмите на текст ячейки, чтобы исправить его. Строки, столбцы и объединения сохраняются; здесь меняется только текст.';
     if (Object.values(models).some(model => model.blocks.some(block => block.list))) saveNote.textContent += ' Нумерация показана для ориентира; сравнивается и редактируется текст пунктов.';
     if (restoredState !== undefined) {
       for (const side of sides) {
