@@ -1,5 +1,6 @@
 /** Local semantic DOCX presentation and lossless-package paragraph edits. */
 import {readTextSource, readDocxPackage, validateDocxDrawing, MAX_TEXT_CHARS, MAX_TEXT_BLOCKS, MAX_TEXT_SOURCE_BYTES} from './text-source.mjs';
+import {renderDocxNumbering} from './docx-numbering.mjs';
 const W = new Set(['http://schemas.openxmlformats.org/wordprocessingml/2006/main','http://purl.oclc.org/ooxml/wordprocessingml/main']);
 const elements = node => Array.from(node?.childNodes || []).filter(child => child.nodeType === 1);
 const is = (node, name) => W.has(node.namespaceURI) && node.localName === name;
@@ -55,6 +56,7 @@ async function load(source) {
 function base64(bytes) { let result=''; for(let i=0;i<bytes.length;i+=32768) result+=String.fromCharCode(...bytes.subarray(i,i+32768)); return btoa(result); }
 export async function readDocxVisual(source) {
   const checked=await load(source), formatting=stylesFor(checked), body=child(checked.doc.documentElement,'body');
+  const lists=renderDocxNumbering(checked.listData);
   const imageSources=new Map();
   const blocks=elements(body).filter(n=>is(n,'p')).map((p,i)=>{
     const runs=[];
@@ -66,12 +68,12 @@ export async function readDocxVisual(source) {
       for(const c of elements(node)) visit(c,style);
     }
     visit(p);
-    return {record:i+1,text:checked.texts[i],...formatting.paragraph(p),runs};
+    return {record:i+1,text:checked.texts[i],...formatting.paragraph(p),runs,list:lists[i]};
   });
   const section=child(body,'sectPr'),size=child(section,'pgSz'),margin=child(section,'pgMar');
   const px=(node,name,fallback,min,max)=>finite(attr(node,name),min,max)?Number(attr(node,name))/15:fallback;
   const page={width:px(size,'w',794,1440,31680),height:px(size,'h',1123,1440,31680),marginTop:px(margin,'top',72,0,4320),marginRight:px(margin,'right',72,0,4320),marginBottom:px(margin,'bottom',72,0,4320),marginLeft:px(margin,'left',72,0,4320)};
-  return {format:'docx',blocks,page,notes:['Заголовки, стили текста и встроенные фотографии сохранены. Разбиение на страницы в браузере может отличаться от Word.']};
+  return {format:'docx',blocks,page,listData:checked.listData,notes:['Заголовки, списки, стили текста и встроенные фотографии сохранены. Разбиение на страницы в браузере может отличаться от Word.']};
 }
 
 function validateText(text) {
@@ -130,13 +132,17 @@ export function projectDocxVisual(model,sequence) {
     const text=validateText(item.text);chars+=[...text].length;
     if(chars>MAX_TEXT_CHARS||blocks.length>=MAX_TEXT_BLOCKS)throw new Error('Редакция DOCX превышает ограничение по объёму текста.');
     const original=originals.get(item.record),template=original||blocks.at(-1)||model.blocks[0];
-    blocks.push({record:item.record,sourceRecord:item.record,key:item.key,text,heading:template?.heading||null,style:{...template?.style},runs:original?revisedRuns(original.runs,text):[{text,style:{}}]});
+    blocks.push({record:item.record,sourceRecord:item.record,key:item.key,text,heading:template?.heading||null,style:{...template?.style},runs:original?revisedRuns(original.runs,text):[{text,style:{}}],list:template?.list||null});
   }
   for(const original of model.blocks)if(!seen.has(original.record)&&original.runs.some(run=>run.image)){
     const next=blocks.findIndex(block=>block.sourceRecord>original.record);
     blocks.splice(next===-1?blocks.length:next,0,{...original,key:undefined,sourceRecord:original.record,text:'',runs:revisedRuns(original.runs,''),retainedMedia:true});
   }
   if(blocks.length>MAX_TEXT_BLOCKS)throw new Error('Редакция DOCX содержит более 2000 абзацев.');
+  // Word counts the final paragraph sequence, including a numbered paragraph
+  // whose text was removed while its photograph was retained.
+  const lists=renderDocxNumbering(model.listData,blocks.map(block=>block.list));
+  for(let i=0;i<blocks.length;i++)blocks[i].list=lists[i];
   return {...model,blocks};
 }
 

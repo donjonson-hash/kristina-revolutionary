@@ -4,6 +4,7 @@ import {createRequire} from 'node:module';
 import {compareText} from '../../extension/text-engine.mjs';
 import editor from '../../static/reconciliation/text-editor.js';
 import {mountVisualReview} from '../../extension/visual-review.mjs';
+import {docx, W} from './text-fixture.mjs';
 const require = createRequire(new URL('../browser/package.json', import.meta.url));
 const {JSDOM} = require('jsdom');
 const source = text => ({name: 'document.txt', data: Buffer.from(text).toString('base64')});
@@ -11,7 +12,7 @@ async function setup(t, a, b, options = {}) {
   const dom = new JSDOM('<main></main>'), root = dom.window.document.querySelector('main');
   globalThis.document = dom.window.document; globalThis.window = dom.window;
   window.KristinaTextEditor = editor; window.Element.prototype.scrollIntoView = () => {};
-  const sources = {left: source(a), right: source(b)}, report = await compareText(sources), before = JSON.stringify(report);
+  const sources = options.sources || {left: source(a), right: source(b)}, report = await compareText(sources), before = JSON.stringify(report);
   const abort = new AbortController(), revisions = [], changes = [];
   const review = await mountVisualReview(root, {report, sources, signal: abort.signal, onRevision: value => revisions.push(value), onStateChange: () => changes.push(true), ...options});
   t.after(() => { abort.abort(); review.dispose(); dom.window.close(); delete globalThis.document; delete globalThis.window; });
@@ -115,4 +116,26 @@ test('aborted review never saves detached input, selection, zoom, scroll, reset 
   await new Promise(resolve => setTimeout(resolve, 380));
   assert.equal(p.changes.length, count);
   assert.equal(p.review.drafts.right.text(), 'Цена 300');
+});
+
+test('Word list markers stay outside editable text through copy and session restoration', async t => {
+  const make = text => ({name: 'terms.docx', data: Buffer.from(docx([], {
+    xml: `<w:document xmlns:w="${W}"><w:body><w:p><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p><w:p><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>Подпись</w:t></w:r></w:p></w:body></w:document>`,
+    extraEntries: {'word/numbering.xml': `<w:numbering xmlns:w="${W}"><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:start w:val="7"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>`},
+  })).toString('base64')});
+  const sources = {left: make('Оплата 10 дней'), right: make('Оплата 30 дней')};
+  const p = await setup(t, '', '', {sources});
+  assert.deepEqual([...p.root.querySelectorAll('.visual-list-marker')].map(n => n.textContent), ['7.', '8.', '7.', '8.']);
+  p.root.querySelector('.visual-list-marker').click();
+  const field = p.root.querySelector('[data-edit-side="left"]');
+  assert.equal(field.value, 'Оплата 10 дней');
+  field.value = 'Оплата 20 дней'; field.dispatchEvent(new p.dom.window.Event('input'));
+  p.root.querySelector('[data-copy-to="right"]').click();
+  assert.equal(p.review.drafts.right.get(p.report.changed[0].key), 'Оплата 20 дней');
+  const restoredState = JSON.parse(JSON.stringify(p.review.snapshot())); p.review.dispose();
+  const resumed = await setup(t, '', '', {sources, restoredState});
+  assert.deepEqual([...resumed.root.querySelectorAll('.visual-list-marker')].map(n => n.textContent), ['7.', '8.', '7.', '8.']);
+  assert.equal(resumed.root.querySelector('[data-edit-side="right"]').value, 'Оплата 20 дней');
+  assert.match(resumed.root.querySelector('.visual-instruction').textContent, /текст пунктов/);
+  assert.equal(resumed.root.querySelector('.visual-list-item').style.paddingLeft, '18pt');
 });
