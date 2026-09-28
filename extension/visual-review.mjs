@@ -111,10 +111,11 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     const above = button('Строка выше', () => editRow(side, 'before'));
     const below = button('Строка ниже', () => editRow(side, 'after'));
     const remove = button('Удалить строку', () => editRow(side, 'delete'));
+    const transfer = button('', () => copyRowTo(other(side))); transfer.dataset.copyRowFrom = side; transfer.hidden = true;
     above.dataset.insertRow = 'before'; below.dataset.insertRow = 'after'; remove.dataset.deleteRow = '';
     for (const control of [above, below, remove]) control.dataset.rowSide = side;
-    rowTools.append(above, below, remove, rowHint); fieldLabel.append(rowTools);
-    Object.assign(ui[side], {copy, rowTools, rowHint, above, below, remove});
+    rowTools.append(transfer, above, below, remove, rowHint); fieldLabel.append(rowTools);
+    Object.assign(ui[side], {copy, rowTools, rowHint, above, below, remove, transfer});
     fields.append(fieldLabel); input[side] = field;
     field.addEventListener('input', () => {
       if (!alive() || !selected) return;
@@ -154,6 +155,16 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   function updateRowTools() {
     for (const side of sides) {
       const position = rowPosition(side), controls = ui[side]; controls.rowTools.hidden = !position;
+      controls.transfer.hidden = !position?.row.id || !drafts[other(side)].copyRowFrom;
+      if (!controls.transfer.hidden) {
+        const target = other(side), exists = value(target, selected) !== null;
+        const same = exists && position.row.cells.every(cell => cell.content.every(p => {
+          const entry = drafts[side].entries().find(entry => entry.record === p.record);
+          return entry && value(target, entry.key) === entry.text;
+        }));
+        controls.transfer.textContent = same ? `Строка уже в ${letter(target)} ✓` : `${exists ? 'Обновить' : 'Перенести'} строку в ${letter(target)} ${target === 'right' ? '→' : '←'}`;
+        controls.transfer.disabled = same;
+      }
       if (position) {
         const locked = position.row.mutable === false;
         controls.above.disabled = controls.below.disabled = locked;
@@ -164,8 +175,19 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
       const unavailable = absent && (models[side]?.hasTables || byKey.get(selected)?.dynamic);
       input[side].disabled = unavailable;
       controls.copy.disabled = unavailable || !!selected && value(other(side), selected) === null && models[side]?.hasTables;
-      input[side].placeholder = unavailable ? 'Этой строки здесь нет. Перенесите документ целиком или отмените удаление.' : '';
+      input[side].placeholder = unavailable ? byKey.get(selected)?.dynamic && drafts[side].copyRowFrom ? `Этой строки здесь нет. Нажмите «Перенести строку в ${letter(side)}» в соседнем варианте.` : 'Этой строки здесь нет. Перенесите документ целиком или отмените удаление.' : '';
     }
+  }
+  function copyRowTo(side) {
+    if (!alive() || !selected || !drafts[side].copyRowFrom) return;
+    try {
+      const before = drafts[side].revision;
+      drafts[side].copyRowFrom(drafts[other(side)], selected);
+      refresh();
+      if (drafts[side].revision !== before) stateChanged();
+      message(`Строка перенесена в ${letter(side)}. Чтобы отменить, нажмите ↶ у варианта ${letter(side)}.`);
+      void select(selected, side);
+    } catch (error) { message(error.message); }
   }
   function editRow(side, action) {
     if (!alive()) return;
