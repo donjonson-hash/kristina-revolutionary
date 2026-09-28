@@ -27,7 +27,7 @@
     for (const side of ['left', 'right']) sources[side].sort((a, b) => a.record - b.record);
     const canonical = clone(sources[otherSide]), original = clone(sources[side]);
     const ranks = new Map(canonical.map(entry => [entry.key, groups.get(entry.key)[otherSide][0].record]));
-    let draft = clone(original), history = [], coalesce = null;
+    let draft = clone(original), history = [], coalesce = null, revision = 0;
     const signature = entries => JSON.stringify(entries);
     function commit(next, typingKey = null) {
       if (text(next).length > MAX_CHARS) throw new Error('Редакция слишком велика: максимум 500 000 символов.');
@@ -35,7 +35,7 @@
       if (signature(next) === signature(draft)) return;
       if (!typingKey || coalesce !== typingKey) history.push(clone(draft));
       while (history.length > 20 || history.reduce((size, entries) => size + text(entries).length, 0) > HISTORY_CHARS) history.shift();
-      draft = next; coalesce = typingKey;
+      draft = next; coalesce = typingKey; revision++;
     }
     function groupFor(key) {
       const group = groups.get(key);
@@ -75,7 +75,33 @@
         return valueEntry(entry.key, entry.text, index);
       });
     }
+    function validatedEntries(entries) {
+      const fail = () => { throw new Error('Сохранённая редакция повреждена.'); };
+      if (!Array.isArray(entries) || entries.length > sources.left.length + sources.right.length) fail();
+      const positions = new Map(), completed = new Set(); let previous;
+      const result = entries.map(entry => {
+        if (!entry || typeof entry !== 'object' || !groups.has(entry.key) || typeof entry.text !== 'string' || /\r/.test(entry.text)) fail();
+        const group = groups.get(entry.key), index = positions.get(entry.key) || 0;
+        // A group can move, but its own source blocks cannot be shuffled or borrowed
+        // from the other document. New blocks deliberately have no source record.
+        if (previous !== entry.key) { if (completed.has(entry.key)) fail(); if (previous !== undefined) completed.add(previous); }
+        previous = entry.key;
+        if (index >= Math.max(group.left.length, group.right.length) || entry.record !== group[side][index]?.record) fail();
+        positions.set(entry.key, index + 1);
+        return {key: entry.key, record: entry.record, text: entry.text};
+      });
+      if (text(result).length > MAX_CHARS) fail();
+      return result;
+    }
     return {
+      snapshot: () => ({version: 1, side, entries: clone(draft), history: history.map(clone)}),
+      restore(snapshot) {
+        if (!snapshot || snapshot.version !== 1 || snapshot.side !== side || !Array.isArray(snapshot.history) || snapshot.history.length > 20) throw new Error('Сохранённая редакция повреждена.');
+        const next = validatedEntries(snapshot.entries), undo = snapshot.history.map(validatedEntries);
+        if (undo.reduce((size, entries) => size + text(entries).length, 0) > HISTORY_CHARS) throw new Error('Сохранённая редакция повреждена.');
+        draft = next; history = undo; coalesce = null; revision++;
+      },
+      get revision() { return revision; },
       entries: () => clone(draft),
       text: () => text(draft),
       // TXT's final LF closes the last block; it preserves a final empty block on re-import.
@@ -93,7 +119,7 @@
       endEdit() { coalesce = null; },
       applyAll() { commit(targetEntries(canonical)); },
       reset() { commit(clone(original)); },
-      undo() { if (history.length) draft = history.pop(); coalesce = null; },
+      undo() { if (history.length) { draft = history.pop(); revision++; } coalesce = null; },
       get canUndo() { return history.length > 0; },
       get changed() { return signature(draft) !== signature(original); },
       get matchesCanonical() { return text(draft) === text(canonical); },
