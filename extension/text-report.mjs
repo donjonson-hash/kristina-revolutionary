@@ -1,5 +1,5 @@
 /** Offline export of extracted text differences, without semantic interpretation. */
-import {MAX_REPORT_BYTES, renderJson} from './report.mjs';
+import {MAX_REPORT_BYTES} from './report.mjs';
 const encoder = new TextEncoder();
 const entities = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'};
 const escape = value => String(value).replace(/[&<>"']/g, character => entities[character]);
@@ -15,18 +15,14 @@ export function renderTextHtml(report) {
     if (bytes > MAX_REPORT_BYTES - size) throw new RangeError('HTML report exceeds 16 MiB; split the input documents');
     size += bytes; parts.push(text);
   }
-  append(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Сверка текста — Кристина</title><style>${style}</style></head><body><main><h1>Различия в тексте документов</h1><p>Кристина сравнила извлечённый текст локально, без LLM. Подсветка показывает текстовые изменения. Это не оценка юридического смысла, достоверности фактов или орфографии.</p><p>Показано содержимое текстовых блоков, а не исходная вёрстка. Различия переводов строк нормализованы; пробелы и регистр учитываются. Места в исходных документах указаны в каждой панели.</p>`);
-  if (Object.values(report.sources).some(source => source.format === 'pdf')) append('<p>PDF: проверен извлечённый текстовый слой. Пробелы и порядок строк восстановлены при извлечении; оформление и нетекстовые элементы не сравнивались. Изображения не сравнивались; текст внутри них не распознавался.</p>');
+  append(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Сверка текста — Кристина</title><style>${style}</style></head><body><main><h1>Сравнение документов</h1><p>Изменения выделены цветом: слева — A, справа — B.</p><p class="note">Сравнивается текст; оформление и изображения не проверяются.</p>`);
+  append(`<p>A · ${escape(report.sources.left.name)}<br>B · ${escape(report.sources.right.name)}</p>`);
   append('<div class="totals">');
   for (const [category, label] of Object.entries(labels)) {
     if ((category === 'moved' || category === 'reflow') && !report[category]?.length) continue;
     append(`<div><strong>${escape(report.summary[category] ?? 0)}</strong><span>${label}</span></div>`);
   }
   append('</div>');
-  if (report.moved?.length || report.reflow?.length) append('<p>Перемещения и переносы строк показаны отдельно от изменений текста. Порядок пар служит для сопоставления; исходное расположение указано рядом с каждым фрагментом. При изменении переносов сохранены все исходные строки обеих сторон.</p>');
-  for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
-    for (const note of report.sources[side].notes || []) append(`<p class="note">${label} · ${escape(note)}</p>`);
-  }
   const rows = Object.keys(labels).flatMap(category => (report[category] || []).map(item => ({item, category})));
   rows.sort((a, b) => Number(a.item.key.slice(5)) - Number(b.item.key.slice(5)));
   if (!rows.length) append('<p>В извлечённом тексте обоих файлов нет блоков для сравнения.</p>');
@@ -34,7 +30,7 @@ export function renderTextHtml(report) {
     const label = side === 'left' ? 'A' : 'B';
     append(`<section class="paper ${side}${block ? '' : ' absent'}"><header>${label} · ${escape(report.sources[side].name)}</header>`);
     if (!block) { append('<p class="note">Текстового блока с этой стороны нет.</p></section>'); return; }
-    append(`<p class="location">${escape(block.location)} · ${block.source_blocks ? 'блоки ' + block.source_blocks.map(part => escape(part.record)).join(', ') : 'блок ' + escape(block.record)}</p><p class="text">`);
+    append(`<p class="location">${escape(block.location)}</p><p class="text">`);
     if (category === 'changed') {
       const segments = item.segments?.[side];
       if (!Array.isArray(segments) || segments.some(segment => typeof segment.text !== 'string' || typeof segment.changed !== 'boolean') || segments.map(segment => segment.text).join('') !== block.text) throw new TypeError('Text highlight segments do not preserve the source block');
@@ -46,16 +42,11 @@ export function renderTextHtml(report) {
     append('</section>');
   }
   for (const {item, category} of rows) {
-    append(`<article class="pair ${category}"><h3>${escape(item.key)} · ${labels[category]}</h3><div class="papers">`);
+    append(`<article class="pair ${category}" data-key="${escape(item.key)}"><h3>${labels[category]}</h3><div class="papers">`);
     const only = category === 'only_left' || category === 'only_right';
     for (const side of ['left', 'right']) panel(only ? (category === `only_${side}` ? item.row : null) : item[side], side, item, category);
     append('</div></article>');
   }
-  append('<details class="metadata"><summary>Источники и правила</summary>');
-  for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
-    const source = report.sources[side];
-    append(`<div class="source"><strong>${label} · ${escape(source.name)}</strong><p>Формат: ${escape(source.format)}. Текстовых блоков: ${escape(source.block_count)}.${source.page_count ? ' Страниц PDF: ' + escape(source.page_count) + '.' : ''}</p><p class="hash">SHA-256 исходных байтов: ${escape(source.sha256)}</p></div>`);
-  }
-  append('<h2>Правила сравнения</h2><pre>' + escape(renderJson(report.rules)) + '</pre><p>«Только в A/B» означает отсутствие сопоставленного блока в извлечённом тексте другой стороны. Причины изменения и его смысл не устанавливаются.</p></details></main></body></html>');
+  append('</main></body></html>');
   return parts.join('');
 }

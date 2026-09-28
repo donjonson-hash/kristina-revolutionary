@@ -58,7 +58,7 @@ test('native PDF embeds Cyrillic and preserves partial money, evidence, and all 
   assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), '%PDF-');
   assert.ok(pdf.getPageCount() > 1);
   for (const page of pdf.getPages()) { assert.equal(page.getWidth(), 595.28); assert.equal(page.getHeight(), 841.89); }
-  for (const expected of ['Кристина', 'Частичный расчёт: 4 из 5', 'RUB: A 2030 → B 2018; B − A: -12', 'LP-300 — исключено:', 'Единицы A и B различаются', 'OLD-400', 'NEW-500', report.sources.left.sha256, report.sources.right.sha256, 'Совпавшие пары опущены']) assert.ok(text.includes(expected), expected);
+  for (const expected of ['Кристина', 'Частичный расчёт: 4 из 5', 'RUB: A 2030 → B 2018; B − A: -12', 'LP-300 — исключено:', 'Единицы A и B различаются', 'OLD-400', 'NEW-500', report.sources.left.name, report.sources.right.name, 'Показаны только различия']) assert.ok(text.includes(expected), expected);
   assert.ok(streams.some(stream => stream.includes('beginbfchar')));
   assert.ok([...pdf.context.enumerateIndirectObjects()].some(([, object]) => object.toString().includes('/FontFile2')));
   assert.equal(text.includes('�'), false);
@@ -90,10 +90,7 @@ test('text word segments retain source characters and highlights; invalid segmen
   assert.equal(text.includes('UNCHANGED-BLOCK'), false);
   assert.ok(text.includes('Удалённый абзац.')); assert.ok(text.includes('Добавленный абзац.'));
   assert.ok(text.includes('A: сопоставленного блока нет.')); assert.ok(text.includes('B: сопоставленного блока нет.'));
-  assert.equal(text.split('Общее примечание.').length - 1, 1);
-  assert.ok(text.includes('Пояснения для обоих файлов\nОбщее примечание.'));
-  assert.ok(text.includes('Особенности файла A\nТолько источник A.'));
-  assert.ok(text.includes('Особенности файла B\nТолько источник B.'));
+  assert.doesNotMatch(text, /Общее примечание|Только источник|SHA-256|Правила и границы/);
   assert.ok(streams.some(stream => stream.includes('1 0.9 0.86 rg')));
   assert.ok(streams.some(stream => stream.includes('0.87 0.95 0.89 rg')));
   report.changed[0].segments.left[1].text = '16';
@@ -116,71 +113,48 @@ test('PDF exports moves and reflow with every source line and no false insertion
   report.reflow = [{key: 'text-3', left: block(3, 'Доставка включена в стоимость.'), right: {record: 3, text: originals.map(row => row.text).join('\n'), location: 'Страница 1 · строки 3–4', source_blocks: originals}}];
   report.summary.moved = 1; report.summary.reflow = 1;
   const {text, streams} = await inspect(await renderPdf(report));
-  for (const expected of ['Перемещено без изменения текста', 'Изменены переносы строк', 'Стоимость: 125000', 'Доставка включена\nв стоимость.', 'блоки 3, 4', 'строка 8']) assert.ok(text.includes(expected), expected);
+  for (const expected of ['Перемещено без изменения текста', 'Изменены переносы строк', 'Стоимость: 125000', 'Доставка включена\nв стоимость.', 'строки 3–4', 'строка 8']) assert.ok(text.includes(expected), expected);
   assert.equal(text.split('Стоимость: 125000').length - 1, 1, 'Identical moved text is printed once with both source coordinates');
   assert.equal(text.includes('сопоставленного блока нет'), false);
   assert.equal(text.includes('Различий по выполненным правилам не обнаружено'), false);
   assert.equal(streams.some(stream => stream.includes('1 0.9 0.86 rg') || stream.includes('0.87 0.95 0.89 rg')), false);
 });
 
-test('a short explanatory note stays complete on one actual PDF page at a page boundary', async () => {
+test('each difference heading stays with its source location and a short source value', async () => {
+  const report = textFixture('Padding line.\n'.repeat(29), 'After.');
+  report.only_left = [{key: 'text-3', row: {record: 3, location: 'SOURCE-LOCATION', text: 'VALUE-BEGIN\nSecond line.\nVALUE-END'}}];
+  report.summary.only_left = 1;
+  const {pageTexts} = await inspect(await renderPdf(report));
+  assert.ok(pageTexts.length > 1);
+  const valuePage = pageTexts.find(text => text.includes('VALUE-BEGIN'));
+  assert.ok(valuePage.includes('VALUE-END'), 'Short source value stays complete');
+  assert.ok(valuePage.includes('A: SOURCE-LOCATION'), 'Source coordinates stay with the value');
+  assert.ok(valuePage.includes('Только в A'), 'Difference heading stays with the value');
+  assertPagesHaveBody(pageTexts);
+});
+
+test('normal PDF keeps filenames and differences but omits technical audit data', async () => {
   const report = textFixture();
-  const note = 'NOTE-BEGIN\nSecond note line.\nThird note line.\nFourth note line.\nNOTE-END';
-  report.sources.left.notes = ['Padding line.\n'.repeat(7), note];
-  report.sources.right.notes = report.sources.left.notes;
-  const {pageTexts} = await inspect(await renderPdf(report));
-  assert.ok(pageTexts.length > 1, 'Fixture reaches a page boundary');
-  assert.equal(pageTexts.filter(text => text.includes(note)).length, 1, 'The complete note occurs on exactly one page');
-  assertPagesHaveBody(pageTexts);
+  report.sources.left.notes = ['INTERNAL-EXTRACTION-NOTE'];
+  const {text} = await inspect(await renderPdf(report));
+  for (const source of Object.values(report.sources)) {
+    assert.ok(text.includes(source.name));
+    assert.ok(!text.includes(source.sha256));
+  }
+  assert.doesNotMatch(text, /INTERNAL-EXTRACTION-NOTE|SHA-256|Правила и границы|line_endings|text-2/);
+  assert.ok(text.includes('Срок 15 дней.')); assert.ok(text.includes('Срок 20 дней.'));
 });
 
-test('an explanatory heading stays with its complete short paragraph at a page boundary', async () => {
-  const report = textFixture('Padding line.\n'.repeat(24), 'After.');
-  const {pageTexts} = await inspect(await renderPdf(report));
-  const headingPage = pageTexts.findIndex(text => text.includes('Правила и границы проверки'));
-  assert.ok(headingPage > 0, 'The heading and paragraph move to a later page');
-  const paragraph = 'Режим: сравнение извлечённого текста. Переводы строк приведены к единому виду; пробелы и регистр учитываются. Это не оценка юридического смысла, достоверности или орфографии. Отсутствие блока означает отсутствие сопоставленного текста, а не установленную причину изменения.';
-  assert.ok(pageTexts[headingPage].replace(/\s+/g, ' ').includes(paragraph));
-  assertPagesHaveBody(pageTexts);
-});
-
-// Padding puts each source group across a real page boundary before keepNext.
-// Source names also appear in the summary, so inspect only the evidence section.
-for (const [boundarySource, padding] of [['A', 14], ['B', 8]]) {
-  test(`source ${boundarySource} keeps its wrapped name, SHA-256, and format on one PDF page`, async () => {
-    const report = textFixture('Padding line.\n'.repeat(padding), 'After.');
-    for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
-      report.sources[side].name = `SOURCE-${label}-BEGIN ` + 'Long source name '.repeat(10) + ` SOURCE-${label}-END.pdf`;
-    }
-    const {pageTexts} = await inspect(await renderPdf(report));
-    assert.ok(pageTexts.length > 1, 'Fixture reaches a page boundary');
-    const sourcesPage = pageTexts.findIndex(text => text.includes('Источники'));
-    const evidencePages = pageTexts.slice(sourcesPage);
-    evidencePages[0] = evidencePages[0].slice(evidencePages[0].indexOf('Источники'));
-    for (const [side, label] of [['left', 'A'], ['right', 'B']]) {
-      const source = report.sources[side];
-      const sourcePage = evidencePages.find(text => text.includes(`SOURCE-${label}-BEGIN`));
-      assert.ok(sourcePage, `Source ${label} is present`);
-      assert.ok(sourcePage.replace(/\s+/g, ' ').includes(source.name.replace(/\s+/g, ' ')), `Source ${label}: complete wrapped filename stays together`);
-      assert.ok(sourcePage.includes(`SHA-256: ${source.sha256}`), `Source ${label}: SHA-256 stays with filename`);
-      assert.ok(sourcePage.includes(`Формат: ${source.format}; текстовых блоков: ${source.block_count}.`), `Source ${label}: format and block count stay with filename`);
-    }
-    assert.ok(evidencePages[0].includes('SOURCE-A-BEGIN'), 'Sources heading stays with the first source');
-    assertPagesHaveBody(pageTexts);
-  });
-}
-
-test('a source name taller than a page still paginates without losing filename or evidence', async () => {
+test('a source name taller than a page still paginates without losing filename', async () => {
   const report = textFixture();
   const nameLines = Array.from({length: 65}, (_, index) => `LONG-SOURCE-${String(index).padStart(3, '0')}`);
   report.sources.left.name = nameLines.join('\n');
   const {pageTexts, text} = await inspect(await renderPdf(report));
-  assert.ok(pageTexts.length >= 3, 'The oversized filename spans pages');
-  for (const line of nameLines) assert.equal(text.split(line).length - 1, 2, `${line} appears in both summary and source evidence`);
+  assert.ok(pageTexts.length >= 2, 'The oversized filename spans pages');
+  for (const line of nameLines) assert.equal(text.split(line).length - 1, 1, `${line} is preserved exactly once`);
   for (const side of ['left', 'right']) {
     const source = report.sources[side];
-    assert.equal(text.split(source.sha256).length - 1, 1);
-    assert.ok(text.includes(`Формат: ${source.format}; текстовых блоков: ${source.block_count}.`));
+    assert.ok(!text.includes(source.sha256));
   }
   assertPagesHaveBody(pageTexts);
 });
@@ -190,9 +164,9 @@ test('long single blocks and unbroken tokens paginate without dropping text', as
   const report = textFixture('Абзац\n'.repeat(100) + 'X'.repeat(4000) + marker, 'Новое');
   const {pdf, text, pageTexts} = await inspect(await renderPdf(report));
   assert.ok(pdf.getPageCount() >= 4);
-  assert.ok(text.includes('Продолжение: text-2'));
+  assert.ok(text.includes('Продолжение: Есть различия'));
   assert.ok(text.replaceAll('\n', '').includes(marker));
-  assert.equal((text.match(/X/g) || []).length, 4004); // Four X characters in [U+XXXX] explanation.
+  assert.equal((text.match(/X/g) || []).length, 4000);
   assertPagesHaveBody(pageTexts);
 });
 
@@ -216,7 +190,6 @@ test('PDF export visibly discloses images excluded from a PDF text comparison', 
   report.sources.left.format = 'pdf';
   const {pageTexts} = await inspect(await renderPdf(report));
   const firstPage = pageTexts[0].replace(/\s+/g, ' ');
-  assert.match(firstPage, /Изображения не сравнивались/);
-  assert.match(firstPage, /текст внутри них не распознавался/);
-  assert.ok(firstPage.indexOf('Изображения не сравнивались') < firstPage.indexOf('Обнаруженные различия'));
+  assert.match(firstPage, /оформление и изображения не проверяются/);
+  assert.ok(firstPage.indexOf('оформление и изображения не проверяются') < firstPage.indexOf('Обнаруженные различия'));
 });

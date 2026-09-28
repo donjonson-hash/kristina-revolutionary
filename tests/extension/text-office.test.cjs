@@ -17,7 +17,8 @@ function fixture() {
 test('text summary and quick questions stay about extracted text', () => {
   const report = fixture(), summary = office.describe(report);
   assert.match(summary.text, /Изменённых блоков: 1/);
-  assert.match(summary.text, /Примечания не извлекались/);
+  assert.doesNotMatch(summary.text, /Примечания не извлекались|SHA-256|LLM|эвристик/);
+  assert.match(summary.text, /оформление и изображения не проверяются/);
   assert.doesNotMatch(summary.text, /ключ|проверенные поля|Цена/);
   assert.match(office.answer(report, 'Что изменилось?').text, /Сравнила текст/);
   assert.deepEqual(office.answer(report, 'Что добавлено?').actions.map(a => a.key), ['text-2']);
@@ -44,18 +45,16 @@ test('legal, factual and proofreading questions receive no invented judgments', 
   }
 });
 
-test('full editable draft includes every exact difference and notes, and never sends it', () => {
+test('full editable draft includes every exact difference without technical notes, and never sends it', () => {
   const report = fixture();
   const sharedNote = 'Проверялся только извлечённый текст.';
   report.sources.left.notes.push(sharedNote);
   report.sources.right.notes.push(sharedNote, 'Кодировка UTF-8.');
   const result = office.draftLetter(report);
   for (const value of [report.changed[0].left.text, report.changed[0].right.text, report.only_left[0].row.text, report.only_right[0].row.text]) assert.ok(result.draft.includes(JSON.stringify(value)));
-  assert.ok(result.draft.includes('A: "Примечания не извлекались."'));
-  assert.ok(result.draft.includes('B: "Кодировка UTF-8."'));
-  assert.ok(result.draft.includes(`Оба файла (A и B): ${JSON.stringify(sharedNote)}`));
-  assert.equal(result.draft.split(sharedNote).length - 1, 1);
-  assert.ok(result.draft.indexOf('text-2') < result.draft.indexOf('text-3'));
+  assert.doesNotMatch(result.draft, /Примечания не извлекались|Кодировка UTF-8|Сведения о проверке|text-\d/);
+  assert.ok(!result.draft.includes(sharedNote));
+  assert.ok(result.draft.indexOf('Новое условие.') < result.draft.indexOf('Доставка через 15 дней.'));
   assert.match(result.text, /Письмо не отправлено/);
   assert.equal(office.answer(report, 'Подготовь письмо').draft, result.draft);
   assert.equal(office.answer(report, 'Не готовь письмо').draft, undefined);
@@ -86,8 +85,8 @@ test('structural-only summary and draft never claim unchanged documents or new/r
   assert.match(summary.text, /Изменённых блоков: 0; только в A: 0; только в B: 0/);
   assert.match(summary.text, /Перемещено без изменения текста: 1/);
   assert.match(summary.text, /Изменены переносы строк: 1/);
-  assert.match(summary.text, /эвристикой объединения строк/);
-  assert.doesNotMatch(summary.text + draft, /Извлечённый текст совпал по правилам|Текстовых различий по указанным правилам не обнаружено/);
+  assert.match(summary.text, /показаны отдельно от изменений текста/);
+  assert.doesNotMatch(summary.text + draft, /Текст совпадает|Текстовых различий не обнаружено/);
   assert.deepEqual(summary.actions.map(action => action.category), ['moved', 'reflow']);
   assert.deepEqual(office.answer(report, 'Что добавлено?').actions, []);
   assert.deepEqual(office.answer(report, 'Что удалено?').actions, []);
@@ -97,7 +96,7 @@ test('structural-only summary and draft never claim unchanged documents or new/r
     assert.ok(draft.includes(JSON.stringify(source.text)));
     assert.ok(draft.includes(JSON.stringify(source.location)));
   }
-  assert.match(draft, /без оценки смысловой эквивалентности/);
+  assert.doesNotMatch(draft, /эвристик|смысловой эквивалентности/);
 });
 
 test('aggregated reflow locates every original block and PDF page with correct side', () => {
@@ -106,7 +105,7 @@ test('aggregated reflow locates every original block and PDF page with correct s
     const result = office.answer(report, query);
     assert.deepEqual(result.actions.map(action => action.key), ['text-2']);
     assert.match(result.text, /Страница 2 · строка 1/);
-    assert.match(result.text, /блок 3/);
+    assert.match(result.text, /15 дней/);
   }
   assert.deepEqual(office.answer(report, 'Покажи блок 3 в B').actions, []);
   assert.deepEqual(office.answer(report, 'Покажи страницу 2 в B').actions, []);

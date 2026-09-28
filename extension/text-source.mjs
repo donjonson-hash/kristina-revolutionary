@@ -38,10 +38,10 @@ function checkPackage(entries) {
   for (const required of ['[Content_Types].xml', '_rels/.rels', 'word/document.xml']) if (!entries.has(required)) fail('DOCX: отсутствуют обязательные части пакета.');
   const docs = new Map();
   for (const [name, bytes] of entries) {
-    if (/vba|embeddings|activeX|altChunk|glossary|media\//i.test(name)) fail('DOCX содержит вложенные, графические или дополнительные данные. Поддерживаются только обычные текстовые абзацы.');
+    if (/vba|embeddings|activeX|altChunk|glossary/i.test(name)) fail('DOCX содержит вложенные, графические или дополнительные данные. Поддерживаются только обычные текстовые абзацы.');
     if (/word\/(?:header|footer|footnotes|endnotes|comments)/i.test(name)) fail('DOCX содержит колонтитулы, сноски или комментарии. Подготовьте копию с их текстом в основных абзацах.');
     if (/\.xml$|\.rels$/i.test(name)) docs.set(name, parseXml(bytes, name));
-    else if (!name.endsWith('/') && !/^docProps\/thumbnail\.(?:jpeg|jpg|png|wmf)$/i.test(name)) fail(`DOCX: неподдерживаемая часть пакета ${name}.`);
+    else if (!name.endsWith('/') && !/^docProps\/thumbnail\.(?:jpeg|jpg|png|wmf)$/i.test(name) && !/^word\/media\/[^/]+\.(?:png|jpe?g)$/i.test(name)) fail(`DOCX: неподдерживаемая часть пакета ${name}.`);
   }
   const contentTypes = docs.get('[Content_Types].xml').documentElement;
   if (contentTypes.namespaceURI !== CT || contentTypes.localName !== 'Types') fail('DOCX: некорректный список типов содержимого.');
@@ -58,7 +58,7 @@ function checkPackage(entries) {
       const type = rel.getAttribute('Type').split('/').pop(), target = rel.getAttribute('Target'), id = rel.getAttribute('Id');
       if (!id || ids.has(id)) fail('DOCX: повторяющийся или пустой идентификатор связи.'); ids.add(id);
       if (name === '_rels/.rels' && type === 'officeDocument') { if (target !== 'word/document.xml' || rel.getAttribute('TargetMode') === 'External') fail('DOCX: неподдерживаемый основной документ.'); foundMain = true; }
-      else if (['header', 'footer', 'footnotes', 'endnotes', 'comments', 'numbering', 'aFChunk', 'subDocument', 'oleObject', 'image'].includes(type)) {
+      else if (['header', 'footer', 'footnotes', 'endnotes', 'comments', 'numbering', 'aFChunk', 'subDocument', 'oleObject'].includes(type)) {
         if (type !== 'numbering') fail('DOCX содержит колонтитулы, сноски, комментарии, рисунки или вложенные документы. Эти части не поддерживаются.');
         // A numbering part may contain unused templates; actual numPr is refused.
       } else if (type === 'customXml') {
@@ -66,6 +66,8 @@ function checkPackage(entries) {
       } else if (type === 'customXmlProps') {
         const number = /^customXml\/_rels\/item(\d+)\.xml\.rels$/.exec(name)?.[1];
         if (!number || target !== `itemProps${number}.xml` || !emptyBibliography.has(`customXml/item${number}.xml`)) fail('DOCX: неподдерживаемые пользовательские XML-связи.');
+      } else if (type === 'image') {
+        if (name !== 'word/_rels/document.xml.rels' || !/^media\/[^/]+\.(?:png|jpe?g)$/i.test(target) || !entries.has(`word/${target}`)) fail('DOCX: поддерживаются только встроенные изображения PNG и JPEG.');
       } else if (type === 'hyperlink') links = true;
       else if (!['styles', 'stylesWithEffects', 'settings', 'webSettings', 'fontTable', 'theme', 'extended-properties', 'core-properties', 'custom-properties', 'thumbnail'].includes(type)) fail(`DOCX: неподдерживаемая связь ${type}.`);
       if (rel.getAttribute('TargetMode') === 'External' && type !== 'hyperlink') fail('DOCX: внешние связи, кроме адресов гиперссылок, не поддерживаются.');
@@ -73,10 +75,10 @@ function checkPackage(entries) {
   }
   if (!foundMain) fail('DOCX: отсутствует связь с основным документом.');
   // Unknown Word parts could contain user-visible text, so never silently drop.
-  for (const name of entries.keys()) if (name.startsWith('word/') && !name.endsWith('/') && !/^word\/(?:document\.xml|styles\.xml|stylesWithEffects\.xml|settings\.xml|webSettings\.xml|fontTable\.xml|numbering\.xml|theme\/theme\d+\.xml|_rels\/document\.xml\.rels)$/.test(name)) fail(`DOCX: дополнительная часть ${name} не поддерживается.`);
+  for (const name of entries.keys()) if (name.startsWith('word/') && !name.endsWith('/') && !/^word\/(?:document\.xml|styles\.xml|stylesWithEffects\.xml|settings\.xml|webSettings\.xml|fontTable\.xml|numbering\.xml|theme\/theme\d+\.xml|_rels\/document\.xml\.rels|media\/[^/]+\.(?:png|jpe?g))$/i.test(name)) fail(`DOCX: дополнительная часть ${name} не поддерживается.`);
   for (const name of entries.keys()) if (!name.startsWith('word/') && !name.startsWith('customXml/') && !name.endsWith('/') && !['[Content_Types].xml', '_rels/.rels', 'docProps/core.xml', 'docProps/app.xml', 'docProps/custom.xml'].includes(name) && !/^docProps\/thumbnail\.(?:jpeg|jpg|png|wmf)$/i.test(name)) fail(`DOCX: дополнительная часть ${name} не поддерживается.`);
   validateNumbering(docs);
-  return {doc: docs.get('word/document.xml'), links, emptyBibliography: emptyBibliography.size > 0};
+  return {doc: docs.get('word/document.xml'), docs, entries, links, emptyBibliography: emptyBibliography.size > 0};
 }
 
 function validateBibliography(docs) {
@@ -144,7 +146,7 @@ function validateNumbering(docs) {
   if (numbering && walkElements(numbering.documentElement).some(node => w(node, 'pStyle') && used.has(wordAttribute(node, 'val')))) numbered();
 }
 
-function docxBlocks(doc) {
+function docxBlocks(doc, entries, docs) {
   const root = doc.documentElement;
   if (!w(root, 'document')) fail('DOCX: основной XML не является WordprocessingML-документом.');
   const bodies = elements(root).filter(node => w(node, 'body'));
@@ -155,6 +157,7 @@ function docxBlocks(doc) {
   const inspect = [root];
   while (inspect.length) {
     const node = inspect.pop();
+    if (w(node, 'drawing')) { validateDocxDrawing(node, entries, docs); continue; }
     if (!W.has(node.namespaceURI)) reject(node);
     if (/^(?:ins|del|moveFrom|moveTo|fldSimple|fldChar|instrText|delText|numPr|numberingChange|drawing|pict|object|txbxContent|tbl|sdt|dataBinding|altChunk|subDoc|sym|footnoteReference|endnoteReference|commentReference|headerReference|footerReference)$/.test(node.localName) || /Change$/.test(node.localName)) reject(node);
     inspect.push(...elements(node));
@@ -173,6 +176,7 @@ function docxBlocks(doc) {
       if (w(child, 't')) {
         if (!w(node, 'r') || elements(child).length) reject(child);
         parts.push(child.textContent);
+      } else if (w(child, 'drawing') && w(node, 'r')) { validateDocxDrawing(child, entries, docs);
       } else if (['r', 'hyperlink'].includes(local)) inline(child, parts);
       else if (['tab', 'br', 'cr', 'noBreakHyphen', 'softHyphen'].includes(local)) {
         if (!w(node, 'r') || elements(child).length) reject(child);
@@ -218,7 +222,7 @@ export async function readTextSource(item) {
     if (text.endsWith('\n')) texts.pop();
     notes.push('Каждая строка TXT — отдельный блок, включая пустые строки. Один завершающий перевод строки обозначает конец последней строки и не создаёт дополнительный блок.');
   } else {
-    const checked = checkPackage(await unzipDocument(raw)); texts = docxBlocks(checked.doc);
+    const checked = await readDocxPackage(raw); texts = checked.texts;
     notes.push('Каждый основной абзац DOCX — отдельный блок, включая пустые абзацы. Мягкие переносы и табуляция сохранены; отображаемые номера страниц, стили и параметры форматирования не сравниваются.');
     notes.push('Скрытое форматированием содержимое основных абзацев включено в извлечённый текст. Свойства файла и эскиз документа не сравниваются.');
     if (checked.emptyBibliography) notes.push('Пустой служебный шаблон библиографии не сравнивается; пользовательских записей в нём нет.');
@@ -228,4 +232,74 @@ export async function readTextSource(item) {
   let chars = 0;
   for (const text of texts) { chars += [...text].length; if (chars > MAX_TEXT_CHARS) fail('Извлечённый текст превышает 500 000 символов. Разделите документ.'); }
   return {meta: {name: item.name, sha256, format, block_count: texts.length, notes}, blocks: texts.map((text, i) => ({record: i + 1, text, location: `${format === 'txt' ? 'Строка' : 'Абзац'} ${i + 1}`}))};
+}
+
+const DRAWING_NS = {
+  'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing': new Set(['inline','extent','effectExtent','docPr','cNvGraphicFramePr']),
+  'http://schemas.openxmlformats.org/drawingml/2006/main': new Set(['graphic','graphicData','graphicFrameLocks','picLocks','blip','stretch','fillRect','xfrm','off','ext','prstGeom','avLst','srcRect','alphaModFix']),
+  'http://schemas.openxmlformats.org/drawingml/2006/picture': new Set(['pic','nvPicPr','cNvPr','cNvPicPr','blipFill','spPr']),
+};
+const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+function imageMime(bytes) {
+  let width = 0, height = 0;
+  if (bytes.length >= 24 && [137,80,78,71,13,10,26,10].every((n,i) => bytes[i] === n)) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    width = view.getUint32(16); height = view.getUint32(20);
+    if (!width || !height || width * height > 25000000) fail('DOCX: размер изображения превышает 25 млн пикселей.');
+    return {mime:'image/png',pixels:width*height};
+  }
+  if (bytes.length > 4 && bytes[0] === 255 && bytes[1] === 216) {
+    let offset = 2;
+    while (offset + 4 <= bytes.length) {
+      if (bytes[offset++] !== 255) break;
+      while (bytes[offset] === 255) offset++;
+      const marker = bytes[offset++];
+      if ([216,217,218].includes(marker)) break;
+      if (marker === 1 || marker >= 208 && marker <= 215) continue;
+      const length = bytes[offset] * 256 + bytes[offset + 1];
+      if (length < 2 || offset + length > bytes.length) break;
+      if ([192,193,194,195,197,198,199,201,202,203,205,206,207].includes(marker) && length >= 8) {
+        height = bytes[offset + 3] * 256 + bytes[offset + 4]; width = bytes[offset + 5] * 256 + bytes[offset + 6];
+        if (!width || !height || width * height > 25000000) fail('DOCX: размер изображения превышает 25 млн пикселей.');
+        return {mime:'image/jpeg',pixels:width*height};
+      }
+      offset += length;
+    }
+  }
+  fail('DOCX: изображение PNG или JPEG повреждено либо имеет неподдерживаемый формат.');
+}
+export function validateDocxDrawing(drawing, entries, docs) {
+  const nodes = walkElements(drawing).slice(1);
+  const unsupported = () => fail('DOCX: этот рисунок не поддерживается. Используйте встроенное изображение PNG или JPEG в строке текста.');
+  if (elements(drawing).length !== 1 || elements(drawing)[0].localName !== 'inline') unsupported();
+  for (const node of nodes) {
+    if (!DRAWING_NS[node.namespaceURI]?.has(node.localName)) unsupported();
+    if (Array.from(node.childNodes).some(child => child.nodeType === 3 && child.data.trim())) unsupported();
+    if (node.localName === 'srcRect' && ['t','b','l','r'].some(attr => Number(node.getAttribute(attr) || 0))) unsupported();
+    if (node.localName === 'xfrm' && ['rot','flipH','flipV'].some(attr => !['','0','false',null].includes(node.getAttribute(attr)))) unsupported();
+    if (node.localName === 'alphaModFix' && node.getAttribute('amt') !== '100000') unsupported();
+    if (node.localName === 'prstGeom' && node.getAttribute('prst') !== 'rect') unsupported();
+  }
+  const blips = nodes.filter(node => node.localName === 'blip');
+  const extent = nodes.find(node => node.localName === 'extent');
+  if (blips.length !== 1 || !extent || blips[0].getAttributeNS(R,'link')) unsupported();
+  const width = Number(extent.getAttribute('cx')) / 9525, height = Number(extent.getAttribute('cy')) / 9525;
+  if (!(width > 0 && height > 0 && width <= 5000 && height <= 5000)) unsupported();
+  const id = blips[0].getAttributeNS(R, 'embed');
+  const rels = docs?.get('word/_rels/document.xml.rels');
+  const rel = rels && elements(rels.documentElement).find(node => node.getAttribute('Id') === id && node.getAttribute('Type').endsWith('/image'));
+  if (!rel || rel.getAttribute('TargetMode') === 'External') unsupported();
+  const path = `word/${rel.getAttribute('Target')}`, bytes = entries?.get(path);
+  if (!bytes) unsupported();
+  const {mime,pixels} = imageMime(bytes), description = nodes.find(node => node.localName === 'docPr');
+  return {path, bytes, mime, pixels, width, height, alt: (description?.getAttribute('descr') || description?.getAttribute('name') || '').slice(0,500)};
+}
+
+export async function readDocxPackage(raw) {
+  const checked = checkPackage(await unzipDocument(raw));
+  checked.texts = docxBlocks(checked.doc, checked.entries, checked.docs);
+  const pictures = walkElements(checked.doc.documentElement).filter(node => w(node,'drawing'));
+  if (pictures.length > 100 || pictures.reduce((sum,node) => sum + validateDocxDrawing(node,checked.entries,checked.docs).pixels,0) > 50000000) fail('DOCX: слишком много изображений для просмотра. Разделите документ.');
+  if (checked.texts.length > MAX_TEXT_BLOCKS || checked.texts.reduce((n,t) => n + [...t].length,0) > MAX_TEXT_CHARS) fail('DOCX превышает ограничение по объёму текста.');
+  return checked;
 }

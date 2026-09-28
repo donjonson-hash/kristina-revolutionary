@@ -21,15 +21,16 @@ function fixture() {
 
 test('text HTML follows aligned keys, preserves block text and highlights exact words', () => {
   const report = fixture(), doc = new JSDOM(renderTextHtml(report)).window.document;
-  assert.deepEqual([...doc.querySelectorAll('.pair h3')].map(n => n.textContent.split(' · ')[0]), ['text-1', 'text-2', 'text-3', 'text-4']);
+  assert.deepEqual([...doc.querySelectorAll('.pair')].map(n => n.dataset.key), ['text-1', 'text-2', 'text-3', 'text-4']);
   assert.deepEqual([...doc.querySelectorAll('.changed mark')].map(n => n.textContent), ['15', '20']);
   assert.deepEqual([...doc.querySelectorAll('.text')].map(n => n.textContent), ['  Совпало.\n🙂', '  Совпало.\n🙂', 'Добавлено.', 'Срок 15 дней.', 'Срок 20 дней.', 'Убрано.']);
   assert.equal(doc.querySelectorAll('.absent').length, 2);
   assert.equal(doc.querySelector('.only_right mark').textContent, 'Добавлено.');
   assert.match(doc.querySelector('.changed .right .location').textContent, /Абзац 3/);
-  for (const value of [report.sources.left.name, report.sources.right.sha256, report.sources.left.notes[0]]) assert.ok(doc.body.textContent.includes(value));
-  assert.match(doc.body.textContent, /не оценка юридического смысла/);
-  assert.match(doc.body.textContent, /не исходная вёрстка/);
+  assert.ok(doc.body.textContent.includes(report.sources.left.name));
+  for (const value of [report.sources.right.sha256, report.sources.left.notes[0]]) assert.ok(!doc.body.textContent.includes(value));
+  assert.doesNotMatch(doc.body.textContent, /SHA-256|LLM|Правила сравнения|text-\d/);
+  assert.match(doc.body.textContent, /оформление и изображения не проверяются/);
 });
 
 test('source text, metadata, notes and locations are escaped and cannot load resources', () => {
@@ -66,7 +67,7 @@ test('structural categories retain both original texts and coordinates without a
   assert.equal(doc.querySelectorAll('.moved mark, .reflow mark').length, 0);
   assert.deepEqual([...doc.querySelectorAll('.moved .text')].map(n => n.textContent), ['<Стоимость> 125000', '<Стоимость> 125000']);
   assert.equal(doc.querySelector('.reflow .right .text').textContent, 'Доставка включена\nв стоимость.');
-  assert.match(doc.querySelector('.reflow .right .location').textContent, /Абзац 6; Абзац 7 · блоки 6, 7/);
+  assert.match(doc.querySelector('.reflow .right .location').textContent, /Абзац 6; Абзац 7/);
   assert.match(doc.querySelector('.moved h3').textContent, /Перемещено без изменения текста/);
   assert.match(doc.querySelector('.reflow h3').textContent, /Изменены переносы строк/);
   assert.equal(doc.querySelectorAll('стоимость').length, 0, 'Source markup remains escaped');

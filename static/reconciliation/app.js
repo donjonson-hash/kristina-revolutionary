@@ -1,6 +1,8 @@
 "use strict";
 (() => {
   const $ = (id) => document.getElementById(id);
+  const visualModuleURL = new URL('visual-review.mjs', document.currentScript.src);
+  let visualController = null, visualReview = null;
   const MAX_FILE_BYTES = 2 * 1024 * 1024, PAGE_SIZE = 25;
   const state = {sources: {left: null, right: null}, metadata: null, suggested: [], delimiter: ',',
     report: null, html: null, records: [], editor: null, busy: false, revision: 0, filter: 'all', page: 0, active: -1};
@@ -145,6 +147,8 @@
     $('compare').textContent = value ? 'Обрабатываю…' : 'Применить настройки';
   }
   function clearResult() {
+    visualController?.abort(); visualController = null; visualReview?.dispose(); visualReview = null;
+    document.body.classList.remove('visual-mode'); $('visual-review').replaceChildren(); $('visual-review').hidden = true;
     state.editor = null; $('text-editor').hidden = true; $('editor-error').hidden = true; $('editor-preview').textContent = ""; editorStatus();
     state.revision += 1;
     if (controller) controller.abort();
@@ -251,7 +255,7 @@
         $('settings').hidden = true; $('rules-empty').hidden = true;
         for (const side of ['left', 'right']) {
           showSheets(side);
-          $(side + '-meta').textContent = `${metadata[side].page_count ? metadata[side].page_count + ' стр. · ' : ''}${metadata[side].block_count} фрагментов · ${String(metadata[side].format).toUpperCase()} · заменить файл`;
+          $(side + '-meta').textContent = `${metadata[side].page_count ? metadata[side].page_count + ' стр. · ' : ''}${String(metadata[side].format).toUpperCase()} · заменить файл`;
         }
         ready = metadata.ready;
       } else {
@@ -410,6 +414,23 @@
     $('document-left-name').textContent = report.sources.left.name; $('document-right-name').textContent = report.sources.right.name;
     $('no-overlap').hidden = textMode || !(report.summary.left_rows && report.summary.right_rows && report.summary.matched + report.summary.changed === 0);
     renderRows();
+    if (textMode && window.KristinaTransport) void startVisualReview(report);
+  }
+  async function startVisualReview(report) {
+    visualController?.abort(); const abort = new AbortController(); visualController = abort;
+    try {
+      const {mountVisualReview} = await import(visualModuleURL.href);
+      if (abort.signal.aborted || state.report !== report) return;
+      document.body.classList.add('visual-mode'); $('visual-review').hidden = false;
+      $('result-context').textContent = 'Оба документа перед вами. Нажмите на текст, чтобы исправить.';
+      $('source-privacy').textContent = 'Файлы остаются в браузере. Исправленные документы можно скачать.';
+      const review = await mountVisualReview($('visual-review'), {report, sources: {...state.sources}, signal: abort.signal, onRevision: changed => {
+        if (abort.signal.aborted) return;
+        $('result-heading').textContent = changed ? 'Редактирование документов' : 'Сравнение документов';
+        $('download-pdf').textContent = changed ? 'Исходные отличия · PDF ↓' : 'Отчёт · PDF ↓';
+      }});
+      if (abort.signal.aborted) review.dispose(); else visualReview = review;
+    } catch { if (!abort.signal.aborted) { document.body.classList.remove('visual-mode'); $('visual-review').hidden = true; } }
   }
   // A bounded, linear prefix/suffix highlight. Preserve every original character.
   function highlight(container, value, other, mode) {

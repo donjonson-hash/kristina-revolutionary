@@ -39,6 +39,24 @@ function separate(previous, current) {
   const gap = Math.max(along - previous.width, -along - current.width);
   return gap > em * 2;
 }
+// Coordinates use the displayed page (including its crop box and rotation).
+// They only locate an existing text run; comparison still uses its exact string.
+function visualRect(item, style, viewport) {
+  const g = geometry(item);
+  if (!g || !item.str.length) return null;
+  const t = item.transform, ascent = Number.isFinite(style?.ascent) ? style.ascent : 0.9;
+  const descent = Number.isFinite(style?.descent) ? style.descent : -0.2;
+  const vx = t[2] / g.em, vy = t[3] / g.em;
+  const points = [0, g.width].flatMap(distance => [descent, ascent].map(height => viewport.convertToViewportPoint(
+    g.x + g.ux * distance + vx * g.em * height,
+    g.y + g.uy * distance + vy * g.em * height
+  )));
+  const x = Math.min(...points.map(point => point[0])), y = Math.min(...points.map(point => point[1]));
+  const end = viewport.convertToViewportPoint(g.x + g.ux, g.y + g.uy), start = viewport.convertToViewportPoint(g.x, g.y);
+  const emEnd = viewport.convertToViewportPoint(g.x + t[2], g.y + t[3]);
+  return {x, y, width: Math.max(...points.map(point => point[0])) - x, height: Math.max(...points.map(point => point[1])) - y,
+    fontSize: Math.hypot(emEnd[0] - start[0], emEnd[1] - start[1]), angle: Math.atan2(end[1] - start[1], end[0] - start[0]) * 180 / Math.PI};
+}
 const NOTES = [
   'PDF: сравнивается только извлечённый текстовый слой. Оформление, графика, подписи, метаданные и визуальное совпадение страниц не проверяются.',
   'PDF: порядок выдачи PDF.js сохранён. Раздельные строки и удалённые колонки дополнительно разделяются по координатам; порядок чтения колонок может отличаться от визуального. «Строка» означает фрагмент извлечённого текста на указанной странице.',
@@ -79,23 +97,28 @@ export async function readPdfBytes(raw) {
       for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
         checkTime();
         const page = await doc.getPage(pageNumber);
+        const viewport = page.getViewport({scale: 1});
         if ((await page.getAnnotations({intent: 'any'})).length) fail(`Страница ${pageNumber}: комментарии, ссылки и другие аннотации не поддерживаются. Подготовьте копию без аннотаций.`);
         const reader = page.streamTextContent({disableNormalization: true, includeMarkedContent: false}).getReader();
-        let text = '', line = 0, pageHasText = false, streamDone = false, previous;
+        let text = '', line = 0, pageHasText = false, streamDone = false, previous, rects = [];
+        const styles = Object.create(null);
         const flush = () => {
           previous = undefined;
           if (!text.length) return;
           if (blocks.length >= MAX_BLOCKS) fail('извлечено более 2000 строк. Разделите документ на меньшие части.');
           line++;
-          blocks.push({record: blocks.length + 1, text, location: `Страница ${pageNumber} · строка ${line}`, page: pageNumber, line});
+          blocks.push({record: blocks.length + 1, text, location: `Страница ${pageNumber} · строка ${line}`, page: pageNumber, line,
+            visual: {page: pageNumber, width: viewport.width, height: viewport.height, rects}});
           if (text.trim()) pageHasText = true;
           text = '';
+          rects = [];
         };
         try {
           while (true) {
             const {value, done} = await reader.read();
             if (done) { streamDone = true; break; }
             checkTime();
+            Object.assign(styles, value.styles);
             for (const item of value.items) {
               if (++items > MAX_ITEMS) fail('слишком много текстовых фрагментов. Разделите документ.');
               if (typeof item.str !== 'string') fail(`Страница ${pageNumber}: неподдерживаемый текстовый фрагмент.`);
@@ -110,6 +133,8 @@ export async function readPdfBytes(raw) {
                 previous = current;
               }
               text += item.str;
+              const rect = visualRect(item, styles[item.fontName], viewport);
+              if (rect) rects.push(rect);
               if (item.hasEOL) flush();
             }
           }

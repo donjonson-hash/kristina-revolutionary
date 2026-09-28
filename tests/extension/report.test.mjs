@@ -49,7 +49,8 @@ test('paired source documents preserve all values, source order and unverified f
   assert.equal(unchecked.filter(n => n.textContent.includes('Не сравнивалось')).length, 4);
   assert.equal(doc.querySelectorAll('.paper .empty').length, 2);
   assert.equal(doc.querySelectorAll('.paper details[open]').length, 6);
-  assert.ok(doc.body.textContent.includes(report.sources.left.sha256));
+  assert.ok(!doc.body.textContent.includes(report.sources.left.sha256));
+  assert.doesNotMatch(doc.body.textContent, /SHA-256|LLM|Правила сравнения/);
   assert.match(doc.querySelector('style').textContent, /paper\.absent[^}]+repeating-linear-gradient/);
 });
 
@@ -96,15 +97,16 @@ test('original numeric and prototype-like column names remain in source order', 
   assert.deepEqual([...panel.querySelectorAll('dd')].map(n => n.textContent), ['A', 'ten', 'two', 'original', 'source']);
 });
 
-test('clarification has questions and escaped evidence but no partial document pairs', () => {
+test('clarification shows actionable questions without technical diagnostics or partial pairs', () => {
   const report = fixture();
   report.status = 'needs_clarification'; report.summary = null; report.rules.key = null; report.rules.fields = null;
   report.questions = ['Выберите ключ <id>']; report.issues = [{kind: 'duplicate_key', value: '<script>bad()</script>'}];
   const doc = document(report);
   assert.equal(doc.querySelectorAll('.pair,.totals,script').length, 0);
   assert.ok(doc.body.textContent.includes('Выберите ключ <id>'));
-  assert.ok(doc.body.textContent.includes('<script>bad()</script>'));
-  assert.ok(doc.body.textContent.includes(report.sources.right.sha256));
+  assert.ok(!doc.body.textContent.includes('<script>bad()</script>'));
+  assert.ok(!doc.body.textContent.includes(report.sources.right.sha256));
+  assert.ok(doc.body.textContent.includes(report.sources.right.name));
 });
 
 test('JSON round-trip preserves source evidence and includes final newline', () => {

@@ -36,8 +36,8 @@ const values = sheet => Object.values(sheet.cells).map(c => c.value);
 test('demo exports complete evidence, partial totals, exclusions and source order', async () => {
   const report = await fixture(), bytes = renderXlsx(report), doc = inspect(bytes);
   assert.ok(bytes instanceof Uint8Array);
-  assert.deepEqual(doc.sheets.map(s => s.name), ['Сводка', 'Различия', 'Данные A', 'Данные B', 'Правила']);
-  const [summary, differences, a, b, rules] = doc.sheets;
+  assert.deepEqual(doc.sheets.map(s => s.name), ['Сводка', 'Различия', 'Данные A', 'Данные B']);
+  const [summary, differences, a, b] = doc.sheets;
   assert.ok(values(summary).includes('2030')); assert.ok(values(summary).includes('2018')); assert.ok(values(summary).includes('-12'));
   assert.ok(values(summary).includes('Частичный расчёт — не итог всего документа'));
   assert.ok(values(summary).includes('Единицы A и B различаются; пересчёт не выполняется.'));
@@ -45,7 +45,10 @@ test('demo exports complete evidence, partial totals, exclusions and source orde
   assert.equal(a.cells.H2.value, 'unchecked A'); assert.equal(b.cells.H4.value, 'unchecked B');
   assert.equal(a.cells.E2.value, '10'); assert.equal(b.cells.E4.value, '10.00');
   assert.ok(values(differences).includes('Нет позиции')); assert.ok(values(differences).includes('OLD-400'));
-  assert.ok(values(rules).includes(report.sources.left.sha256)); assert.ok(values(rules).includes('Не проверялось A'));
+  const visible = doc.sheets.flatMap(values).join('\n');
+  assert.doesNotMatch(visible, /SHA-256|Правила сравнения/);
+  assert.ok(!visible.includes(report.sources.left.sha256));
+  assert.ok(visible.includes(report.sources.left.name));
   assert.ok(doc.sheets.every(s => s.cols)); assert.ok(a.filter && b.filter && differences.filter);
   assert.ok(doc.sheets.every(s => !s.hyperlinks && Object.values(s.cells).every(c => !c.formula && ['str', 's', 'inlineStr'].includes(c.type))));
 });
@@ -73,7 +76,7 @@ test('source worksheet and exact cell coordinates survive in difference and data
   const doc = inspect(renderXlsx(report));
   assert.equal(doc.sheets[1].cells.H2.value, 'Заказ'); assert.equal(doc.sheets[1].cells.I2.value, 'C9');
   assert.equal(doc.sheets[2].cells.C2.value, 'B8, C8, D8, E8, F8');
-  assert.ok(values(doc.sheets[4]).includes('Другие листы не проверялись'));
+  assert.ok(values(doc.sheets[0]).includes('Другие листы не проверялись'));
 });
 
 test('unavailable and absent commercial calculation never present a invented zero total', async () => {

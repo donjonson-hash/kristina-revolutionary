@@ -410,12 +410,12 @@ for (const target of ['firefox', 'chrome']) {
     $('download-html').click();
     const html = await p.downloads.at(-1).blob.text();
     assert.match(html, /Страница 2 · строка/);
-    assert.match(html, /PDF: проверен извлечённый текстовый слой/);
-    assert.match(html, /Изображения не сравнивались/);
+    assert.ok(!html.includes(report.sources.left.sha256));
+    assert.match(html, /оформление и изображения не проверяются/);
     await askOffice(p, 'Подготовь письмо');
     assert.match($('office-draft').value, /Страница 2/);
-    assert.match($('office-draft').value, /Пробелы и порядок строк восстановлены/);
-    assert.match($('office-draft').value, /Изображения не сравнивались/);
+    assert.doesNotMatch($('office-draft').value, /Пробелы и порядок строк восстановлены|Сведения о проверке/);
+    assert.match($('office-draft').value, /оформление и изображения не проверяются/);
 
     const sameText = await pdfSource('other-images.pdf', PDF_LINES_A, {inlineImagePages: [1, 2]});
     await p.file('right', Buffer.from(sameText.data, 'base64'), sameText.name);
@@ -972,7 +972,7 @@ for (const target of ['firefox', 'chrome']) test(`${target}: binary reports down
   assert.equal(xlsxFile.blob.type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   const {read, utils} = await import('../../extension/xlsx-vendor.mjs');
   const workbook = read(new Uint8Array(await xlsxFile.blob.arrayBuffer()), {type: 'array'});
-  assert.deepEqual(workbook.SheetNames, ['Сводка', 'Различия', 'Данные A', 'Данные B', 'Правила']);
+  assert.deepEqual(workbook.SheetNames, ['Сводка', 'Различия', 'Данные A', 'Данные B']);
   const allCells = workbook.SheetNames.map(name => JSON.stringify(utils.sheet_to_json(workbook.Sheets[name], {header: 1}))).join('\n');
   for (const text of ['CH-100', 'DS-200', 'LP-300', 'OLD-400', 'NEW-500', '2030', '2018', '-12']) assert.ok(allCells.includes(text), text);
   $('download-pdf').click();

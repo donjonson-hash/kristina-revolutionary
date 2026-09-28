@@ -124,7 +124,8 @@ test('letter includes all changes and only-side keys without inventing supplier 
   const reply = office.draftLetter(report), letter = reply.draft;
   assert.match(reply.text, /Письмо не отправлено/); assert.match(letter, /20.*22/); assert.match(letter, /5.*4/); assert.match(letter, /piece.*box/);
   for (const key of ['002', '003', '004', '005']) assert.ok(letter.includes(key));
-  assert.match(letter, /все обнаруженные различия/); assert.match(letter, /не оценивались/);
+  assert.match(letter, /все обнаруженные различия/); assert.match(letter, /только выбранные поля/);
+  assert.doesNotMatch(letter, /Правила выполненной проверки|Сопоставление по ключам/);
   assert.doesNotMatch(letter, /поставщик виноват|вы недопоставили|денежные потери/i);
   assert.ok(new TextEncoder().encode(letter).length < 1024 * 1024);
 });

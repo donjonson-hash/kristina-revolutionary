@@ -46,7 +46,7 @@ test('PDF comparison and HTML retain all input evidence and exact word changes a
   assert.equal(report.only_left[0].row.location, 'Страница 2 · строка 2');
   assert.equal(report.only_right[0].row.location, 'Страница 2 · строка 3');
   const html = renderTextHtml(report);
-  for (const expected of ['Страница 1 · строка 3', 'Страница 2 · строка 2', 'Страница 2 · строка 3', '<mark>125000</mark>', '<mark>128500</mark>', 'Ёлка — офис &amp; склад, 125 ₽.', report.sources.left.sha256, report.sources.right.sha256]) assert.ok(html.includes(expected), expected);
+  for (const expected of ['Страница 1 · строка 3', 'Страница 2 · строка 2', 'Страница 2 · строка 3', '<mark>125000</mark>', '<mark>128500</mark>', 'Ёлка — офис &amp; склад, 125 ₽.', report.sources.left.name, report.sources.right.name]) assert.ok(html.includes(expected), expected);
 });
 
 test('separately positioned font runs on the same baseline remain one complete source line', async () => {
@@ -115,7 +115,8 @@ test('a changed price is detected in PDFs with different image content', async (
   assert.equal(report.summary.changed, 1);
   assert.equal(report.changed[0].segments.left.filter(s => s.changed).map(s => s.text).join(''), '125000');
   assert.equal(report.changed[0].segments.right.filter(s => s.changed).map(s => s.text).join(''), '128500');
-  assert.match(renderTextHtml(report), /Изображения не сравнивались/);
+  assert.match(renderTextHtml(report), /оформление и изображения не проверяются/);
+  assert.ok(!renderTextHtml(report).includes(report.sources.left.sha256));
 });
 
 test('identical text with different images is explicitly a text-layer match only', async () => {
