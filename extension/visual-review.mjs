@@ -12,14 +12,15 @@ function download(data, filename, mime) {
   anchor.href = url; anchor.download = filename; document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export async function mountVisualReview(root, {report, sources, signal, onRevision = () => {}, restoredState, onStateChange = () => {}}) {
-  const groups = categories.flatMap(category => (report[category] || []).map(item => ({...item, category})));
-  groups.sort((a, b) => Number(a.key.slice(5)) - Number(b.key.slice(5)));
+  const originalGroups = categories.flatMap(category => (report[category] || []).map(item => ({...item, category})));
+  originalGroups.sort((a, b) => Number(a.key.slice(5)) - Number(b.key.slice(5)));
+  let groups = [...originalGroups];
   const byKey = new Map(groups.map(group => [group.key, group]));
   const drafts = Object.fromEntries(sides.map(side => [side, window.KristinaTextEditor.create(report, side)]));
-  let projectWord;
+  let projectWord, normalizeWordRows;
   const viewers = {}, models = {}, pages = {left: 1, right: 1}, generations = {left: 0, right: 0}, ui = {};
-  const row = (group, side) => group[side] || (group.category === `only_${side}` ? group.row : null);
-  const sourceBlocks = side => groups.flatMap(group => { const block = row(group, side); return block ? block.source_blocks || [block] : []; }).sort((a, b) => a.record - b.record);
+  const row = (group, side) => group?.[side] || (group?.category === `only_${side}` ? group.row : null);
+  const sourceBlocks = side => originalGroups.flatMap(group => { const block = row(group, side); return block ? block.source_blocks || [block] : []; }).sort((a, b) => a.record - b.record);
   let disposed = false, selected = null, selectionGeneration = 0;
   const typingTimers = {}; let diffKeys = new Set();
   const alive = () => !disposed && !signal?.aborted;
@@ -30,23 +31,45 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   function snapshot() { return {version: 1, drafts: Object.fromEntries(sides.map(side => [side, drafts[side].snapshot()])), selected, pages: {...pages}, zoom: zoom.value, scroll: Object.fromEntries(sides.map(side => [side, readScroll(side)]))}; }
   function validateState(state) {
     const invalid = () => { throw new Error('Не удалось восстановить сохранённую работу: данные повреждены.'); };
-    if (!state || state.version !== 1 || !['0', '794', '1191'].includes(state.zoom) || state.selected !== null && !byKey.has(state.selected)) invalid();
+    if (!state || state.version !== 1 || !['0', '794', '1191'].includes(state.zoom) || state.selected !== null && typeof state.selected !== 'string') invalid();
     for (const side of sides) {
       const position = state.scroll?.[side], page = state.pages?.[side];
       if (!position || !Number.isFinite(position.top) || position.top < 0 || position.top > 100000000 || !Number.isFinite(position.left) || position.left < 0 || position.left > 100000000 || !Number.isInteger(page) || page < 1 || page > 100) invalid();
       if (report.sources[side].format !== 'pdf' && page !== 1) invalid();
       drafts[side].restore(state.drafts?.[side]);
     }
+    syncGroups();
+    if (state.selected !== null && !byKey.has(state.selected)) invalid();
   }
-  if (restoredState !== undefined) validateState(restoredState);
+  const loadMessages = [];
+  await Promise.all(sides.map(async side => {
+    const format = report.sources[side].format;
+    try {
+      if (format === 'pdf') { const {openPdfVisual} = await import('./pdf-visual.mjs'); const viewer = await openPdfVisual(sources[side], {signal}); if (!alive()) { await viewer.dispose(); return; } viewers[side] = viewer; }
+      if (format === 'docx') { const {readDocxVisual, projectDocxVisual} = await import('./docx-visual.mjs'); projectWord = projectDocxVisual; models[side] = await readDocxVisual(sources[side]);
+        if (models[side].hasTables) {
+          const {createDocxRowEditor} = await import('./docx-row-editor.mjs');
+          ({normalizeDocxRowPlan: normalizeWordRows} = await import('./docx-structure.mjs'));
+          drafts[side] = createDocxRowEditor(report, side, models[side]);
+        }
+      }
+    } catch (error) { if (format === 'docx') delete models[side]; loadMessages.push(`Вариант ${letter(side)} показан как текст. ${error.message}`); }
+  }));
+  try {
+    if (restoredState !== undefined) {
+      validateState(restoredState);
+      for (const side of sides) if (viewers[side] && restoredState.pages[side] > viewers[side].pageCount) throw new Error('Не удалось восстановить сохранённую работу: страница не найдена.');
+    }
+    if (!alive()) throw new DOMException('Просмотр отменён.', 'AbortError');
+  } catch (error) { for (const viewer of Object.values(viewers)) await viewer.dispose().catch(() => {}); throw error; }
   root.replaceChildren(); root.classList.add('visual-review');
   const toolbar = el('div', undefined, 'visual-toolbar'), progress = el('strong', '', 'visual-progress'); progress.setAttribute('role', 'status'); progress.setAttribute('aria-live', 'polite');
   const navigation = el('div', undefined, 'visual-navigation');
   const back = button('↑', () => jump(-1)), next = button('Следующее отличие ↓', () => jump(1)); back.setAttribute('aria-label', 'Предыдущее отличие');
   navigation.append(back, next);
-  const all = button('Сделать B как A', () => act('right', draft => draft.replaceAll(drafts.left.entries()))); all.dataset.action = 'copy-all-right';
+  const all = button('Сделать B как A', () => act('right', draft => draft.replaceAll(drafts.left.entries(), {rowPlan: drafts.left.rowPlan?.(), content: models.left?.content}))); all.dataset.action = 'copy-all-right';
   const tools = el('details', undefined, 'visual-more'); tools.append(el('summary', 'Ещё'));
-  tools.append(button('Сделать A как B', () => act('left', draft => draft.replaceAll(drafts.right.entries()))));
+  tools.append(button('Сделать A как B', () => act('left', draft => draft.replaceAll(drafts.right.entries(), {rowPlan: drafts.right.rowPlan?.(), content: models.right?.content}))));
   tools.append(button('Вернуть исходные документы', () => { if (!alive()) return; const before = sides.map(side => drafts[side].revision); for (const side of sides) drafts[side].reset(); refresh(); if (sides.some((side, i) => drafts[side].revision !== before[i])) stateChanged(); }));
   const saveNote = el('p', 'Нажмите на текст, чтобы исправить. Подсветка показывает отличия текста.', 'visual-instruction');
   const zoom = el('select'); zoom.setAttribute('aria-label', 'Масштаб документов');
@@ -54,6 +77,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   zoom.addEventListener('change', () => { if (!alive()) return; root.style.setProperty('--sheet-min-width', zoom.value + 'px'); stateChanged(); });
   toolbar.append(progress, navigation, all, zoom, tools); root.append(toolbar, saveNote);
   const status = el('p', '', 'visual-notice'); status.hidden = true; status.setAttribute('role', 'status'); root.append(status);
+  if (loadMessages.length) message(loadMessages.join('\n'));
   const grid = el('div', undefined, 'visual-columns'); root.append(grid);
   const inspector = el('section', undefined, 'visual-inspector'); inspector.hidden = true; inspector.setAttribute('aria-label', 'Исправить выделенный текст');
   const inspectorHead = el('div', undefined, 'visual-inspector-head');
@@ -82,16 +106,85 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     const fieldLabel = el('label', `Вариант ${letter(side)}`, 'visual-edit-label'), field = el('textarea'); field.rows = 3; field.maxLength = 500000;
     field.setAttribute('aria-label', `Править вариант ${letter(side)}`); field.dataset.editSide = side; fieldLabel.append(field);
     const copy = button(`Взять из ${letter(other(side))} ${side === 'right' ? '→' : '←'}`, () => copyTo(side)); copy.dataset.copyTo = side;
-    fieldLabel.append(copy); fields.append(fieldLabel); input[side] = field;
+    fieldLabel.append(copy);
+    const rowTools = el('div', undefined, 'visual-row-tools'), rowHint = el('small'); rowTools.hidden = true;
+    const above = button('Строка выше', () => editRow(side, 'before'));
+    const below = button('Строка ниже', () => editRow(side, 'after'));
+    const remove = button('Удалить строку', () => editRow(side, 'delete'));
+    above.dataset.insertRow = 'before'; below.dataset.insertRow = 'after'; remove.dataset.deleteRow = '';
+    for (const control of [above, below, remove]) control.dataset.rowSide = side;
+    rowTools.append(above, below, remove, rowHint); fieldLabel.append(rowTools);
+    Object.assign(ui[side], {copy, rowTools, rowHint, above, below, remove});
+    fields.append(fieldLabel); input[side] = field;
     field.addEventListener('input', () => {
       if (!alive() || !selected) return;
-      try { const before = drafts[side].revision; drafts[side].edit(selected, field.value); changed(); if (drafts[side].revision !== before) stateChanged(); } catch (error) { field.value = drafts[side].get(selected) ?? ''; message(error.message); }
+      try { const before = drafts[side].revision; drafts[side].edit(selected, field.value); changed(); if (drafts[side].revision !== before) stateChanged(); } catch (error) { field.value = value(side, selected) ?? ''; message(error.message); }
       clearTimeout(typingTimers[side]); typingTimers[side] = setTimeout(() => { if (alive()) renderSide(side); }, 350);
     });
     field.addEventListener('blur', () => drafts[side].endEdit());
   }
   function filename(side, ext) { return sources[side].name.replace(/\.[^.]*$/, '') + `-редакция-${letter(side)}.${ext}`; }
   function message(text = '') { if (!alive()) return; status.textContent = text; status.hidden = !text; }
+  function value(side, key) {
+    if (key?.startsWith('row-') && !drafts[side].entries().some(entry => entry.key === key)) return null;
+    return drafts[side].get(key);
+  }
+  function syncGroups() {
+    groups = [...originalGroups]; byKey.clear();
+    for (const group of groups) byKey.set(group.key, group);
+    for (const side of sides) for (const entry of drafts[side].entries()) {
+      if (byKey.has(entry.key) && !byKey.get(entry.key).dynamic) continue;
+      let group = byKey.get(entry.key);
+      if (!group) { group = {key: entry.key, category: 'changed', dynamic: true}; groups.push(group); byKey.set(entry.key, group); }
+      group[side] = entry;
+    }
+    if (selected && !byKey.has(selected)) { selected = null; inspector.hidden = true; root.classList.remove('is-editing'); }
+  }
+  function rowPosition(side) {
+    if (!selected || !models[side]?.hasTables || !drafts[side].rowPlan) return null;
+    const entry = drafts[side].entries().find(entry => entry.key === selected);
+    if (!entry) return null;
+    const layout = normalizeWordRows(models[side].content, drafts[side].rowPlan()).content;
+    for (const table of layout.filter(item => item.type === 'table')) for (let i = 0; i < table.rows.length; i++) {
+      const row = table.rows[i];
+      if (row.cells.some(cell => cell.content.some(p => p.record === entry.record))) return {table: table.index, index: i + 1, row, count: table.rows.length};
+    }
+    return null;
+  }
+  function updateRowTools() {
+    for (const side of sides) {
+      const position = rowPosition(side), controls = ui[side]; controls.rowTools.hidden = !position;
+      if (position) {
+        const locked = position.row.mutable === false;
+        controls.above.disabled = controls.below.disabled = locked;
+        controls.remove.disabled = locked || position.count === 1;
+        controls.rowHint.textContent = locked ? 'Строка с вертикальным объединением: здесь доступна правка текста.' : position.count === 1 ? 'Последнюю строку таблицы можно очистить, но нельзя удалить.' : `Строка ${position.index}. Удаление можно отменить кнопкой ↶.`;
+      }
+      const absent = !!selected && value(side, selected) === null;
+      const unavailable = absent && (models[side]?.hasTables || byKey.get(selected)?.dynamic);
+      input[side].disabled = unavailable;
+      controls.copy.disabled = unavailable || !!selected && value(other(side), selected) === null && models[side]?.hasTables;
+      input[side].placeholder = unavailable ? 'Этой строки здесь нет. Перенесите документ целиком или отмените удаление.' : '';
+    }
+  }
+  function editRow(side, action) {
+    if (!alive()) return;
+    const position = rowPosition(side); if (!position) return;
+    try {
+      for (const timer of Object.values(typingTimers)) clearTimeout(timer);
+      drafts[side].endEdit();
+      if (action === 'delete') {
+        drafts[side].deleteRow(position.table, position.index); selected = null;
+        inspector.hidden = true; root.classList.remove('is-editing');
+      } else {
+        const inserted = drafts[side].insertRow(position.table, position.index, action);
+        selected = typeof inserted === 'string' ? inserted : inserted?.key || null;
+      }
+      refresh(); stateChanged();
+      message(action === 'delete' ? 'Строка удалена. Чтобы вернуть её, нажмите ↶.' : 'Пустая строка добавлена. Нажмите на ячейку и введите текст.');
+      if (selected) void select(selected, side);
+    } catch (error) { message(error.message); }
+  }
   function updateDifferences() {
     const values = {}, orders = {};
     for (const side of sides) {
@@ -109,18 +202,21 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
       return a !== b || group.category === 'moved' && indexes.left.get(group.key) !== indexes.right.get(group.key);
     }).map(group => group.key));
   }
-  function different(group) { return diffKeys.has(group.key); }
+  function different(group) { return !!group && diffKeys.has(group.key); }
   function differences() { return groups.filter(different); }
   function changed() {
     if (!alive()) return;
-    updateDifferences();
-    const count = differences().length, equal = drafts.left.text() === drafts.right.text();
+    syncGroups(); updateDifferences();
+    const shape = side => models[side]?.hasTables ? normalizeWordRows(models[side].content, drafts[side].rowPlan?.()).content.filter(item => item.type === 'table').map(table => table.rows.map(row => row.cells.map(cell => [cell.column, cell.colSpan, cell.rowSpan, cell.content.length]))) : null;
+    const structureDiffers = (drafts.left.structureChanged || drafts.right.structureChanged) && JSON.stringify(shape('left')) !== JSON.stringify(shape('right'));
+    const count = differences().length, equal = drafts.left.text() === drafts.right.text() && !structureDiffers;
     if (equal) diffKeys.clear();
-    progress.textContent = equal ? 'Тексты совпадают ✓' : count ? `Отличий: ${count}` : 'Отличается порядок текста';
+    progress.textContent = equal ? 'Тексты совпадают ✓' : count ? `Отличий: ${count}` : structureDiffers ? 'Отличается структура таблиц' : 'Отличается порядок текста';
     next.disabled = back.disabled = equal;
     all.disabled = equal;
     for (const side of sides) ui[side].undo.disabled = !drafts[side].canUndo;
     if (selected) inspectorTitle.textContent = different(byKey.get(selected)) ? 'Исправьте здесь или возьмите текст соседнего варианта' : 'Этот фрагмент совпадает ✓';
+    updateRowTools();
     onRevision(drafts.left.changed || drafts.right.changed);
     for (const node of root.querySelectorAll('[data-group]')) {
       node.classList.toggle('has-difference', different(byKey.get(node.dataset.group)));
@@ -133,13 +229,13 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   }
   function copyTo(side) {
     if (!selected) return;
-    const value = drafts[other(side)].get(selected), group = byKey.get(selected);
-    act(side, draft => draft.set(selected, value, {relocate: group.category === 'moved'}));
+    const text = value(other(side), selected), group = byKey.get(selected);
+    act(side, draft => draft.set(selected, text, {relocate: group.category === 'moved'}));
   }
   function refresh() {
     if (!alive()) return;
     changed();
-    if (selected) for (const side of sides) input[side].value = drafts[side].get(selected) ?? '';
+    if (selected) for (const side of sides) input[side].value = value(side, selected) ?? '';
     for (const side of sides) void renderSide(side);
   }
   async function select(key, focusSide) {
@@ -150,7 +246,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     inspectorTitle.textContent = different(group) ? 'Исправьте здесь или возьмите текст соседнего варианта' : 'Можно править оба варианта';
     for (const side of sides) {
       if (!alive() || selection !== selectionGeneration) return;
-      input[side].value = drafts[side].get(key) ?? '';
+      input[side].value = value(side, key) ?? '';
       const location = row(group, side), page = location?.page || location?.source_blocks?.[0]?.page;
       if (page && pages[side] !== page) { pages[side] = page; await renderSide(side); }
       if (!alive() || selection !== selectionGeneration) return;
@@ -175,11 +271,11 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     if (records.some((record, i) => i && record < records[i - 1])) throw new Error('Порядок фрагментов изменён. Скачайте эту редакцию как TXT в меню ⋯.');
     const edits = [];
     for (const group of groups) {
-      const block = row(group, side), value = drafts[side].get(group.key);
-      if (!block) { if (value !== null) throw new Error('Новый фрагмент добавлен. Для него выберите «Скачать как TXT» в меню ⋯ рядом со скачиванием.'); continue; }
+      const block = row(group, side), current = value(side, group.key);
+      if (!block) { if (current !== null) throw new Error('Новый фрагмент добавлен. Для него выберите «Скачать как TXT» в меню ⋯ рядом со скачиванием.'); continue; }
       const parts = block.source_blocks || [block], original = parts.map(part => part.text).join('\n');
-      if (value === original) continue;
-      const texts = value === null ? parts.map(() => '') : value.split('\n');
+      if (current === original) continue;
+      const texts = current === null ? parts.map(() => '') : current.split('\n');
       if (texts.length !== parts.length) throw new Error('Переносы строк изменены. Эту редакцию можно скачать как TXT в меню ⋯.');
       parts.forEach((part, i) => edits.push({block: part, text: texts[i]}));
     }
@@ -220,7 +316,8 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
           paper.style.paddingLeft = `${model.page.marginLeft / model.page.width * 100}%`;
           paper.style.paddingRight = `${model.page.marginRight / model.page.width * 100}%`;
         }
-        const entries = model ? projectWord(model, docxSequence(side)).blocks : drafts[side].entries();
+        const projected = model ? projectWord(model, docxSequence(side), {rowPlan: drafts[side].rowPlan?.()}) : null;
+        const entries = projected ? projected.blocks : drafts[side].entries();
         function paragraph(entry) {
           const p = el(entry.heading ? `h${entry.heading}` : 'p', undefined, 'visual-paragraph');
           style(p, entry.style);
@@ -256,7 +353,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
         }
         if (model?.hasTables) {
           const byRecord = new Map(entries.map(entry => [entry.record, entry]));
-          for (const item of model.content) {
+          for (const item of projected.content) {
             if (item.type === 'paragraph') { paper.append(paragraph(byRecord.get(item.record))); continue; }
             const table = el('table', undefined, 'visual-table');
             table.setAttribute('aria-label', `Таблица ${item.index}, вариант ${letter(side)}`); style(table, item.style);
@@ -276,10 +373,10 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
         } else for (const entry of entries) paper.append(paragraph(entry));
         scroll.replaceChildren(paper);
       }
-      const absent = groups.filter(group => drafts[side].get(group.key) === null && drafts[other(side)].get(group.key) !== null);
+      const absent = groups.filter(group => !group.dynamic && !models[side]?.hasTables && value(side, group.key) === null && value(other(side), group.key) !== null);
       if (absent.length) {
         const missing = el('div', undefined, 'visual-missing'); missing.append(el('strong', `Нет в ${letter(side)}`));
-        for (const group of absent) { const add = button(`＋ ${drafts[other(side)].get(group.key).slice(0, 100) || 'Пустой абзац'}`, () => { if (!alive()) return; void select(group.key); copyTo(side); }); add.title = `Добавить из ${letter(other(side))}`; add.dataset.missingKey = group.key; missing.append(add); }
+        for (const group of absent) { const add = button(`＋ ${value(other(side), group.key).slice(0, 100) || 'Пустой абзац'}`, () => { if (!alive()) return; void select(group.key); copyTo(side); }); add.title = `Добавить из ${letter(other(side))}`; add.dataset.missingKey = group.key; missing.append(add); }
         scroll.append(missing);
       }
       scroll.scrollTop = scrollTop;
@@ -290,6 +387,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     finally { if (alive() && generation === generations[side]) scroll.setAttribute('aria-busy', 'false'); }
   }
   function docxSequence(side) {
+    if (drafts[side].rowPlan) return drafts[side].entries();
     const sequence = [];
     for (const entry of drafts[side].entries()) {
       const source = row(byKey.get(entry.key), side);
@@ -317,7 +415,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
         }
       } else if (format === 'docx') {
         const {writeDocxVisual} = await import('./docx-visual.mjs');
-        const data = await writeDocxVisual(sources[side], [], {sequence: docxSequence(side)});
+        const data = await writeDocxVisual(sources[side], [], {sequence: docxSequence(side), rowPlan: drafts[side].rowPlan?.()});
         if (!alive()) return;
         download(data, filename(side, 'docx'), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       } else download(drafts[side].exportText(), filename(side, 'txt'), 'text/plain;charset=utf-8');
@@ -327,15 +425,8 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   }
   const dispose = () => { if (disposed) return; disposed = true; selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
   signal?.addEventListener('abort', dispose, {once: true});
-  await Promise.all(sides.map(async side => {
-    const format = report.sources[side].format;
-    try {
-      if (format === 'pdf') { const {openPdfVisual} = await import('./pdf-visual.mjs'); const viewer = await openPdfVisual(sources[side], {signal}); if (!alive()) { await viewer.dispose(); return; } viewers[side] = viewer; }
-      if (format === 'docx') { const {readDocxVisual, projectDocxVisual} = await import('./docx-visual.mjs'); projectWord = projectDocxVisual; models[side] = await readDocxVisual(sources[side]); }
-    } catch (error) { message(`Вариант ${letter(side)} показан как текст. ${error.message}`); }
-  }));
   if (alive()) {
-    if (Object.values(models).some(model => model.hasTables)) saveNote.textContent += ' Нажмите на текст ячейки, чтобы исправить его. Строки, столбцы и объединения сохраняются; здесь меняется только текст.';
+    if (Object.values(models).some(model => model.hasTables)) saveNote.textContent += ' Нажмите на ячейку: можно исправить текст, добавить или удалить строку. Любое действие можно отменить.';
     if (Object.values(models).some(model => model.blocks.some(block => block.list))) saveNote.textContent += ' Нумерация показана для ориентира; сравнивается и редактируется текст пунктов.';
     if (restoredState !== undefined) {
       for (const side of sides) {
@@ -345,7 +436,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
       selected = restoredState.selected; zoom.value = restoredState.zoom;
       root.style.setProperty('--sheet-min-width', zoom.value + 'px');
       inspector.hidden = !selected; root.classList.toggle('is-editing', !!selected);
-      if (selected) for (const side of sides) input[side].value = drafts[side].get(selected) ?? '';
+      if (selected) for (const side of sides) input[side].value = value(side, selected) ?? '';
     }
     changed();
     await Promise.all(sides.map(side => renderSide(side)));

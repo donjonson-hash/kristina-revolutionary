@@ -415,3 +415,9 @@ main{padding:0 18px}
 .visual-word .visual-table .visual-paragraph { margin: 0; min-height: 1.3em; }
 .visual-word .visual-table .visual-paragraph + .visual-paragraph { margin-top: 4pt; }
 .visual-word .visual-table img { max-width: 100%; height: auto; }
+
+.visual-row-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e1e8e3; }
+.visual-row-tools[hidden] { display: none; }
+.visual-row-tools small { flex-basis: 100%; font-weight: 400; line-height: 1.4; }
+.visual-row-tools .button { font-size: 12px; }
+.visual-edit-label textarea:disabled { background: #f2f4f2; color: #66776c; }

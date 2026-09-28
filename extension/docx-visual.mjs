@@ -1,7 +1,7 @@
 /** Local semantic DOCX presentation and lossless-package paragraph edits. */
 import {readTextSource, readDocxPackage, validateDocxDrawing, MAX_TEXT_CHARS, MAX_TEXT_BLOCKS, MAX_TEXT_SOURCE_BYTES} from './text-source.mjs';
 import {renderDocxNumbering} from './docx-numbering.mjs';
-import {validateTableSequence} from './docx-structure.mjs';
+import {validateTableSequence, normalizeDocxRowPlan} from './docx-structure.mjs';
 const W = new Set(['http://schemas.openxmlformats.org/wordprocessingml/2006/main','http://purl.oclc.org/ooxml/wordprocessingml/main']);
 const elements = node => Array.from(node?.childNodes || []).filter(child => child.nodeType === 1);
 const is = (node, name) => W.has(node.namespaceURI) && node.localName === name;
@@ -113,7 +113,7 @@ function editParagraph(p,text) {
   const leaves=all(p).filter(textual),parts=leaves.map(textOf),updated=revisedParts(parts,text);
   for(let i=0;i<leaves.length;i++)if(parts[i]!==updated[i])replaceLeaf(leaves[i],updated[i]);
   if(!leaves.length&&text) {
-    const ns=p.namespaceURI,prefix=p.prefix?`${p.prefix}:`:'',run=p.ownerDocument.createElementNS(ns,`${prefix}r`),t=p.ownerDocument.createElementNS(ns,`${prefix}t`);
+    const ns=p.namespaceURI,prefix=p.prefix?`${p.prefix}:`:'',run=elements(p).find(n=>is(n,'r'))||p.ownerDocument.createElementNS(ns,`${prefix}r`),t=p.ownerDocument.createElementNS(ns,`${prefix}t`);
     run.appendChild(t);p.appendChild(run);replaceLeaf(t,text);
   }
 }
@@ -124,19 +124,20 @@ function revisedRuns(runs,text) {
   return result;
 }
 /** Project exactly the paragraph content/styles/images that writeDocxVisual exports. */
-export function projectDocxVisual(model,sequence) {
+export function projectDocxVisual(model,sequence,{rowPlan}={}) {
   if(!model||!Array.isArray(model.blocks)||!Array.isArray(sequence))throw new Error('Некорректная редакция DOCX.');
-  if(model.hasTables)validateTableSequence(model.blocks.map(b=>b.record),sequence);
+  const layout = rowPlan !== undefined ? normalizeDocxRowPlan(model.content, rowPlan) : null;
+  if(model.hasTables || layout)validateTableSequence(layout?.records || model.blocks.map(b=>b.record),sequence);
   const originals=new Map(model.blocks.map(block=>[block.record,block])),seen=new Set(),blocks=[];let chars=0;
   for(const item of sequence) {
-    if(item.record!==undefined&&(!originals.has(item.record)||seen.has(item.record)))throw new Error('Некорректный или повторный номер абзаца.');
+    if(item.record!==undefined&&(!originals.has(item.record)&&!Object.hasOwn(layout?.templates||{},item.record)||seen.has(item.record)))throw new Error('Некорректный или повторный номер абзаца.');
     if(item.record!==undefined)seen.add(item.record);
     const text=validateText(item.text);chars+=[...text].length;
     if(chars>MAX_TEXT_CHARS||blocks.length>=MAX_TEXT_BLOCKS)throw new Error('Редакция DOCX превышает ограничение по объёму текста.');
-    const original=originals.get(item.record),template=original||blocks.at(-1)||model.blocks[0];
-    blocks.push({record:item.record,sourceRecord:item.record,key:item.key,text,heading:template?.heading||null,style:{...template?.style},runs:original?revisedRuns(original.runs,text):[{text,style:{}}],list:template?.list||null});
+    const original=originals.get(item.record),rowTemplate=originals.get(layout?.templates[item.record]),template=original||rowTemplate||blocks.at(-1)||model.blocks[0];
+    blocks.push({record:item.record,sourceRecord:item.record,key:item.key,text,heading:template?.heading||null,style:{...template?.style},runs:original?revisedRuns(original.runs,text):rowTemplate?(text?[{text,style:{...rowTemplate.runs.find(run=>!run.image)?.style}}]:[]):[{text,style:{}}],list:template?.list||null});
   }
-  for(const original of model.blocks)if(!seen.has(original.record)&&original.runs.some(run=>run.image)){
+  for(const original of model.blocks)if(!layout&&!seen.has(original.record)&&original.runs.some(run=>run.image)){
     const next=blocks.findIndex(block=>block.sourceRecord>original.record);
     blocks.splice(next===-1?blocks.length:next,0,{...original,key:undefined,sourceRecord:original.record,text:'',runs:revisedRuns(original.runs,''),retainedMedia:true});
   }
@@ -145,7 +146,7 @@ export function projectDocxVisual(model,sequence) {
   // whose text was removed while its photograph was retained.
   const lists=renderDocxNumbering(model.listData,blocks.map(block=>block.list));
   for(let i=0;i<blocks.length;i++)blocks[i].list=lists[i];
-  return {...model,blocks};
+  return {...model,blocks,...(layout?{content:layout.content}: {})};
 }
 
 const encoder=new TextEncoder();
@@ -168,6 +169,7 @@ async function zip(entries) {
 export async function writeDocxVisual(source,edits=[],options={}) {
   const checked=await load(source),body=child(checked.doc.documentElement,'body'),paragraphs=checked.structure.paragraphs;
   if(!Array.isArray(edits)||options.sequence!==undefined&&!Array.isArray(options.sequence))throw new Error('Некорректная редакция DOCX.');
+  if(options.rowPlan !== undefined) return writeTableRows(checked, edits, options);
   const selected=options.sequence || paragraphs.map((_,i)=>({record:i+1,text:checked.texts[i]}));
   if(checked.structure.hasTables)validateTableSequence(paragraphs.map((_,i)=>i+1),selected);
   const patches=new Map();
@@ -191,5 +193,61 @@ export async function writeDocxVisual(source,edits=[],options={}) {
     const section=child(body,'sectPr');for(const {node} of output)body.insertBefore(node,section||null);
   }
   checked.entries.set('word/document.xml',encoder.encode(checked.doc.toString()));
+  return zip(checked.entries);
+}
+
+async function writeTableRows(checked, edits, {sequence, rowPlan}) {
+  const layout = normalizeDocxRowPlan(checked.structure.content, rowPlan);
+  const selected = sequence || layout.records.map(record => ({record, text: record > 0 ? checked.texts[record - 1] : ''}));
+  validateTableSequence(layout.records, selected);
+  const texts = new Map(), patches = new Map(), available = new Set(layout.records);
+  for (const edit of edits) {
+    if (!Number.isSafeInteger(edit.record) || !available.has(edit.record) || patches.has(edit.record)) throw new Error('Некорректный номер абзаца.');
+    patches.set(edit.record, validateText(edit.text));
+  }
+  let chars = 0;
+  for (const item of selected) {
+    const text = validateText(patches.get(item.record) ?? item.text);
+    chars += [...text].length;
+    if (chars > MAX_TEXT_CHARS) throw new Error('Редакция DOCX превышает ограничение по объёму текста.');
+    texts.set(item.record, text);
+  }
+  const body = child(checked.doc.documentElement, 'body'), tables = elements(body).filter(node => is(node, 'tbl'));
+  const paragraphNodes = new Map(checked.structure.paragraphs.map((p, i) => [i + 1, p]));
+  function emptyCell(template, record) {
+    const cell = template.cloneNode(false), cp = child(template, 'tcPr'), original = elements(template).find(node => is(node, 'p'));
+    if (cp) cell.appendChild(cp.cloneNode(true));
+    const p = original.cloneNode(false), pp = child(original, 'pPr');
+    if (pp) p.appendChild(pp.cloneNode(true));
+    // Clone only formatting, never old text, drawings, hyperlinks or bookmarks.
+    const originalRun = all(original).find(node => is(node, 'r') && all(node).some(textual));
+    if (originalRun) {
+      const run = originalRun.cloneNode(false), rp = child(originalRun, 'rPr');
+      if (rp) run.appendChild(rp.cloneNode(true));
+      p.appendChild(run);
+    }
+    cell.appendChild(p); paragraphNodes.set(record, p); return cell;
+  }
+  for (const table of layout.content.filter(item => item.type === 'table')) {
+    const node = tables[table.index - 1], originalRows = elements(node).filter(n => is(n, 'tr'));
+    const output = table.rows.map(row => {
+      if (row.source) return originalRows[row.source - 1];
+      const template = originalRows[row.template - 1], tr = template.cloneNode(false), pr = child(template, 'trPr');
+      if (pr) tr.appendChild(pr.cloneNode(true));
+      const cells = elements(template).filter(n => is(n, 'tc'));
+      for (let i = 0; i < cells.length; i++) tr.appendChild(emptyCell(cells[i], row.cells[i].content[0].record));
+      return tr;
+    });
+    // Keep original nodes (including untouched XML) and insert only whole rows.
+    let cursor = originalRows[0];
+    for (const row of output) {
+      if (row === cursor) cursor = cursor.nextSibling;
+      else node.insertBefore(row, cursor || null);
+    }
+    const retained = new Set(output);
+    for (const row of originalRows) if (!retained.has(row)) node.removeChild(row);
+  }
+  for (const [record, text] of texts) editParagraph(paragraphNodes.get(record), text);
+  checked.entries.set('word/document.xml', encoder.encode(checked.doc.toString()));
   return zip(checked.entries);
 }
