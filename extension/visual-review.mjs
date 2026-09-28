@@ -11,7 +11,7 @@ function download(data, filename, mime) {
   const url = URL.createObjectURL(new Blob([data], {type: mime})), anchor = el('a');
   anchor.href = url; anchor.download = filename; document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export async function mountVisualReview(root, {report, sources, signal, onRevision = () => {}}) {
+export async function mountVisualReview(root, {report, sources, signal, onRevision = () => {}, restoredState, onStateChange = () => {}}) {
   const groups = categories.flatMap(category => (report[category] || []).map(item => ({...item, category})));
   groups.sort((a, b) => Number(a.key.slice(5)) - Number(b.key.slice(5)));
   const byKey = new Map(groups.map(group => [group.key, group]));
@@ -23,6 +23,22 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   let disposed = false, selected = null, selectionGeneration = 0;
   const typingTimers = {}; let diffKeys = new Set();
   const alive = () => !disposed && !signal?.aborted;
+  const scrollPositions = {left: {top: 0, left: 0}, right: {top: 0, left: 0}};
+  let restoring = true;
+  function stateChanged() { if (alive() && !restoring) onStateChange(); }
+  function readScroll(side) { return {top: ui[side].scroll.scrollTop, left: ui[side].scroll.scrollLeft}; }
+  function snapshot() { return {version: 1, drafts: Object.fromEntries(sides.map(side => [side, drafts[side].snapshot()])), selected, pages: {...pages}, zoom: zoom.value, scroll: Object.fromEntries(sides.map(side => [side, readScroll(side)]))}; }
+  function validateState(state) {
+    const invalid = () => { throw new Error('Не удалось восстановить сохранённую работу: данные повреждены.'); };
+    if (!state || state.version !== 1 || !['0', '794', '1191'].includes(state.zoom) || state.selected !== null && !byKey.has(state.selected)) invalid();
+    for (const side of sides) {
+      const position = state.scroll?.[side], page = state.pages?.[side];
+      if (!position || !Number.isFinite(position.top) || position.top < 0 || position.top > 100000000 || !Number.isFinite(position.left) || position.left < 0 || position.left > 100000000 || !Number.isInteger(page) || page < 1 || page > 100) invalid();
+      if (report.sources[side].format !== 'pdf' && page !== 1) invalid();
+      drafts[side].restore(state.drafts?.[side]);
+    }
+  }
+  if (restoredState !== undefined) validateState(restoredState);
   root.replaceChildren(); root.classList.add('visual-review');
   const toolbar = el('div', undefined, 'visual-toolbar'), progress = el('strong', '', 'visual-progress'); progress.setAttribute('role', 'status'); progress.setAttribute('aria-live', 'polite');
   const navigation = el('div', undefined, 'visual-navigation');
@@ -31,18 +47,18 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   const all = button('Сделать B как A', () => act('right', draft => draft.replaceAll(drafts.left.entries()))); all.dataset.action = 'copy-all-right';
   const tools = el('details', undefined, 'visual-more'); tools.append(el('summary', 'Ещё'));
   tools.append(button('Сделать A как B', () => act('left', draft => draft.replaceAll(drafts.right.entries()))));
-  tools.append(button('Вернуть исходные документы', () => { for (const side of sides) drafts[side].reset(); refresh(); }));
+  tools.append(button('Вернуть исходные документы', () => { if (!alive()) return; const before = sides.map(side => drafts[side].revision); for (const side of sides) drafts[side].reset(); refresh(); if (sides.some((side, i) => drafts[side].revision !== before[i])) stateChanged(); }));
   const saveNote = el('p', 'Нажмите на текст, чтобы исправить. Подсветка показывает отличия текста.', 'visual-instruction');
   const zoom = el('select'); zoom.setAttribute('aria-label', 'Масштаб документов');
   for (const [value, label] of [['0', 'По ширине'], ['794', '100%'], ['1191', '150%']]) { const option = el('option', label); option.value = value; zoom.append(option); }
-  zoom.addEventListener('change', () => root.style.setProperty('--sheet-min-width', zoom.value + 'px'));
+  zoom.addEventListener('change', () => { if (!alive()) return; root.style.setProperty('--sheet-min-width', zoom.value + 'px'); stateChanged(); });
   toolbar.append(progress, navigation, all, zoom, tools); root.append(toolbar, saveNote);
   const status = el('p', '', 'visual-notice'); status.hidden = true; status.setAttribute('role', 'status'); root.append(status);
   const grid = el('div', undefined, 'visual-columns'); root.append(grid);
   const inspector = el('section', undefined, 'visual-inspector'); inspector.hidden = true; inspector.setAttribute('aria-label', 'Исправить выделенный текст');
   const inspectorHead = el('div', undefined, 'visual-inspector-head');
   const inspectorTitle = el('strong', 'Выделенный текст');
-  inspectorHead.append(inspectorTitle, button('Готово ✓', () => { for (const timer of Object.values(typingTimers)) clearTimeout(timer); selectionGeneration++; for (const side of sides) drafts[side].endEdit(); inspector.hidden = true; root.classList.remove('is-editing'); selected = null; refresh(); }));
+  inspectorHead.append(inspectorTitle, button('Готово ✓', () => { if (!alive()) return; for (const timer of Object.values(typingTimers)) clearTimeout(timer); selectionGeneration++; for (const side of sides) drafts[side].endEdit(); inspector.hidden = true; root.classList.remove('is-editing'); selected = null; refresh(); stateChanged(); }));
   inspector.append(inspectorHead);
   const fields = el('div', undefined, 'visual-edit-fields'); inspector.append(fields); root.append(inspector);
   const input = {};
@@ -55,19 +71,21 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     menu.append(button(`Скачать ${letter(side)} как TXT`, () => download(drafts[side].exportText(), filename(side, 'txt'), 'text/plain;charset=utf-8')));
     heading.append(el('span', letter(side), 'letter'), name, undo, save, menu); panel.append(heading);
     const pageNav = el('div', undefined, 'visual-page-nav'), pageLabel = el('span'); pageNav.hidden = report.sources[side].format !== 'pdf';
-    const previous = button('←', () => { if (viewers[side]) { pages[side] = Math.max(1, pages[side] - 1); renderSide(side); } }), following = button('→', () => { if (viewers[side]) { pages[side] = Math.min(viewers[side].pageCount, pages[side] + 1); renderSide(side); } });
+    const navigate = offset => { if (!alive() || !viewers[side]) return; const page = Math.max(1, Math.min(viewers[side].pageCount, pages[side] + offset)); if (page === pages[side]) return; pages[side] = page; void renderSide(side); stateChanged(); };
+    const previous = button('←', () => navigate(-1)), following = button('→', () => navigate(1));
     previous.disabled = following.disabled = true;
     previous.setAttribute('aria-label', `Предыдущая страница ${letter(side)}`); following.setAttribute('aria-label', `Следующая страница ${letter(side)}`);
     pageNav.append(previous, pageLabel, following); panel.append(pageNav);
     const scroll = el('div', undefined, 'visual-scroll'); scroll.setAttribute('aria-label', `Документ ${letter(side)}`); panel.append(scroll); grid.append(panel);
     ui[side] = {panel, scroll, pageLabel, previous, following, undo, save};
+    scroll.addEventListener('scroll', () => { if (!alive()) return; const position = readScroll(side), before = scrollPositions[side]; if (position.top !== before.top || position.left !== before.left) { scrollPositions[side] = position; stateChanged(); } });
     const fieldLabel = el('label', `Вариант ${letter(side)}`, 'visual-edit-label'), field = el('textarea'); field.rows = 3; field.maxLength = 500000;
     field.setAttribute('aria-label', `Править вариант ${letter(side)}`); field.dataset.editSide = side; fieldLabel.append(field);
     const copy = button(`Взять из ${letter(other(side))} ${side === 'right' ? '→' : '←'}`, () => copyTo(side)); copy.dataset.copyTo = side;
     fieldLabel.append(copy); fields.append(fieldLabel); input[side] = field;
     field.addEventListener('input', () => {
       if (!alive() || !selected) return;
-      try { drafts[side].edit(selected, field.value); changed(); } catch (error) { field.value = drafts[side].get(selected) ?? ''; message(error.message); }
+      try { const before = drafts[side].revision; drafts[side].edit(selected, field.value); changed(); if (drafts[side].revision !== before) stateChanged(); } catch (error) { field.value = drafts[side].get(selected) ?? ''; message(error.message); }
       clearTimeout(typingTimers[side]); typingTimers[side] = setTimeout(() => { if (alive()) renderSide(side); }, 350);
     });
     field.addEventListener('blur', () => drafts[side].endEdit());
@@ -111,7 +129,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   }
   function act(side, callback) {
     if (!alive()) return;
-    try { callback(drafts[side]); message(); refresh(); } catch (error) { message(error.message); }
+    try { const before = drafts[side].revision; callback(drafts[side]); message(); refresh(); if (drafts[side].revision !== before) stateChanged(); } catch (error) { message(error.message); }
   }
   function copyTo(side) {
     if (!selected) return;
@@ -126,6 +144,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   }
   async function select(key, focusSide) {
     if (!alive()) return;
+    if (!byKey.has(key)) throw new Error('Фрагмент не найден.');
     for (const timer of Object.values(typingTimers)) clearTimeout(timer); const selection = ++selectionGeneration; selected = key; inspector.hidden = false; root.classList.add('is-editing');
     const group = byKey.get(key);
     inspectorTitle.textContent = different(group) ? 'Исправьте здесь или возьмите текст соседнего варианта' : 'Можно править оба варианта';
@@ -139,6 +158,8 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
       if (target) alignTarget(ui[side].scroll, target);
     }
     changed(); if (focusSide) input[focusSide].focus({preventScroll: true});
+    for (const side of sides) scrollPositions[side] = readScroll(side);
+    stateChanged();
   }
   function alignTarget(scroll, target) {
     scroll.scrollTop += target.getBoundingClientRect().top - scroll.getBoundingClientRect().top - Math.min(140, scroll.clientHeight / 3);
@@ -221,11 +242,12 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
       const absent = groups.filter(group => drafts[side].get(group.key) === null && drafts[other(side)].get(group.key) !== null);
       if (absent.length) {
         const missing = el('div', undefined, 'visual-missing'); missing.append(el('strong', `Нет в ${letter(side)}`));
-        for (const group of absent) { const add = button(`＋ ${drafts[other(side)].get(group.key).slice(0, 100) || 'Пустой абзац'}`, () => { selected = group.key; copyTo(side); }); add.title = `Добавить из ${letter(other(side))}`; add.dataset.missingKey = group.key; missing.append(add); }
+        for (const group of absent) { const add = button(`＋ ${drafts[other(side)].get(group.key).slice(0, 100) || 'Пустой абзац'}`, () => { if (!alive()) return; void select(group.key); copyTo(side); }); add.title = `Добавить из ${letter(other(side))}`; add.dataset.missingKey = group.key; missing.append(add); }
         scroll.append(missing);
       }
       scroll.scrollTop = scrollTop;
       if (selected) { const target = [...scroll.querySelectorAll('[data-group]')].find(node => node.dataset.group === selected); if (target) alignTarget(scroll, target); }
+      scrollPositions[side] = readScroll(side);
       changed();
     } catch (error) { if (alive() && generation === generations[side]) { scroll.replaceChildren(el('p', `Не удалось показать страницу. ${error.message}`, 'visual-inline-notice')); message('Текст доступен в редакторе. Выберите «Следующее отличие».'); } }
     finally { if (alive() && generation === generations[side]) scroll.setAttribute('aria-busy', 'false'); }
@@ -271,10 +293,29 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   await Promise.all(sides.map(async side => {
     const format = report.sources[side].format;
     try {
-      if (format === 'pdf') { const {openPdfVisual} = await import('./pdf-visual.mjs'); viewers[side] = await openPdfVisual(sources[side], {signal}); }
+      if (format === 'pdf') { const {openPdfVisual} = await import('./pdf-visual.mjs'); const viewer = await openPdfVisual(sources[side], {signal}); if (!alive()) { await viewer.dispose(); return; } viewers[side] = viewer; }
       if (format === 'docx') { const {readDocxVisual, projectDocxVisual} = await import('./docx-visual.mjs'); projectWord = projectDocxVisual; models[side] = await readDocxVisual(sources[side]); }
     } catch (error) { message(`Вариант ${letter(side)} показан как текст. ${error.message}`); }
   }));
-  if (alive()) refresh();
-  return {dispose, drafts, select, get changed() { return drafts.left.changed || drafts.right.changed; }};
+  if (alive()) {
+    if (restoredState !== undefined) {
+      for (const side of sides) {
+        if (viewers[side] && restoredState.pages[side] > viewers[side].pageCount) { dispose(); throw new Error('Не удалось восстановить сохранённую работу: страница не найдена.'); }
+        pages[side] = restoredState.pages[side];
+      }
+      selected = restoredState.selected; zoom.value = restoredState.zoom;
+      root.style.setProperty('--sheet-min-width', zoom.value + 'px');
+      inspector.hidden = !selected; root.classList.toggle('is-editing', !!selected);
+      if (selected) for (const side of sides) input[side].value = drafts[side].get(selected) ?? '';
+    }
+    changed();
+    await Promise.all(sides.map(side => renderSide(side)));
+    if (alive() && restoredState !== undefined) for (const side of sides) {
+      ui[side].scroll.scrollTop = restoredState.scroll[side].top;
+      ui[side].scroll.scrollLeft = restoredState.scroll[side].left;
+      scrollPositions[side] = readScroll(side);
+    }
+  }
+  restoring = false;
+  return {dispose, drafts, select, snapshot, get changed() { return drafts.left.changed || drafts.right.changed; }};
 }

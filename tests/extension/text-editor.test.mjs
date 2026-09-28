@@ -171,3 +171,56 @@ test('copying split or merged groups preserves only real target source record po
   const last = right.entries().at(-1);
   assert.equal(last.record, rightRows.find(entry => entry.key === last.key).record);
 });
+
+test('saved revisions preserve edits, deletion, insertion, moved order and independent undo after JSON storage', async () => {
+  const report = await compare('Начало\nПереносимый пункт\nТолько первый\nКонец', 'Начало\nКонец\nПереносимый пункт\nТолько второй');
+  for (const side of ['left', 'right']) {
+    const draft = editor.create(report, side), opposite = editor.create(report, side === 'left' ? 'right' : 'left');
+    draft.replaceAll(opposite.entries());
+    const key = draft.entries()[0].key;
+    draft.edit(key, 'Новая редакция 😀'); draft.edit(key, 'Последняя клавиша 😀');
+    const saved = JSON.parse(JSON.stringify(draft.snapshot())), restored = editor.create(report, side);
+    restored.restore(saved);
+    assert.deepEqual(restored.entries(), draft.entries());
+    saved.entries[0].text = 'tampered'; saved.history[0][0].text = 'tampered';
+    assert.equal(restored.get(key), 'Последняя клавиша 😀');
+    restored.undo(); draft.undo(); assert.deepEqual(restored.entries(), draft.entries());
+    restored.undo(); draft.undo(); assert.deepEqual(restored.entries(), draft.entries());
+    assert.equal(restored.canUndo, false);
+  }
+});
+
+test('restore rejects invalid keys, record borrowing, split group order and oversized history atomically', async () => {
+  const report = await compare('Начало\nДобавленный пункт\nКонец', 'Начало\nКонец');
+  const draft = editor.create(report), key = report.only_left[0].key;
+  draft.set(key, 'Вставка');
+  const baseline = draft.snapshot(), inserted = baseline.entries.findIndex(entry => entry.key === key);
+  const mutations = [
+    state => { state.version = 2; },
+    state => { state.side = 'left'; },
+    state => { state.entries[0].key = 'unknown'; },
+    state => { state.entries[inserted].record = 1; },
+    state => { state.entries[0].record = 2; },
+    state => { state.entries.push({...state.entries[0]}); },
+    state => { state.entries[0].text = 'x'.repeat(500001); },
+    state => { state.history = Array.from({length: 21}, () => []); },
+    state => { state.history[0][0].key = 'unknown'; },
+    state => { state.history = Array.from({length: 5}, () => [{...state.entries[0], text: 'x'.repeat(500000)}]); },
+  ];
+  for (const mutate of mutations) {
+    const state = structuredClone(baseline); mutate(state);
+    assert.throws(() => draft.restore(state), /повреждена/);
+    assert.deepEqual(draft.snapshot(), baseline);
+  }
+});
+
+test('reflow persistence retains own source coordinates and restores a fresh typing undo boundary', async () => {
+  const report = await compareText({left: input(docx(['Payment due in 10 days.', 'End']), 'a.docx'), right: await pdfSource('b.pdf', [['Payment due', 'in 10 days.', 'End']], {standardFont: true})});
+  const left = editor.create(report, 'left'), right = editor.create(report), key = report.reflow[0].key;
+  left.replaceAll(right.entries());
+  const restored = editor.create(report, 'left'); restored.restore(JSON.parse(JSON.stringify(left.snapshot())));
+  assert.deepEqual(restored.entries(), left.entries());
+  assert.deepEqual(restored.entries().filter(entry => entry.key === key).map(entry => entry.record), [1, undefined]);
+  restored.edit(key, 'new'); restored.undo(); assert.deepEqual(restored.entries(), left.entries());
+  restored.undo(); assert.equal(restored.text(), 'Payment due in 10 days.\nEnd');
+});

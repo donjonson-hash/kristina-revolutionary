@@ -77,6 +77,14 @@ for (const target of ['firefox', 'chrome']) {
     const directory = path.join(output, target);
     const manifest = JSON.parse(readFileSync(path.join(directory, 'manifest.json'), 'utf8'));
     assert.equal(manifest.manifest_version, 3);
+    assert.equal(manifest.version, '0.13.0');
+    for (const name of ['session-store.mjs', 'session-ui.mjs']) {
+      assert.equal(
+        readFileSync(path.join(directory, name), 'utf8'),
+        readFileSync(path.join(root, 'extension', name), 'utf8'),
+        `${name} must ship in both extension packages`,
+      );
+    }
     for (const key of ['permissions', 'optional_permissions', 'host_permissions', 'optional_host_permissions']) {
       assert.equal((manifest[key] || []).length, 0, `${key} must be empty`);
     }

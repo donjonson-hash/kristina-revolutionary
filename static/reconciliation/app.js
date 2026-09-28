@@ -2,7 +2,10 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const visualModuleURL = new URL('visual-review.mjs', document.currentScript.src);
+  const sessionModuleURL = new URL('session-ui.mjs', document.currentScript.src);
+  const textReportModuleURL = new URL('text-report.mjs', document.currentScript.src);
   let visualController = null, visualReview = null;
+  let sessionUI = null;
   const MAX_FILE_BYTES = 2 * 1024 * 1024, PAGE_SIZE = 25;
   const state = {sources: {left: null, right: null}, metadata: null, suggested: [], delimiter: ',',
     report: null, html: null, records: [], editor: null, busy: false, revision: 0, filter: 'all', page: 0, active: -1};
@@ -138,6 +141,7 @@
   }
   function busy(value) {
     state.busy = value;
+    sessionUI?.setBusy(value);
     if (value) officeReset('Читаю документы и проверяю данные. Отвечу по новой сверке, когда она будет готова.');
     officeEnable(); exportEnable();
     for (const id of ['demo', 'left-file', 'right-file', 'delimiter', 'left-key', 'right-key', 'answer']) $(id).disabled = value;
@@ -147,6 +151,7 @@
     $('compare').textContent = value ? 'Обрабатываю…' : 'Применить настройки';
   }
   function clearResult() {
+    sessionUI?.deactivate();
     visualController?.abort(); visualController = null; visualReview?.dispose(); visualReview = null;
     document.body.classList.remove('visual-mode'); $('visual-review').replaceChildren(); $('visual-review').hidden = true;
     state.editor = null; $('text-editor').hidden = true; $('editor-error').hidden = true; $('editor-preview').textContent = ""; editorStatus();
@@ -326,7 +331,7 @@
       if (revision !== state.revision) return;
       state.report = result.report; state.html = result.html;
       $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
-      renderResult(); officeDescribe(); notice();
+      await renderResult(); officeDescribe(); notice();
     } catch (error) { if (error.name !== 'AbortError' && revision === state.revision) { clearResult(); notice('Сверка не выполнена. ' + error.message, true); officeReset('Сверка не выполнена. Исправьте данные или настройки по сообщению об ошибке.'); busy(false); } }
     finally { if (revision === state.revision) busy(false); }
   }
@@ -357,7 +362,7 @@
     details(impact.items.filter(item => !/^0(?:\.0+)?$/.test(String(item.delta))), 'Изменения по позициям', item => `${item.key} · ${item.unit}: ${window.KristinaOffice.commercialTotalLine(item)}`);
     details(impact.excluded, 'Что уточнить для полного расчёта', item => `${item.key}: ${item.reasons.join(' ')}`);
   }
-  function renderResult() {
+  function renderResult(restoredState) {
     const report = state.report, complete = report.status === 'complete', textMode = report.kind === 'text';
     reviewMode(complete, textMode);
     $('text-editor').hidden = !(complete && textMode);
@@ -414,23 +419,68 @@
     $('document-left-name').textContent = report.sources.left.name; $('document-right-name').textContent = report.sources.right.name;
     $('no-overlap').hidden = textMode || !(report.summary.left_rows && report.summary.right_rows && report.summary.matched + report.summary.changed === 0);
     renderRows();
-    if (textMode && window.KristinaTransport) void startVisualReview(report);
+    if (textMode && window.KristinaTransport) return startVisualReview(report, restoredState);
   }
-  async function startVisualReview(report) {
+  async function startVisualReview(report, restoredState) {
     visualController?.abort(); const abort = new AbortController(); visualController = abort;
     try {
       const {mountVisualReview} = await import(visualModuleURL.href);
       if (abort.signal.aborted || state.report !== report) return;
       document.body.classList.add('visual-mode'); $('visual-review').hidden = false;
       $('result-context').textContent = 'Оба документа перед вами. Нажмите на текст, чтобы исправить.';
-      $('source-privacy').textContent = 'Файлы остаются в браузере. Исправленные документы можно скачать.';
-      const review = await mountVisualReview($('visual-review'), {report, sources: {...state.sources}, signal: abort.signal, onRevision: changed => {
+      $('source-privacy').textContent = 'Документы и правки сохраняются в этом браузере. Исправленные документы можно скачать.';
+      const sources = {...state.sources};
+      const review = await mountVisualReview($('visual-review'), {report, sources, restoredState, signal: abort.signal,
+        onStateChange: () => { if (!abort.signal.aborted) sessionUI?.changed(); }, onRevision: changed => {
         if (abort.signal.aborted) return;
         $('result-heading').textContent = changed ? 'Редактирование документов' : 'Сравнение документов';
         $('download-pdf').textContent = changed ? 'Исходные отличия · PDF ↓' : 'Отчёт · PDF ↓';
       }});
-      if (abort.signal.aborted) review.dispose(); else visualReview = review;
-    } catch { if (!abort.signal.aborted) { document.body.classList.remove('visual-mode'); $('visual-review').hidden = true; } }
+      if (abort.signal.aborted) review.dispose();
+      else {
+        visualReview = review;
+        await sessionReady;
+        if (!abort.signal.aborted) sessionUI?.activate(() => ({version: 1, sources, report, review: review.snapshot()}));
+      }
+    } catch (error) {
+      if (!abort.signal.aborted) {
+        document.body.classList.remove('visual-mode'); $('visual-review').hidden = true;
+        if (restoredState) throw error;
+      }
+    }
+  }
+  async function resumeSession(saved) {
+    clearResult(); busy(true); const revision = state.revision;
+    notice('Открываю сохранённые документы…');
+    try {
+      const {renderTextHtml} = await import(textReportModuleURL.href);
+      if (revision !== state.revision) return;
+      state.sources = saved.sources; state.report = saved.report;
+      state.html = renderTextHtml(saved.report); state.metadata = {kind: 'text'};
+      for (const side of ['left', 'right']) {
+        loads[side]++; $(side + '-file').value = ''; sourceLabel(side, state.sources[side]); showSheets(side);
+      }
+      $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
+      await renderResult(saved.review);
+      officeDescribe(); notice(); $('visual-review').scrollIntoView({block: 'start'});
+    } catch (error) {
+      clearResult(); state.metadata = null;
+      // Keep the stored session available for explicit deletion/recovery.
+      throw error;
+    } finally { busy(false); }
+  }
+  function finishSession() {
+    clearResult(); state.metadata = null; state.sources = {left: null, right: null};
+    state.suggested = [];
+    for (const side of ['left', 'right']) {
+      loads[side]++; $(side + '-file').value = ''; sourceLabel(side, null); showSheets(side);
+    }
+    $('settings').hidden = false; $('settings').open = false;
+    $('advanced-key-home').append($('key-controls')); $('setup-question').hidden = true;
+    $('rules').hidden = true; $('rules').disabled = true; $('rules-empty').hidden = false;
+    $('rules-summary').textContent = 'Определим автоматически';
+    $('source-privacy').textContent = 'Сравнение начнётся автоматически. Файлы обрабатываются в браузере. До 2 MiB на файл.';
+    officeReset(); notice('Работа завершена. Сохранённые документы и правки удалены из браузера.');
   }
   // A bounded, linear prefix/suffix highlight. Preserve every original character.
   function highlight(container, value, other, mode) {
@@ -715,6 +765,22 @@
   $('office-draft').addEventListener('input', () => { $('office-draft-status').textContent = 'Черновик изменён. Проверьте текст перед отправкой.'; });
   if (window.matchMedia?.('(max-width:1379px)').matches) $('office-panel').open = false;
   officeEnable(); exportEnable();
+  const sessionReady = window.KristinaTransport ? (async () => {
+    const root = element('section'); root.id = 'saved-session'; root.hidden = true;
+    root.setAttribute('aria-label', 'Сохранённая работа'); document.querySelector('.hero').after(root);
+    try {
+      const {mountSessionUI} = await import(sessionModuleURL.href);
+      sessionUI = await mountSessionUI(root, {onResume: resumeSession, onFinish: finishSession,
+        onOperating: value => {
+          if (value) { loads.left++; loads.right++; }
+          busy(value);
+        }});
+      sessionUI.setBusy(state.busy);
+    } catch {
+      root.hidden = false; root.className = 'session-panel session-error';
+      root.textContent = 'Автосохранение недоступно. Скачайте исправленные документы перед закрытием.';
+    }
+  })() : Promise.resolve();
   if (window.KristinaTransport) {
     $('supported-formats').textContent = 'Таблицы CSV/Excel, тексты TXT/DOCX и PDF с текстовым слоем, в том числе с логотипами и изображениями. Изображения не сравниваются; сканы без текста, формы и комментарии не поддерживаются.';
     $('source-privacy').textContent = 'Сравнение начнётся автоматически. Файлы обрабатываются локально, без отправки в LLM. До 2 MiB на файл.';
