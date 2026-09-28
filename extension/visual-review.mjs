@@ -117,10 +117,12 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
     const remove = button('Удалить строку', () => editRow(side, 'delete'));
     const transfer = button('', () => copyRowTo(other(side)), 'button primary visual-row-transfer'); transfer.dataset.copyRowFrom = side; transfer.hidden = true;
     transfer.title = 'Перенести все ячейки этой строки. Остальные правки соседнего варианта сохранятся.';
+    const replaceRow = button('', () => replaceRowText(other(side)), 'button primary visual-row-transfer');
+    replaceRow.dataset.copyRowTextFrom = side; replaceRow.hidden = true; replaceRow.setAttribute('aria-describedby', rowHint.id);
     above.dataset.insertRow = 'before'; below.dataset.insertRow = 'after'; remove.dataset.deleteRow = '';
     for (const control of [above, below, remove]) { control.dataset.rowSide = side; control.setAttribute('aria-describedby', rowHint.id); }
-    rowTools.append(rowTitle, rowHint, transfer, above, below, remove); fieldLabel.append(rowTools);
-    Object.assign(ui[side], {copy, rowTools, rowTitle, rowHint, above, below, remove, transfer});
+    rowTools.append(rowTitle, rowHint, replaceRow, transfer, above, below, remove); fieldLabel.append(rowTools);
+    Object.assign(ui[side], {copy, rowTools, rowTitle, rowHint, above, below, remove, transfer, replaceRow});
     fields.append(fieldLabel); input[side] = field;
     field.addEventListener('input', () => {
       if (!alive() || !selected) return;
@@ -160,6 +162,12 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
   function updateRowTools() {
     for (const side of sides) {
       const position = rowPosition(side), controls = ui[side]; controls.rowTools.hidden = !position;
+      controls.replaceRow.hidden = !position?.row.source || !drafts[side].rowTextCopyState || !drafts[other(side)].rowTextCopyState;
+      const rowCopyState = controls.replaceRow.hidden ? null : drafts[other(side)].rowTextCopyState(drafts[side], selected);
+      if (rowCopyState) {
+        controls.replaceRow.disabled = !rowCopyState.available || rowCopyState.equal;
+        controls.replaceRow.textContent = rowCopyState.equal ? 'Текст строки совпадает ✓' : `Сделать строку ${letter(other(side))} как ${letter(side)} ${side === 'left' ? '→' : '←'}`;
+      }
       controls.transfer.hidden = !position?.row.id || !drafts[other(side)].copyRowFrom;
       if (!controls.transfer.hidden) {
         const target = other(side), exists = value(target, selected) !== null;
@@ -178,6 +186,7 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
         controls.remove.disabled = locked || position.count === 1;
         const transferable = !!drafts[other(side)].copyRowFrom;
         controls.rowHint.textContent = locked ? 'Здесь одна ячейка занимает несколько строк. Текст можно исправлять. Для добавления строки выберите другую строку таблицы.' : position.row.id ? transferable ? `В ${letter(other(side))} копируется вся строка. В ${letter(side)} она остаётся. Повторное действие обновляет её текст.` : 'Заполните ячейки новой строки.' : transferable ? `Добавьте пустую строку, заполните её и перенесите в ${letter(other(side))}.` : 'Добавьте пустую строку и заполните её.';
+        if (rowCopyState) controls.rowHint.textContent = rowCopyState.available ? `В ${letter(other(side))} обновится весь текст строки. Фото и оформление ${letter(other(side))} сохранятся.` : rowCopyState.reason;
         if (!locked && position.count === 1) controls.rowHint.textContent += ' Последнюю строку нельзя удалить.';
       }
       const absent = !!selected && value(side, selected) === null;
@@ -186,6 +195,17 @@ export async function mountVisualReview(root, {report, sources, signal, onRevisi
       controls.copy.disabled = unavailable || !!selected && value(other(side), selected) === null && models[side]?.hasTables;
       input[side].placeholder = unavailable ? byKey.get(selected)?.dynamic && drafts[side].copyRowFrom ? `Этой строки здесь нет. Нажмите «Перенести строку в ${letter(side)}» в соседнем варианте.` : 'Этой строки здесь нет. Перенесите документ целиком или отмените удаление.' : '';
     }
+  }
+  function replaceRowText(side) {
+    if (!alive() || !selected || !drafts[side].replaceRowTextFrom) return;
+    try {
+      const before = drafts[side].revision;
+      selected = drafts[side].replaceRowTextFrom(drafts[other(side)], selected);
+      refresh();
+      if (drafts[side].revision !== before) stateChanged();
+      message(`Текст строки в ${letter(side)} обновлён. Чтобы отменить, нажмите ↶ у варианта ${letter(side)}.`);
+      void select(selected, side);
+    } catch (error) { message(error.message); }
   }
   function copyRowTo(side) {
     if (!alive() || !selected || !drafts[side].copyRowFrom) return;
