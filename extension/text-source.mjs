@@ -2,6 +2,7 @@
 import {DOMParser} from './xml-vendor.mjs';
 import {unzipDocument} from './text-zip.mjs';
 import {parseDocxNumbering} from './docx-numbering.mjs';
+import {readDocxStructure} from './docx-structure.mjs';
 export const MAX_TEXT_SOURCE_BYTES = 2 * 1024 * 1024;
 export const MAX_TEXT_CHARS = 500000;
 export const MAX_TEXT_BLOCKS = 2000;
@@ -114,13 +115,13 @@ function validateBibliography(docs) {
 const wordAttribute = (node, name) => { for (const uri of W) { const value = node.getAttributeNS(uri, name); if (value !== null) return value; } return null; };
 function walkElements(root) { const list = [], stack = [root]; while (stack.length) { const node = stack.pop(); list.push(node); stack.push(...elements(node)); } return list; }
 
-function docxBlocks(doc, entries, docs) {
+function docxBlocks(doc, entries, docs, structure) {
   const root = doc.documentElement;
   if (!w(root, 'document')) fail('DOCX: основной XML не является WordprocessingML-документом.');
   const bodies = elements(root).filter(node => w(node, 'body'));
   if (bodies.length !== 1 || elements(root).length !== 1) fail('DOCX: неподдерживаемая структура основного документа.');
-  const body = bodies[0], output = [];
-  const reject = node => fail(`DOCX: элемент ${node.localName} не поддерживается. Принимайте исправления и преобразуйте поля, таблицы и дополнительные объекты в обычный текст.`);
+  const output = [];
+  const reject = node => fail(`DOCX: элемент ${node.localName} не поддерживается. Принимайте исправления и преобразуйте поля и дополнительные объекты в обычный текст.`);
   // Reject visible content that is not represented by w:t, irrespective of prefix.
   const inspect = [root];
   while (inspect.length) {
@@ -128,7 +129,7 @@ function docxBlocks(doc, entries, docs) {
     if (w(node, 'drawing')) { validateDocxDrawing(node, entries, docs); continue; }
     if (!W.has(node.namespaceURI)) reject(node);
     if (w(node, 'numPr') && (!w(node.parentNode, 'pPr') || !w(node.parentNode.parentNode, 'p'))) reject(node);
-    if (/^(?:ins|del|moveFrom|moveTo|fldSimple|fldChar|instrText|delText|numberingChange|drawing|pict|object|txbxContent|tbl|sdt|dataBinding|altChunk|subDoc|sym|footnoteReference|endnoteReference|commentReference|headerReference|footerReference)$/.test(node.localName) || /Change$/.test(node.localName)) reject(node);
+    if (/^(?:ins|del|moveFrom|moveTo|fldSimple|fldChar|instrText|delText|numberingChange|drawing|pict|object|txbxContent|sdt|dataBinding|altChunk|subDoc|sym|footnoteReference|endnoteReference|commentReference|headerReference|footerReference)$/.test(node.localName) || /Change$/.test(node.localName)) reject(node);
     inspect.push(...elements(node));
   }
   function formatting(node) {
@@ -155,13 +156,8 @@ function docxBlocks(doc, entries, docs) {
       else reject(child);
     }
   }
-  for (const node of Array.from(body.childNodes)) {
-    if (node.nodeType === 3 && !node.data.trim() || node.nodeType === 8) continue;
-    if (node.nodeType !== 1) fail('DOCX: неподдерживаемое содержимое документа.');
-    if (w(node, 'sectPr')) { formatting(node); continue; }
-    if (!w(node, 'p')) reject(node);
+  for (const node of structure.paragraphs) {
     const parts = []; inline(node, parts); output.push(normalizeLines(parts.join('')));
-    if (output.length > MAX_TEXT_BLOCKS) fail('Документ содержит более 2000 текстовых блоков. Разделите его.');
   }
   return output;
 }
@@ -182,7 +178,7 @@ export async function readTextSource(item) {
     const {blocks, notes, page_count} = await readPdfBytes(raw);
     return {meta: {name: item.name, sha256, format, block_count: blocks.length, page_count, coverage: 'text_layer_only', notes}, blocks};
   }
-  let texts, notes = [...standardNotes];
+  let texts, locations, notes = [...standardNotes];
   if (format === 'txt') {
     let text;
     try { text = normalizeLines(decode(raw)); } catch { fail(`${item.name}: сохраните TXT в UTF-8.`); }
@@ -191,9 +187,10 @@ export async function readTextSource(item) {
     if (text.endsWith('\n')) texts.pop();
     notes.push('Каждая строка TXT — отдельный блок, включая пустые строки. Один завершающий перевод строки обозначает конец последней строки и не создаёт дополнительный блок.');
   } else {
-    const checked = await readDocxPackage(raw); texts = checked.texts;
+    const checked = await readDocxPackage(raw); texts = checked.texts; locations = checked.structure.locations;
     notes.push('Каждый основной абзац DOCX — отдельный блок, включая пустые абзацы. Мягкие переносы и табуляция сохранены; отображаемые номера страниц, стили и параметры форматирования не сравниваются.');
     notes.push('Скрытое форматированием содержимое основных абзацев включено в извлечённый текст. Свойства файла и эскиз документа не сравниваются.');
+    if (checked.structure.hasTables) notes.push('Текст таблиц читается по строкам и ячейкам. Объединения и оформление сохраняются в DOCX; сравнивается содержимое ячеек.');
     if (checked.emptyBibliography) notes.push('Пустой служебный шаблон библиографии не сравнивается; пользовательских записей в нём нет.');
     if (checked.listData.paragraphs.some(Boolean)) notes.push('Номера и маркеры списков сохранены в документе; сравнивается только текст пунктов, без автоматической нумерации.');
     if (checked.links) notes.push('Сравнивается видимый текст гиперссылок; адреса не открываются и не сравниваются.');
@@ -201,7 +198,7 @@ export async function readTextSource(item) {
   if (texts.length > MAX_TEXT_BLOCKS) fail('Документ содержит более 2000 текстовых блоков. Разделите его.');
   let chars = 0;
   for (const text of texts) { chars += [...text].length; if (chars > MAX_TEXT_CHARS) fail('Извлечённый текст превышает 500 000 символов. Разделите документ.'); }
-  return {meta: {name: item.name, sha256, format, block_count: texts.length, notes}, blocks: texts.map((text, i) => ({record: i + 1, text, location: `${format === 'txt' ? 'Строка' : 'Абзац'} ${i + 1}`}))};
+  return {meta: {name: item.name, sha256, format, block_count: texts.length, notes}, blocks: texts.map((text, i) => ({record: i + 1, text, ...(locations?.[i] ? {table: locations[i]} : {}), location: locations?.[i] ? `Таблица ${locations[i].table}, строка ${locations[i].row}, столбец ${locations[i].column}, абзац ${locations[i].paragraph}` : `${format === 'txt' ? 'Строка' : 'Абзац'} ${i + 1}`}))};
 }
 
 const DRAWING_NS = {
@@ -267,8 +264,9 @@ export function validateDocxDrawing(drawing, entries, docs) {
 
 export async function readDocxPackage(raw) {
   const checked = checkPackage(await unzipDocument(raw));
-  checked.texts = docxBlocks(checked.doc, checked.entries, checked.docs);
-  checked.listData = parseDocxNumbering(checked.docs);
+  checked.structure = readDocxStructure(checked.doc, checked.docs);
+  checked.texts = docxBlocks(checked.doc, checked.entries, checked.docs, checked.structure);
+  checked.listData = parseDocxNumbering(checked.docs, checked.structure.paragraphs);
   const pictures = walkElements(checked.doc.documentElement).filter(node => w(node,'drawing'));
   if (pictures.length > 100 || pictures.reduce((sum,node) => sum + validateDocxDrawing(node,checked.entries,checked.docs).pixels,0) > 50000000) fail('DOCX: слишком много изображений для просмотра. Разделите документ.');
   if (checked.texts.length > MAX_TEXT_BLOCKS || checked.texts.reduce((n,t) => n + [...t].length,0) > MAX_TEXT_CHARS) fail('DOCX превышает ограничение по объёму текста.');

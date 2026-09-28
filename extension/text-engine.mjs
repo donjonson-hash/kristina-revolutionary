@@ -59,7 +59,7 @@ function aggregate(blocks) {
 // Discover structural pairs before changed-gap pairing can consume their text.
 // Repeated exact blocks remain unclassified: a repeated heading is not evidence
 // that a particular occurrence moved. Coordinates, not output order, identify it.
-function structure(a, b, anchors, formats) {
+function structure(a, b, anchors, formats, tableMode = false) {
   const occupiedA = new Set(anchors.map(pair => pair[0])), occupiedB = new Set(anchors.map(pair => pair[1]));
   const countsA = frequencies(a), countsB = frequencies(b), indexB = new Map(b.map((block, i) => [block.text, i]));
   const starts = new Map(), consumedA = new Set(), consumedB = new Set();
@@ -71,6 +71,7 @@ function structure(a, b, anchors, formats) {
   }
   for (let i = 0; i < a.length; i++) {
     const text = a[i].text, j = indexB.get(text);
+    if (tableMode && (a[i].table || b[j]?.table)) continue;
     if (text.trim() && !occupiedA.has(i) && j !== undefined && !occupiedB.has(j) && countsA.get(text) === 1 && countsB.get(text) === 1) add('moved', i, 1, j, 1);
   }
   const outcome = {starts, consumedA, consumedB, reflowFallback: false};
@@ -140,10 +141,13 @@ export async function compareText(payload) {
   // Hash/intern complete strings once: matrix comparisons stay constant-time
   // even with many very long repeated paragraphs.
   const intern = new Map(); let token = 0;
-  const ids = blocks => blocks.map(block => { if (!intern.has(block.text)) intern.set(block.text, ++token); return intern.get(block.text); });
+  const tableMode = left.meta.format === 'docx' && right.meta.format === 'docx' && [...a, ...b].some(block => block.table);
+  const identity = block => tableMode && block.table ? 'cell:' + JSON.stringify(block.table) : 'text:' + block.text;
+  const ids = blocks => blocks.map(block => { const id = identity(block); if (!intern.has(id)) intern.set(id, ++token); return intern.get(id); });
   const anchors = lcs(ids(a), ids(b), (x, y) => x === y), budget = {used: 0, fallback: 0};
-  const structural = structure(a, b, anchors, [left.meta.format, right.meta.format]);
+  const structural = structure(a, b, anchors, [left.meta.format, right.meta.format], tableMode);
   const result = {schema_version: 1, kind: 'text', status: 'complete', sources: {left: left.meta, right: right.meta}, rules: {mode: 'text', normalization: 'line_endings'}, summary: null, matched: [], changed: [], only_left: [], only_right: []};
+  if (tableMode) result.rules.table_cells = true;
   if (left.meta.format === 'pdf' || right.meta.format === 'pdf') result.rules.pdf_text_layer = true;
   let order = 0, i = 0, j = 0;
   function gap(ai, bi) {
@@ -158,6 +162,8 @@ export async function compareText(payload) {
         }
       }
       while (j < bi && structural.consumedB.has(j)) j++;
+      if (tableMode && i < ai && a[i].table) { result.only_left.push({key: `text-${++order}`, row: a[i++]}); continue; }
+      if (tableMode && j < bi && b[j].table) { result.only_right.push({key: `text-${++order}`, row: b[j++]}); continue; }
       if (i < ai && j < bi) {
         const aa = a[i++], bb = b[j++];
         result.changed.push({key: `text-${++order}`, left: aa, right: bb, segments: segments(aa.text, bb.text, budget)});
@@ -166,7 +172,10 @@ export async function compareText(payload) {
     }
   }
   for (const [ai, bi] of anchors) {
-    gap(ai, bi); result.matched.push({key: `text-${++order}`, left: a[i++], right: b[j++]});
+    gap(ai, bi);
+    const aa = a[i++], bb = b[j++], key = `text-${++order}`;
+    if (aa.text === bb.text) result.matched.push({key, left: aa, right: bb});
+    else result.changed.push({key, left: aa, right: bb, segments: segments(aa.text, bb.text, budget)});
   }
   gap(a.length, b.length);
   const scope = result.rules.pdf_text_layer
@@ -174,6 +183,7 @@ export async function compareText(payload) {
     : 'Абзацы выровнены по точным совпадениям и порядку. Пары различающихся абзацев показывают текстовую замену, а не смысловую эквивалентность.';
   result.sources.left.notes.push(scope); result.sources.right.notes.push(scope);
   const structuralNotes = [];
+  if (tableMode) structuralNotes.push('Ячейки сопоставлены по номеру таблицы, строке, столбцу и абзацу внутри ячейки. При изменении структуры таблицы проверьте соответствие ячеек; строки не сопоставляются по смыслу.');
   if (result.moved) structuralNotes.push('Перемещение означает точное совпадение единственного фрагмента в каждом документе вне основного выравнивания. Исходный порядок восстанавливается по номерам блоков каждого документа.');
   if (result.rules.pdf_text_layer) {
     structuralNotes.push(`Проверка переносов объединяет до ${MAX_REFLOW_BLOCKS} соседних непустых блоков и до ${MAX_REFLOW_CHARS} символов одним пробелом; отдельные абзацы DOCX не объединяются. Совпадение должно быть точным и однозначным. Более длинные и неоднозначные варианты остаются обычными различиями. Исходные блоки сохраняются полностью.`);
