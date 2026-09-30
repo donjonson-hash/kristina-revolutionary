@@ -414,3 +414,7 @@ python3 scripts/build_reconciliation_extension.py
 - https://extensionworkshop.com/documentation/develop/temporary-installation-in-firefox/
 - https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/
 - https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked
+
+## Сайт проекта
+
+https://comparethesetexts.com/ — сравнение документов в браузере и загрузка расширения. Расширение продолжает работать автономно. Сохранённые работы сайта и расширения не синхронизируются.

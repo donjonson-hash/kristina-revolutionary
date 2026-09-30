@@ -5,7 +5,7 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.18.0"
+VERSION = "0.18.1"
 
 
 def build(output):
@@ -17,10 +17,12 @@ def build(output):
     html = html.replace('локально, без отправки в LLM', 'внутри браузера, без отправки на сервер')
     html = html.replace('Сейчас доступны таблицы CSV.', 'Сравниваю таблицы XLSX/CSV/TSV и текстовые документы TXT/DOCX/PDF.')
     html = html.replace('Показано содержимое CSV.', 'Показаны значения выбранных листов XLSX или записей CSV/TSV. Для Excel указаны исходные листы, строки и ячейки. Числа показаны без оформления; простой формат 000… сохраняет ведущие нули, даты приведены к ISO. Формулы требуют копии со значениями. Оформление и объекты не сравниваются.')
+    html = html.replace('<span class="local-badge">', '<a href="https://comparethesetexts.com/" target="_blank" rel="noopener noreferrer">Сайт проекта ↗</a><span class="local-badge">')
     manifest = {
         "manifest_version": 3,
         "name": "Кристина — офисный помощник",
         "version": VERSION,
+        "homepage_url": "https://comparethesetexts.com/",
         "description": "Сравню Excel, CSV, Word, TXT и текстовые PDF, выделю отличия и помогу подготовить письмо. Обработка внутри браузера.",
         "icons": {"128": "icon.png"},
         "action": {"default_title": "Кристина — сравнить документы", "default_popup": "launcher.html", "default_icon": {"128": "icon.png"}},
