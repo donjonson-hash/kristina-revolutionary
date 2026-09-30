@@ -74,7 +74,7 @@ class BrainBridge:
                 except Exception as exc:
                     logger.warning("Appraisal shadow source unavailable: %s", type(exc).__name__)
             emotion = self.emotional_agent.react(
-                appraisal, user_message=True, observation=observation,
+                appraisal, user_message=True, observation=observation, event=context.get("emotion_event"),
             ) if self.emotional_agent else {}
             return {
                 "cortex": {"status": "appraised" if appraisal else "unavailable"},

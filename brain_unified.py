@@ -138,11 +138,11 @@ class EmotionalAgent(BaseBrainAgent):
             BrainRegion.MEMORY: 0.6,
         }
     
-    def react(self, appraisal=None, user_message=True, *, observation=None) -> Dict[str, Any]:
+    def react(self, appraisal=None, user_message=True, *, observation=None, event=None) -> Dict[str, Any]:
         """Apply one event through the shared, persistent emotional core."""
         from mood_engine import MoodEngine
         return MoodEngine(self.emotional_core).snapshot(
-            user_message=user_message, appraisal=appraisal, observation=observation,
+            user_message=user_message, appraisal=appraisal, observation=observation, event=event,
         )
 
     async def update_mood(self, context: Dict[str, Any]) -> str:
