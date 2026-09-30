@@ -23,7 +23,7 @@ STOCKHOLM = ZoneInfo("Europe/Stockholm")
 
 @dataclass(frozen=True)
 class EmotionalEvent:
-    """Transport identity only; no user text or raw session identity is persisted."""
+    """Transport identity only; user text and session identity are persisted as SHA-256 (pseudonymized)."""
 
     session_sha256: str
     event_id: str
