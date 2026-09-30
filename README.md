@@ -1,15 +1,21 @@
 # Kristina AI Agent
 
 Автономный ИИ-агент с эмоциональным ядром, постоянной памятью и проактивной
-инициативой. Мультиплатформа: Telegram-бот, веб-дашборд, мини-апп, мобильное
-приложение (Flutter), браузерное расширение для сверки документов.
+инициативой. Основной приоритет: мозг и личность Кристины в Telegram-боте
+[@krististigai_bot](https://t.me/krististigai_bot).
+
+Сверка документов является отдельным проектом; её код и проверки в этом
+репозитории сохраняются независимо от Telegram-бота. Scout также сохраняется.
+Старые Mobile API, Flutter-приложение, mini-app и веб-панель выведены из
+эксплуатации на уровне исходного кода; границы и ограничения описаны в
+[LEGACY_RETIREMENT.md](LEGACY_RETIREMENT.md).
 
 ## Архитектура
 
 ```
-Telegram / Web / Mobile / Mini App
+Telegram
         │
-   bot.py / web_server.py / mobile_api.py
+   bot.py
         │
    ┌────┴─────────────────────────────────────┐
    │              Brain v5.0                  │
@@ -48,10 +54,10 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # заполнить ключи
 python bot.py          # Telegram-бот
-python web_server.py   # веб-дашборд (uvicorn)
 ```
 
-См. `DEPLOY.md` (systemd, Timeweb) и `SERVER-README.md`.
+См. `DEPLOY.md` (systemd, Timeweb). Удаление старых интерфейсов из Git само
+по себе не останавливает ранее установленные серверные процессы.
 
 ## Тесты
 

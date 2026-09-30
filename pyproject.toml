@@ -9,7 +9,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["agents", "database", "emotional_core.py", "brain_unified.py", "mobile_api.py"]
+source = ["agents", "database", "emotional_core.py", "brain_unified.py", "bot.py"]
 omit = ["*/venv_local/*", "*/venv/*"]
 
 [tool.ruff]
