@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Scout — personal trend agent",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Agent that remembers your niche and comes to you: personal trend digests, proactively.",
   "permissions": ["storage", "alarms", "sidePanel", "notifications"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "minimum_chrome_version": "120",
+  "icons": { "128": "icon.png" },
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "side_panel": {
     "default_path": "sidepanel.html"

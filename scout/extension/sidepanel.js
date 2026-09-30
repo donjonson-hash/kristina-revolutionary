@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:3456";
+const API_BASE = "http://127.0.0.1:3456";
 
 const SUGGESTED_TOPICS = [
   "AI-инструменты", "no-code", "SaaS-маркетинг", "e-commerce",
@@ -34,12 +34,15 @@ async function probeNiche() {
   hint.className = "hint"; hint.textContent = "Подбираю темы...";
   try {
     const res = await fetch(API_BASE + "/probe", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json", "X-Scout-Client": "1" },
       body: JSON.stringify({ niche }),
+      signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    probedTopics = data.topics || [];
+    if (!Array.isArray(data.topics) || data.topics.length > 7 ||
+        data.topics.some(t => typeof t !== "string" || !t || t.length > 100)) throw new Error("Invalid topics");
+    probedTopics = data.topics;
     selectedTopics = new Set(probedTopics.slice(0, 5));
     renderChips();
     hint.className = "hint"; hint.textContent = "Найдено " + probedTopics.length + " тем — выбрано топ-5. Можно отредактировать.";
@@ -56,26 +59,33 @@ async function probeNiche() {
 async function finishOnboarding() {
   const niche = document.getElementById("niche").value.trim();
   if (!niche) { document.getElementById("niche").focus(); return; }
-  await storage.saveProfile({
-    niche, topics: [...selectedTopics],
-    frequency: document.getElementById("frequency").value,
-    quietHours: { from: document.getElementById("quietFrom").value, to: document.getElementById("quietTo").value },
-  });
+  try {
+    await storage.saveProfile({
+      niche, topics: [...selectedTopics],
+      frequency: document.getElementById("frequency").value,
+      quietHours: { from: document.getElementById("quietFrom").value, to: document.getElementById("quietTo").value },
+    });
+  } catch (error) {
+    document.getElementById("profileError").textContent = error.message;
+    return;
+  }
+  document.getElementById("profileError").textContent = "";
   await renderDigest();
 }
 
 async function requestDigest() {
   const btn = document.querySelector('[data-action="generate"]');
   const oldText = btn ? btn.textContent : "";
-  if (btn) btn.textContent = "Генерирую...";
+  if (btn) { btn.textContent = "Генерирую..."; btn.disabled = true; }
   try {
-    await chrome.runtime.sendMessage({ type: "SCOUT_GENERATE_NOW", force: true });
-    await new Promise((r) => setTimeout(r, 500));
+    const result = await chrome.runtime.sendMessage({ type: "SCOUT_GENERATE_NOW", force: true });
     await renderDigest();
+    if (!result?.ok) document.getElementById("digestStatus").textContent =
+      result?.reason === "busy" ? "Генерация уже выполняется. Попробуйте позже." : "Дайджест не обновлён. Проверьте настройки и сервер.";
   } catch (e) {
-    console.error("[scout] requestDigest error:", e);
+    document.getElementById("digestStatus").textContent = "Не удалось связаться с расширением. Откройте панель заново.";
   } finally {
-    if (btn) btn.textContent = oldText;
+    if (btn) { btn.textContent = oldText; btn.disabled = false; }
   }
 }
 
@@ -87,15 +97,15 @@ const TAGS = {
 };
 
 function escapeHtml(s) {
-  const div = document.createElement("div");
-  div.textContent = String(s);
-  return div.innerHTML;
+  return String(s).replace(/[&<>"']/g, char =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 }
 
 async function renderDigest() {
   const profile = await storage.getProfile();
   if (!profile.onboarded) { renderChips(); go("step1"); return; }
-  const { digests } = await chrome.storage.local.get("digests");
+  const { digests, lastError, notificationError } = await chrome.storage.local.get(["digests", "lastError", "notificationError"]);
+  document.getElementById("digestStatus").textContent = lastError || notificationError || "";
   const box = document.getElementById("digestContent");
   go("digest");
   if (!digests || !digests.length) {
@@ -104,7 +114,7 @@ async function renderDigest() {
   }
   const d = digests[0];
   box.innerHTML = '<p class="meta">Последний: ' + new Date(d.createdAt).toLocaleString("ru-RU") +
-    ' · ниша: ' + escapeHtml(profile.niche) + '</p>';
+    ' · ниша: ' + escapeHtml(d.profile?.niche || "профиль старого дайджеста не сохранён") + '</p>';
   for (const [key, [title, cls]] of Object.entries(TAGS)) {
     const items = d.sections[key] || [];
     const sec = document.createElement("div");
@@ -115,7 +125,8 @@ async function renderDigest() {
       sec.innerHTML += '<div class="card"><p>' + escapeHtml(text) + '</p></div>';
     } else {
       for (const it of items) {
-        const url = it.url ? '<a href="' + escapeHtml(it.url) + '" target="_blank" style="color:#4a7dff;text-decoration:none">↗</a> ' : "";
+        const href = safeHttpUrl(it.url);
+        const url = href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" style="color:#4a7dff;text-decoration:none">↗</a> ' : "";
         const why = it.why || (it.source ? it.source + (it.score ? " · score: " + it.score : "") : "");
         sec.innerHTML += '<div class="card"><h3>' + url + escapeHtml(it.title) + '</h3><p>' + escapeHtml(why) + '</p></div>';
       }
@@ -127,6 +138,9 @@ async function renderDigest() {
 async function resetOnboarding() {
   const profile = await storage.getProfile();
   document.getElementById("niche").value = profile.niche;
+  document.getElementById("frequency").value = profile.frequency;
+  document.getElementById("quietFrom").value = profile.quietHours.from;
+  document.getElementById("quietTo").value = profile.quietHours.to;
   selectedTopics = new Set(profile.topics);
   probedTopics = profile.topics || [];
   renderChips(); go("step1");
@@ -144,4 +158,9 @@ document.addEventListener("click", (e) => {
   else if (action === "probe") probeNiche();
 });
 
-renderDigest();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && ["digests", "lastError", "notificationError"].some(key => changes[key])) {
+    renderDigest().catch(() => {});
+  }
+});
+renderDigest().catch(() => {});

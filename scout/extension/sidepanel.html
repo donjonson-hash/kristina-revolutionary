@@ -54,7 +54,7 @@
 
   <div class="step active" id="step1">
     <label for="niche">Кто вы и что делаете?</label>
-    <textarea id="niche" placeholder="Например: пишу ньюслеттер про AI-инструменты для разработчиков"></textarea>
+    <textarea id="niche" maxlength="500" placeholder="Например: пишу ньюслеттер про AI-инструменты для разработчиков"></textarea>
     <p class="hint" id="probeHint"></p>
     <div class="nav">
       <button class="ghost" data-action="probe">Подобрать темы</button>
@@ -73,6 +73,7 @@
   </div>
 
   <div class="step" id="step3">
+    <p id="profileError" class="hint err" role="alert"></p>
     <label for="frequency">Как часто приходить?</label>
     <select id="frequency"><option value="daily">Раз в день</option><option value="every_3_days">Раз в 3 дня</option></select>
     <label>Тихие часы (не беспокоить)</label>
@@ -84,6 +85,7 @@
   </div>
 
   <div class="step" id="digest">
+    <p id="digestStatus" class="hint" role="status" aria-live="polite"></p>
     <div class="nav" style="margin:0 0 14px">
       <button class="ghost" data-action="generate" style="flex:1">Проверить сейчас</button>
       <button class="ghost" data-action="reset" style="flex:0 0 90px">Настройки</button>
