@@ -1,0 +1,14 @@
+{
+  "name": "scout-probe",
+  "version": "0.4.0",
+  "description": "Scout backend \u2014 topic probing + LLM classification",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21",
+    "cors": "^2.8",
+    "dotenv": "^16.4"
+  }
+}
