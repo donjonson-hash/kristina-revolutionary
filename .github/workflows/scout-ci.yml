@@ -1,0 +1,32 @@
+name: Scout CI
+
+on:
+  pull_request:
+    paths: ["scout/**", ".github/workflows/scout-ci.yml"]
+  push:
+    branches: [main]
+    paths: ["scout/**", ".github/workflows/scout-ci.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scout:
+    name: Scout offline regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: scout/server/package-lock.json
+      - name: Install locked dependencies
+        working-directory: scout/server
+        run: npm ci --ignore-scripts
+      - name: Syntax and regression tests (no provider credentials)
+        working-directory: scout/server
+        run: |
+          for file in *.js ../extension/*.js; do node --check "$file"; done
+          npm test
