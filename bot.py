@@ -28,6 +28,7 @@ from intention_cycle import (IntentionStore, IntentionWorker, intention_context,
 from conversation_context import (
     conversation_session_id, telegram_conversation, format_conversation_history,
 )
+from creative_life import CreativeDiary, CreativeLife, ai_generate, creative_decision
 from proactive_naturalness import (
     format_recent_messages,
     is_opening_too_similar,
@@ -77,6 +78,16 @@ next_proactive_opportunity: Dict[int, datetime] = {}
 emotional_core = get_emotional_core()
 desire_engine = DesireEngine()
 decision_engine = DecisionEngine()
+creative_life = None
+_creative_busy = False
+
+
+def get_creative_life() -> CreativeLife:
+    """Diary lives next to the emotional state; created on first use, not at import."""
+    global creative_life
+    if creative_life is None:
+        creative_life = CreativeLife(emotional_core, CreativeDiary(emotional_core.db_path), ai_generate(ai))
+    return creative_life
 
 
 def _autonomy_delay_seconds() -> int:
@@ -431,13 +442,47 @@ async def generate_autonomous_message(
     return message
 
 
+async def creative_life_tick(bot, now: datetime, emotional_state: Dict):
+    """Kristina's own life: a diary entry when creative pressure is high, posted if a channel is set.
+
+    Independent of active chats. Diary first, then delivery; an uncertain send is
+    never retried automatically — the entry simply stays unpublished.
+    """
+    global _creative_busy
+    if _creative_busy or emotional_core.db_path is None:
+        return
+    life = get_creative_life()
+    decision = creative_decision(emotional_state, life.diary.last_created_at(), now,
+                                 desire_engine, decision_engine)
+    if decision.action != "message":
+        logger.debug("Creative impulse held score=%.2f reason=%s", decision.score, decision.reason)
+        return
+    logger.info("Creative impulse acted on score=%.2f", decision.score)
+    _creative_busy = True
+    try:
+        entry = await life.express()
+        channel_id = os.getenv("KRISTINA_CHANNEL_ID")
+        if not channel_id:
+            logger.info("Creative diary entry %s kept private: KRISTINA_CHANNEL_ID not set", entry["id"])
+            return
+        await bot.send_message(chat_id=channel_id, text=entry["thought"])
+        life.diary.mark_published(entry["id"], at=datetime.now(timezone.utc), target="telegram_channel")
+        logger.info("Creative diary entry %s published to channel", entry["id"])
+    except Exception as exc:
+        # Never log thought text; a failed provider call leaves no diary trace by design.
+        logger.error("Creative life failed: %s", type(exc).__name__)
+    finally:
+        _creative_busy = False
+
+
 async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
     """Frequent heartbeat; each chat gets independently jittered decision opportunities."""
-    if not active_chat_ids:
-        return
-
     now = datetime.now(timezone.utc)
     emotional_state = emotional_core.evolve()
+    await creative_life_tick(context.bot, now, emotional_state)
+
+    if not active_chat_ids:
+        return
 
     for chat_id in list(active_chat_ids):
         due = next_proactive_opportunity.get(chat_id)
