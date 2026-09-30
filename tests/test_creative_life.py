@@ -95,3 +95,116 @@ async def test_repeated_expression_keeps_lowering_creativity_until_floor(tmp_pat
     for _ in range(8):
         await life.express()
     assert core.state["creativity"] == pytest.approx(0.1)  # normalized floor, never below
+
+
+# --- decision layer and heartbeat wiring -------------------------------------
+
+from autonomy_decision import DecisionEngine, DesireEngine  # noqa: E402
+
+NOON = datetime(2026, 9, 30, 10, tzinfo=timezone.utc)   # 12:00 Stockholm, daytime
+
+
+def baseline_state(**overrides):
+    state = {"energy": 0.75, "happiness": 0.6, "curiosity": 0.8, "anxiety": 0.3,
+             "loneliness": 0.4, "creativity": 0.6, "irritation": 0.1}
+    state.update(overrides)
+    return {"state": state, "is_night": False}
+
+
+def decide(state, last, now=NOON):
+    from creative_life import creative_decision
+    return creative_decision(state, last, now, DesireEngine(), DecisionEngine())
+
+
+def test_creative_pressure_builds_with_silence_and_drops_after_writing():
+    assert decide(baseline_state(), None).action == "message"                       # nothing written yet
+    assert decide(baseline_state(), NOON - timedelta(hours=12)).action == "message"  # half a day of silence
+    just_written = baseline_state(creativity=0.5)
+    held = decide(just_written, NOON - timedelta(hours=3))
+    assert held.action == "none" and held.reason == "impulse_too_weak"
+
+
+def test_night_cooldown_and_wanting_space_hold_the_impulse():
+    night = baseline_state()
+    night["is_night"] = True
+    assert decide(night, None).reason == "night"
+    assert decide(baseline_state(), NOON - timedelta(minutes=30)).reason == "cooldown"
+    exhausted = baseline_state(energy=0.15, irritation=0.9, anxiety=0.9)
+    assert decide(exhausted, None).reason == "wants_space"
+
+
+def test_mark_published_is_idempotent(tmp_path):
+    diary = CreativeDiary(str(tmp_path / "d.db"))
+    entry = diary.record(created_at=DAY, theme="музыка", thought=THOUGHT, emotional_state={"state": {}})
+    assert diary.mark_published(entry, at=DAY, target="telegram_channel") is True
+    assert diary.mark_published(entry, at=DAY, target="telegram_channel") is False
+    row = diary.recent()[0]
+    assert row["published_at"] == DAY.isoformat() and row["publish_target"] == "telegram_channel"
+
+
+async def test_ai_generate_sends_system_and_user_messages():
+    from unittest.mock import AsyncMock
+    from creative_life import ai_generate
+    client = type("C", (), {"chat": AsyncMock(return_value=THOUGHT)})()
+    assert await ai_generate(client)("вопрос", "система") == THOUGHT
+    messages = client.chat.await_args.args[0]
+    assert [m["role"] for m in messages] == ["system", "user"] and messages[1]["content"] == "вопрос"
+
+
+@pytest.fixture
+def heartbeat(tmp_path, monkeypatch):
+    from unittest.mock import AsyncMock
+    monkeypatch.setenv("KRISTINA_TELEGRAM_TOKEN", "12345:test-not-a-real-token")
+    import bot
+    core = EmotionalCore(str(tmp_path / "state.db"), clock=lambda: NOON)
+    monkeypatch.setattr(bot, "emotional_core", core)
+    monkeypatch.setattr(bot, "active_chat_ids", set())
+    monkeypatch.setattr(bot, "creative_life", None)
+    monkeypatch.setattr(bot, "_creative_busy", False)
+    monkeypatch.setattr(bot, "ai", type("C", (), {"chat": AsyncMock(return_value=THOUGHT)})())
+    telegram = AsyncMock()
+    return bot, core, telegram
+
+
+async def test_heartbeat_writes_and_publishes_once_then_holds(heartbeat, monkeypatch):
+    bot, core, telegram = heartbeat
+    monkeypatch.setenv("KRISTINA_CHANNEL_ID", "-100123")
+    state = core.evolve()
+    await bot.creative_life_tick(telegram, NOON, state)
+    telegram.send_message.assert_awaited_once_with(chat_id="-100123", text=THOUGHT)
+    entry = bot.get_creative_life().diary.recent()[0]
+    assert entry["publish_target"] == "telegram_channel" and entry["published_at"] is not None
+    assert core.state["creativity"] == pytest.approx(0.5)
+
+    # Same minute again: creativity dropped and cooldown holds — no second post.
+    await bot.creative_life_tick(telegram, NOON + timedelta(minutes=1), core.evolve())
+    telegram.send_message.assert_awaited_once()
+
+
+async def test_heartbeat_keeps_diary_private_without_channel(heartbeat, monkeypatch):
+    bot, core, telegram = heartbeat
+    monkeypatch.delenv("KRISTINA_CHANNEL_ID", raising=False)
+    await bot.creative_life_tick(telegram, NOON, core.evolve())
+    telegram.send_message.assert_not_awaited()
+    entry = bot.get_creative_life().diary.recent()[0]
+    assert entry["thought"] == THOUGHT and entry["published_at"] is None
+
+
+async def test_heartbeat_survives_provider_failure_without_trace(heartbeat, monkeypatch):
+    from unittest.mock import AsyncMock
+    bot, core, telegram = heartbeat
+    monkeypatch.setenv("KRISTINA_CHANNEL_ID", "-100123")
+    monkeypatch.setattr(bot, "ai", type("C", (), {"chat": AsyncMock(return_value="Ой, я тут задумалась... 💭")})())
+    before = core.get_emotional_state()["state"]
+    await bot.creative_life_tick(telegram, NOON, core.evolve())
+    telegram.send_message.assert_not_awaited()
+    assert bot.get_creative_life().diary.recent() == []
+    assert core.get_emotional_state()["state"] == before
+    assert bot._creative_busy is False
+
+
+async def test_heartbeat_skips_in_memory_core(heartbeat, monkeypatch):
+    bot, _, telegram = heartbeat
+    monkeypatch.setattr(bot, "emotional_core", EmotionalCore(clock=lambda: NOON))
+    await bot.creative_life_tick(telegram, NOON, bot.emotional_core.evolve())
+    telegram.send_message.assert_not_awaited()

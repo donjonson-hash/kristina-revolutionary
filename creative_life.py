@@ -109,6 +109,40 @@ class CreativeDiary:
             row = conn.execute("SELECT created_at FROM creative_diary ORDER BY id DESC LIMIT 1").fetchone()
         return datetime.fromisoformat(row[0]) if row else None
 
+    def mark_published(self, entry_id: int, *, at: datetime, target: str) -> bool:
+        with closing(sqlite3.connect(self.db_path, timeout=5)) as conn, conn:
+            cursor = conn.execute(
+                "UPDATE creative_diary SET published_at=?, publish_target=? WHERE id=? AND published_at IS NULL",
+                (at.isoformat(), target, entry_id))
+            return cursor.rowcount == 1
+
+
+def ai_generate(client) -> Callable[[str, str], Awaitable[str]]:
+    """Adapt AIClient.chat to the (prompt, system_prompt) contract."""
+    async def generate(prompt: str, system_prompt: str) -> str:
+        return await client.chat(
+            [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+            temperature=0.9, max_tokens=400,
+        )
+    return generate
+
+
+def creative_decision(emotional_state: Dict, last_expression: Optional[datetime], now: datetime,
+                      desire_engine, decision_engine):
+    """Decide whether Kristina writes now. Reuses the shared desire/decision layer.
+
+    The `share` desire's distance term is fed with hours since the last diary
+    entry: creative pressure builds with silence, and the entry itself lowers
+    creativity, so a natural rhythm emerges without a timer.
+    """
+    from autonomy_decision import AutonomousDecision
+    if emotional_state.get("is_night"):
+        return AutonomousDecision("none", None, 0.0, "night")
+    hours = (now - last_expression).total_seconds() / 3600.0 if last_expression else 24.0
+    desires = desire_engine.calculate(emotional_state, {"hours_since_contact": hours})
+    return decision_engine.decide({"share": desires["share"], "be_alone": desires["be_alone"]},
+                                  {"last_proactive": last_expression}, now=now)
+
 
 class CreativeLife:
     def __init__(self, core, diary: CreativeDiary, generate: Callable[[str, str], Awaitable[str]],
