@@ -70,6 +70,8 @@ class PersistentMemory:
         init_tables(conn)
         from dialogue_state import init_tables as init_dialogue_tables
         init_dialogue_tables(conn)
+        from telegram_runtime import init_tables as init_telegram_tables
+        init_telegram_tables(conn)
         conn.commit()
         conn.close()
         print(f"✅ База данных готова: {self.db_path}")
