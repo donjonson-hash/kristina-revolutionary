@@ -19,6 +19,7 @@ from document_handler import handle_document
 from intent_detector import detect_proposal_intent
 from telegram.error import NetworkError
 from telegram_utils import split_message, parse_admin_ids, parse_report_days, next_weekly_run
+from telegram_runtime import TelegramRuntimeStore
 from kristina_identity import build_system_prompt
 from cognitive_appraisal import cognitive_context
 from dialogue_state import DialogueStore, dialogue_context, proactive_block_reason, repeated_question
@@ -90,8 +91,32 @@ def _autonomy_delay_seconds() -> int:
 
 def _schedule_next_opportunity(chat_id: int, now: datetime) -> datetime:
     due = now + timedelta(seconds=_autonomy_delay_seconds())
+    TelegramRuntimeStore(router.memory).schedule_private(chat_id, due)
     next_proactive_opportunity[chat_id] = due
     return due
+
+
+def restore_telegram_runtime():
+    """Restore only registered private chats; do not send or modify dialogue gates."""
+    saved = TelegramRuntimeStore(router.memory).restore(
+        datetime.now(timezone.utc), _autonomy_delay_seconds,
+    )
+    # Publish caches only after the complete restore transaction succeeds.
+    user_tts_enabled.clear()
+    user_tts_enabled.update(saved["users"])
+    active_agents.clear()
+    active_agents.update(saved["sessions"])
+    active_chat_ids.clear()
+    last_user_activity.clear()
+    next_proactive_opportunity.clear()
+    last_proactive.clear()
+    recent_proactive.clear()
+    for chat in saved["chats"]:
+        chat_id = chat["chat_id"]
+        active_chat_ids.add(chat_id)
+        last_user_activity[chat_id] = chat["last_user_at"]
+        next_proactive_opportunity[chat_id] = chat["next_opportunity_at"]
+    logger.info("Telegram runtime restored: %s known private chats", len(active_chat_ids))
 
 
 def init_agents():
@@ -104,18 +129,20 @@ def init_agents():
 
 
 def mark_user_active(user_id: int):
-    active_chat_ids.add(user_id)
     now = datetime.now(timezone.utc)
-    last_user_activity[user_id] = now
-    if user_id not in next_proactive_opportunity:
-        _schedule_next_opportunity(user_id, now)
+    saved = TelegramRuntimeStore(router.memory).touch_private(
+        user_id, now, now + timedelta(seconds=_autonomy_delay_seconds()),
+    )
+    active_chat_ids.add(user_id)
+    last_user_activity[user_id] = saved["last_user_at"]
+    next_proactive_opportunity[user_id] = saved["next_opportunity_at"]
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    user_tts_enabled[user_id] = False
+    user_tts_enabled.setdefault(user_id, False)
     session_id = conversation_session_id(telegram_conversation(update))
-    active_agents[session_id] = "kristina"
+    active_agents.setdefault(session_id, "kristina")
     if update.effective_chat.type == "private":
         mark_user_active(update.effective_chat.id)
     logger.info(f"Active chat: {user_id}, total: {len(active_chat_ids)}")
@@ -147,7 +174,9 @@ async def tts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
 
     if args and args[0].lower() in ['on', 'off']:
-        user_tts_enabled[user_id] = (args[0].lower() == 'on')
+        enabled = args[0].lower() == 'on'
+        TelegramRuntimeStore(router.memory).set_tts(user_id, enabled)
+        user_tts_enabled[user_id] = enabled
         status = "включены" if user_tts_enabled[user_id] else "выключены"
         await update.message.reply_text(f"🔊 Голосовые сообщения {status}!")
     else:
@@ -278,6 +307,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         if agent_id not in agent_names:
             return
+        TelegramRuntimeStore(router.memory).set_agent(
+            update.effective_user.id, update.effective_chat.id, agent_id,
+        )
         active_agents[session_id] = agent_id
         await query.edit_message_text(f"🎭 Активен: {agent_id.title()}")
 
@@ -522,6 +554,7 @@ async def on_telegram_error(update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     init_agents()
+    restore_telegram_runtime()
     application = Application.builder().token(KRISTINA_TELEGRAM_TOKEN).build()
     application.add_error_handler(on_telegram_error)
 
