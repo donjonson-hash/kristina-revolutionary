@@ -1,6 +1,11 @@
-"""Take consistent SQLite snapshots before a deployment can migrate live state."""
+"""Take consistent SQLite snapshots before a deployment can migrate live state.
+
+The `.env` file is copied alongside: it is the only copy of the server's
+configuration (tokens, channel, image keys) and is never stored in Git.
+"""
 
 import os
+import shutil
 import sqlite3
 import tempfile
 import time
@@ -20,8 +25,9 @@ def backup_state(app_dir: Path):
         "emotional_state.db": state_path,
     }
     existing = {name: path for name, path in sources.items() if path.exists()}
-    if not existing:
-        print("No existing state databases to back up (first deployment).")
+    env_file = app_dir / ".env"
+    if not existing and not env_file.exists():
+        print("No existing state databases or configuration to back up (first deployment).")
         return []
     root = app_dir / "backups"
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -45,6 +51,13 @@ def backup_state(app_dir: Path):
                     raise RuntimeError("Database backup failed integrity check")
         saved.append(target)
         print(f"Database backup: {target}")
+    if env_file.exists():
+        target = directory / "env"
+        fd = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.close(fd)
+        shutil.copyfile(env_file, target)
+        saved.append(target)
+        print(f"Configuration backup: {target}")
     return saved
 
 

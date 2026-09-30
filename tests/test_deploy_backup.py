@@ -21,10 +21,15 @@ def test_backup_includes_live_wal_and_configured_state_path(tmp_path, monkeypatc
             conn.execute("INSERT INTO snapshot VALUES (?)", (value,))
             conn.commit()
         saved = backup_state(tmp_path)
-        assert {path.name for path in saved} == {"conversation.db", "emotional_state.db"}
+        assert {path.name for path in saved} == {"conversation.db", "emotional_state.db", "env"}
         assert saved[0].parent.stat().st_mode & 0o777 == 0o700
         for path in saved:
             assert path.stat().st_mode & 0o777 == 0o600
+        env_copy = next(path for path in saved if path.name == "env")
+        assert env_copy.read_text() == 'KRISTINA_STATE_DB="state with spaces.db"\n'
+        for path in saved:
+            if path.name == "env":
+                continue
             with sqlite3.connect(path) as conn:
                 value = conn.execute("SELECT value FROM snapshot").fetchone()[0]
                 assert value == ("v1" if path.name == "emotional_state.db" else "conversation")
@@ -45,9 +50,18 @@ def test_environment_path_takes_precedence_and_repeated_backups_do_not_overwrite
     monkeypatch.setenv("KRISTINA_STATE_DB", str(source))
     first = backup_state(tmp_path)
     second = backup_state(tmp_path)
-    assert len(first) == len(second) == 1
+    assert len(first) == len(second) == 2
     assert first[0] != second[0]
     assert first[0].exists() and second[0].exists()
+
+
+def test_configuration_is_backed_up_even_without_databases(tmp_path, monkeypatch):
+    monkeypatch.delenv("KRISTINA_STATE_DB", raising=False)
+    (tmp_path / ".env").write_text("KRISTINA_TELEGRAM_TOKEN=secret\nKRISTINA_CHANNEL_ID=-100123\n")
+    saved = backup_state(tmp_path)
+    assert [path.name for path in saved] == ["env"]
+    assert saved[0].stat().st_mode & 0o777 == 0o600
+    assert "KRISTINA_CHANNEL_ID=-100123" in saved[0].read_text()
 
 
 def test_unreadable_database_fails_and_first_start_is_allowed(tmp_path, monkeypatch):

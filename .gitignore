@@ -53,6 +53,7 @@ experiments/result.json
 *.bak
 *.backup
 *.orig
+backups/
 
 # Build artifacts
 *.apk
