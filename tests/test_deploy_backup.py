@@ -72,3 +72,34 @@ def test_unreadable_database_fails_and_first_start_is_allowed(tmp_path, monkeypa
     with pytest.raises(sqlite3.DatabaseError):
         backup_state(tmp_path)
     assert source.read_text() == "not sqlite"
+
+
+def test_old_snapshots_are_pruned_but_the_newest_survives(tmp_path):
+    import os
+    import time
+    from deploy.backup_state import prune_old_backups
+
+    root = tmp_path / "backups"
+    root.mkdir()
+    now = time.time()
+    ages_days = {"pre-deploy-a": 45, "pre-deploy-b": 40, "pre-deploy-c": 3}
+    for name, age in ages_days.items():
+        path = root / name
+        path.mkdir()
+        (path / "env").write_text("x")
+        os.utime(path, (now - age * 86400, now - age * 86400))
+    (root / "unrelated").mkdir()
+    os.utime(root / "unrelated", (now - 400 * 86400, now - 400 * 86400))
+
+    removed = prune_old_backups(root, keep_days=30, now=now)
+    assert {path.name for path in removed} == {"pre-deploy-a", "pre-deploy-b"}
+    assert sorted(path.name for path in root.iterdir()) == ["pre-deploy-c", "unrelated"]
+
+    # A single ancient snapshot is never removed: it may be the only copy of .env.
+    lone = root / "pre-deploy-old"
+    lone.mkdir()
+    os.utime(lone, (now - 400 * 86400, now - 400 * 86400))
+    import shutil
+    shutil.rmtree(root / "pre-deploy-c")
+    assert prune_old_backups(root, keep_days=30, now=now) == []
+    assert lone.exists()

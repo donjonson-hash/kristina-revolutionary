@@ -15,7 +15,21 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 
-def backup_state(app_dir: Path):
+def prune_old_backups(root: Path, *, keep_days: int, now: float = None):
+    """Drop pre-deploy snapshots older than keep_days; the newest is always kept."""
+    now = time.time() if now is None else now
+    snapshots = sorted((path for path in root.glob("pre-deploy-*") if path.is_dir()),
+                       key=lambda path: path.stat().st_mtime)
+    removed = []
+    for path in snapshots[:-1]:
+        if now - path.stat().st_mtime > keep_days * 86400:
+            shutil.rmtree(path)
+            removed.append(path)
+            print(f"Removed old backup: {path}")
+    return removed
+
+
+def backup_state(app_dir: Path, *, keep_days: int = 30):
     config = dotenv_values(app_dir / ".env")
     state_path = Path(os.environ.get("KRISTINA_STATE_DB", config.get("KRISTINA_STATE_DB") or "kristina_state.db"))
     if not state_path.is_absolute():
@@ -31,6 +45,7 @@ def backup_state(app_dir: Path):
         return []
     root = app_dir / "backups"
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    prune_old_backups(root, keep_days=keep_days)
     directory = Path(tempfile.mkdtemp(prefix="pre-deploy-", dir=root))
     saved = []
     for name, source in existing.items():

@@ -230,8 +230,9 @@ class EmotionalCore:
                 or not isinstance(experiences, list)
                 or any(not isinstance(event, dict)
                        or set(event) != {"event", "at"}
-                       or event["event"] not in ("user_message", "negative_tone", "appraisal_curiosity",
-                                              "appraisal_warmth", "appraisal_concern", "appraisal_frustration")
+                       or event["event"] not in ("user_message", "negative_tone", "creative_expression",
+                                              "appraisal_curiosity", "appraisal_warmth", "appraisal_concern",
+                                              "appraisal_frustration")
                        or not isinstance(event["at"], str) for event in experiences)):
             raise ValueError("Invalid persisted emotional state; refusing to reset it")
         self.state = state
@@ -290,6 +291,12 @@ class EmotionalCore:
         if context.get("negative_tone", False):
             self.state["irritation"] += 0.2
             events.append("negative_tone")
+        if context.get("creative_expression", False):
+            # A thought written out releases creative pressure and eases solitude.
+            self.state["creativity"] -= 0.10
+            self.state["happiness"] += 0.04
+            self.state["loneliness"] -= 0.03
+            events.append("creative_expression")
         for emotion, change in effects.items():
             self.state[emotion] += change
         if effects:
