@@ -4,10 +4,6 @@
 # Бинарники — через LFS
 *.apk filter=lfs diff=lfs merge=lfs -text
 *.tar.gz filter=lfs diff=lfs merge=lfs -text
-extension/pdf-vendor.mjs filter=lfs diff=lfs merge=lfs -text
-extension/pdf-reader-vendor.mjs filter=lfs diff=lfs merge=lfs -text
-extension/pdf-font.mjs filter=lfs diff=lfs merge=lfs -text
-extension/xlsx-vendor.mjs filter=lfs diff=lfs merge=lfs -text
 
 # Vendor-бандлы не диффим
 extension/*-vendor.mjs -diff -merge
