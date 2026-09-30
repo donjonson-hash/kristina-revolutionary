@@ -17,6 +17,7 @@ from intention_cycle import intention_context, research_capabilities, research_r
 from mood_engine import mood_engine
 from night_mode import night_mode
 from dialogue_state import dialogue_context, preview_user
+from emotional_core import EmotionalEvent
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,10 @@ class KristinaPersonaAgent(BaseAgent):
 
     async def process(self, user_input: str, context: Dict) -> AgentResponse:
         user_id = context.get("user_id", "unknown")
+        # Build from the router's identity and exact input, never accept a supplied stamp.
+        emotion_event = EmotionalEvent.from_message(
+            context.get("session_id"), context.get("event_id"), user_input,
+        )
 
         brain_snapshot = {}
         if self.use_brain_integration and get_brain_bridge is not None:
@@ -68,6 +73,7 @@ class KristinaPersonaAgent(BaseAgent):
                         "event_at": context.get("event_at"),
                         "event_id": context.get("event_id"),
                         "appraise_event": True,
+                        "emotion_event": emotion_event,
                     },
                 )
             except Exception:
@@ -78,7 +84,9 @@ class KristinaPersonaAgent(BaseAgent):
             appraisal = None
         else:
             context["_appraisal"] = appraisal
-        emotional_state = brain_snapshot.get("emotion") or mood_engine.snapshot(user_message=True)
+        emotional_state = brain_snapshot.get("emotion") or mood_engine.snapshot(
+            user_message=True, event=emotion_event,
+        )
         interest = appraisal.interest(context.get("interest")) if appraisal else context.get("interest")
         cognitive_prompt = cognitive_context(interest, context.get("history", []))
         # A source-linked explanation is visible in THIS reply, not one turn later.

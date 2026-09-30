@@ -288,7 +288,8 @@ class DialogueStore:
     An external send cannot be atomic with SQLite. Once marked sending, an
     uncertain delivery is never retried automatically within that user revision.
     A later user turn resumes eligibility. Completed duplicate inbound receipts
-    are replayable; this does not promise exactly-once emotion DB writes.
+    are replayable. Persona's transport-keyed emotional receipts protect reaction
+    retries separately; this store does not make external delivery atomic.
     """
 
     def __init__(self, memory):

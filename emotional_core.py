@@ -4,12 +4,14 @@ Emotional Evolution v2.0 — Kristina меняется как живой чел�
 """
 
 import json
+import hashlib
 import math
 import os
 import re
 import sqlite3
 import threading
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Dict
@@ -17,6 +19,40 @@ import logging
 
 logger = logging.getLogger(__name__)
 STOCKHOLM = ZoneInfo("Europe/Stockholm")
+
+
+@dataclass(frozen=True)
+class EmotionalEvent:
+    """Transport identity only; no user text or raw session identity is persisted."""
+
+    session_sha256: str
+    event_id: str
+    input_sha256: str
+
+    def __post_init__(self):
+        for value in (self.session_sha256, self.input_sha256):
+            if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+                raise ValueError("Invalid emotional event digest")
+        if not isinstance(self.event_id, str) or not self.event_id.strip() or len(self.event_id) > 240:
+            raise ValueError("Invalid emotional event ID")
+
+    @classmethod
+    def from_message(cls, session_id, event_id, user_input):
+        if session_id is None or event_id is None:
+            return None  # Legacy/anonymous calls have no reliable transport identity.
+        if not isinstance(session_id, str) or not session_id.strip() or len(session_id) > 4096:
+            raise ValueError("Invalid emotional session identity")
+        if not isinstance(user_input, str):
+            raise ValueError("Emotional event requires message text")
+        return cls(hashlib.sha256(session_id.encode("utf8")).hexdigest(), event_id,
+                   hashlib.sha256(user_input.encode("utf8")).hexdigest())
+
+
+def _new_event(previous_hash, event):
+    if previous_hash is not None and previous_hash != event.input_sha256:
+        raise ValueError("Emotional event ID was reused for different input")
+    return previous_hash is None
+
 
 class EmotionalCore:
     """Эмоциональное ядро Кристины — эволюционирует со временем"""
@@ -46,6 +82,7 @@ class EmotionalCore:
         self.db_path = db_path
         self._lock = threading.RLock()
         self._experiment_ids = set()
+        self._message_events = {}
         self.appraisal_observer = appraisal_observer
         if db_path is not None:
             with closing(sqlite3.connect(db_path)) as conn, conn:
@@ -56,6 +93,11 @@ class EmotionalCore:
                     experiment_id TEXT PRIMARY KEY, outcome TEXT NOT NULL,
                     applied_at TEXT NOT NULL
                 )""")
+                conn.execute("""CREATE TABLE IF NOT EXISTS emotional_message_events (
+                    session_sha256 TEXT NOT NULL, event_id TEXT NOT NULL,
+                    input_sha256 TEXT NOT NULL, applied_at TEXT NOT NULL,
+                    PRIMARY KEY (session_sha256, event_id)
+                )""")
             self.evolve()
         
     def _now(self):
@@ -64,13 +106,22 @@ class EmotionalCore:
             raise ValueError("EmotionalCore clock must return an aware datetime")
         return now.astimezone(timezone.utc)
 
-    def evolve(self, context: Dict = None, *, observation=None) -> Dict:
+    def evolve(self, context: Dict = None, *, observation=None, event=None) -> Dict:
         """Advance by elapsed time, then apply one observed event; persist atomically."""
+        if event is not None:
+            if not isinstance(event, EmotionalEvent) or not context or context.get("user_message") is not True:
+                raise ValueError("Emotional event requires a stamped user-message transition")
+            event.__post_init__()
         with self._lock:
             previous = self._payload()
+            applied = True
             try:
                 if self.db_path is None:
-                    before = self._advance(self._now(), context)
+                    if event is not None:
+                        applied = _new_event(self._message_events.get((event.session_sha256, event.event_id)), event)
+                    before = self._advance(self._now(), context if applied else None)
+                    if event is not None and applied:
+                        self._message_events[(event.session_sha256, event.event_id)] = event.input_sha256
                 else:
                     # Reload under a write lock so bot/web processes cannot overwrite
                     # each other's events with an old in-memory snapshot.
@@ -79,7 +130,16 @@ class EmotionalCore:
                         row = conn.execute("SELECT payload FROM emotional_state WHERE id = 1").fetchone()
                         if row:
                             self._restore(json.loads(row[0]))
-                        before = self._advance(self._now(), context)
+                        if event is not None:
+                            receipt = conn.execute("""SELECT input_sha256 FROM emotional_message_events
+                                WHERE session_sha256=? AND event_id=?""",
+                                                   (event.session_sha256, event.event_id)).fetchone()
+                            applied = _new_event(receipt[0] if receipt else None, event)
+                        before = self._advance(self._now(), context if applied else None)
+                        if event is not None and applied:
+                            conn.execute("""INSERT INTO emotional_message_events VALUES (?,?,?,?)""",
+                                         (event.session_sha256, event.event_id, event.input_sha256,
+                                          self.last_update.isoformat()))
                         conn.execute(
                             "INSERT OR REPLACE INTO emotional_state (id, payload) VALUES (1, ?)",
                             (json.dumps(self._payload()),),
@@ -91,7 +151,7 @@ class EmotionalCore:
             # Both snapshots are from this one event under the core lock and,
             # when persistent, after reload under BEGIN IMMEDIATE. Notify only
             # AFTER commit; a rejected database write must leave no shadow trace.
-            if self.appraisal_observer is not None and observation is not None:
+            if applied and self.appraisal_observer is not None and observation is not None:
                 try:
                     from experiments.appraisal_observer import AppraisalSource
                     if (not isinstance(observation, AppraisalSource)
