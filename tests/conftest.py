@@ -135,24 +135,3 @@ def persistent_memory(tmp_path):
     test_db = tmp_path / "test_memory.db"
     pm = PersistentMemory(db_path=str(test_db))
     return pm
-
-
-# ─── Fixtures: Mobile API ─────────────────────────────────────
-
-@pytest.fixture
-async def client():
-    """TestClient для FastAPI мобильного API"""
-    from fastapi.testclient import TestClient
-    import mobile_api as api
-
-    # Создаём приложение без middleware для rate limiting
-    api_key = "test-secret-key-for-testing"
-    import os
-    os.environ["JWT_SECRET_KEY"] = api_key
-
-    # Перезагружаем модуль, чтобы подхватить новый env
-    import importlib
-    importlib.reload(api)
-
-    with TestClient(api.app) as c:
-        yield c

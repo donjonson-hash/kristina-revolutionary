@@ -72,7 +72,7 @@ python migrate_to_postgres.py
 ### 6. Запуск
 
 ```bash
-python bot.py  # или python mobile_api.py
+python bot.py
 ```
 
 ---
