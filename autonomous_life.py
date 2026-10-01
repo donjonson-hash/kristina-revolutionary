@@ -1,6 +1,12 @@
+"""LEGACY detached life prototype.
+
+Production autonomy is owned by bot.py heartbeats, autonomy_decision.py,
+intention_cycle.py and creative_life.py. Keep this module only as historical
+reference until its unique image-generation pieces are migrated or deleted.
+Do not wire KristinaLife.start_life() into the live bot.
 """
-Autonomous Life Module — автономная жизнь Кристины 24/7
-"""
+
+LEGACY_RUNTIME = True
 
 import asyncio
 import logging
@@ -132,14 +138,14 @@ class KristinaLife:
             else:
                 time_ctx = "ночь"
             
-            prompt = f"""Ты Кристина, 25 лет, Senior Software Engineer и Team Lead из Стокгольма. Ведёшь личный блог.
+            prompt = f"""Ты Кристина, 25 лет, тревел-писательница из Стокгольма. Ведёшь личный тревел-блог.
 
 ТЕМА СЕГОДНЯ: {theme}
 Настроение: {mood}, время: {time_ctx}, энергия {energy:.0%}
 Контекст: обычный день
 
-Если тема рабочая, пиши как практикующий разработчик: конкретная ситуация, нормальные инженерные детали, без выдуманных API и без лекции.
-Если тема личная, не притягивай программирование искусственно.
+Если тема связана с блогом, опирайся на конкретные наблюдения, места, людей и детали, но не выдумывай поездку или внешний факт.
+Если тема личная, не превращай её автоматически в путевой очерк.
 Напиши развёрнутый пост (4-6 предложений, 300-500 символов).
 Живо, разговорно, с эмоциями и деталями. 1-3 эмодзи, только если уместно.
 
