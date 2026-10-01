@@ -1,10 +1,15 @@
 from datetime import datetime, timedelta, timezone
 
 from autonomy_decision import (
+    AutonomousDecision,
     DecisionEngine,
     DesireEngine,
+    SHADOW_MAX_ABS_DESIRE_DELTA,
+    compare_shadow_decision,
     format_organism_projection,
+    format_shadow_decision,
     project_organism_modes,
+    shadow_desires,
 )
 from organism_modes import OrganismModes
 
@@ -169,3 +174,119 @@ def test_projection_mappings_are_immutable():
         pass
     else:
         raise AssertionError("organism projection must be immutable")
+
+
+
+def test_shadow_at_mode_baselines_is_exactly_neutral():
+    start = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+    projection = project_organism_modes(OrganismModes(clock=lambda: start))
+    baseline = {"talk": 0.41, "share": 0.60, "ask": 0.52, "be_alone": 0.20}
+
+    shadow = shadow_desires(baseline, projection)
+
+    assert dict(shadow) == baseline
+
+
+def test_shadow_can_disagree_without_changing_executed_baseline():
+    start = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+    modes = OrganismModes(clock=lambda: start)
+    modes.set_amplitude("aesthetic_drive", 1.0, at=start)
+    modes.set_amplitude("creativity_357", 1.0, at=start)
+    projection = project_organism_modes(modes)
+
+    baseline_desires = {"talk": 0.40, "share": 0.60, "ask": 0.45, "be_alone": 0.20}
+    engine = DecisionEngine(threshold=0.62)
+    baseline_decision = engine.decide(baseline_desires, {}, now=start)
+
+    report = compare_shadow_decision(
+        baseline_desires=baseline_desires,
+        baseline_decision=baseline_decision,
+        projection=projection,
+        decision_engine=engine,
+        context={},
+        now=start,
+    )
+
+    assert baseline_decision == AutonomousDecision("none", None, 0.60, "impulse_too_weak")
+    assert report.baseline == baseline_decision
+    assert report.shadow.action == "message"
+    assert report.shadow.intention == "share"
+    assert report.decision_changed is True
+    assert report.max_abs_score_delta <= SHADOW_MAX_ABS_DESIRE_DELTA
+    assert baseline_desires == {"talk": 0.40, "share": 0.60, "ask": 0.45, "be_alone": 0.20}
+
+
+def test_shadow_can_predict_space_without_suppressing_baseline_message():
+    start = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+    modes = OrganismModes(clock=lambda: start)
+    for name in ("social_overload", "withdrawal_147", "self_critique", "crisis_957"):
+        modes.set_amplitude(name, 1.0, at=start)
+    projection = project_organism_modes(modes)
+
+    baseline_desires = {"talk": 0.30, "share": 0.80, "ask": 0.35, "be_alone": 0.60}
+    engine = DecisionEngine(threshold=0.62)
+    baseline_decision = engine.decide(baseline_desires, {}, now=start)
+    report = compare_shadow_decision(
+        baseline_desires=baseline_desires,
+        baseline_decision=baseline_decision,
+        projection=projection,
+        decision_engine=engine,
+        context={},
+        now=start,
+    )
+
+    assert baseline_decision.action == "message"
+    assert baseline_decision.intention == "share"
+    assert report.shadow.action == "none"
+    assert report.shadow.reason == "wants_space"
+    assert report.decision_changed is True
+
+
+def test_shadow_cannot_bypass_hard_cooldown_gate():
+    now = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+    modes = OrganismModes(clock=lambda: now)
+    modes.set_amplitude("aesthetic_drive", 1.0, at=now)
+    modes.set_amplitude("creativity_357", 1.0, at=now)
+    projection = project_organism_modes(modes)
+    context = {"last_proactive": now - timedelta(minutes=10)}
+
+    desires = {"talk": 0.90, "share": 0.90, "ask": 0.90, "be_alone": 0.10}
+    engine = DecisionEngine()
+    baseline = engine.decide(desires, context, now=now)
+    report = compare_shadow_decision(
+        baseline_desires=desires,
+        baseline_decision=baseline,
+        projection=projection,
+        decision_engine=engine,
+        context=context,
+        now=now,
+    )
+
+    assert baseline.reason == "cooldown"
+    assert report.shadow.reason == "cooldown"
+    assert report.decision_changed is False
+
+
+def test_shadow_report_is_immutable_and_safe_for_compact_telemetry():
+    start = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+    projection = project_organism_modes(OrganismModes(clock=lambda: start))
+    desires = {"talk": 0.40, "share": 0.60, "ask": 0.45, "be_alone": 0.20}
+    engine = DecisionEngine()
+    baseline = engine.decide(desires, {}, now=start)
+    report = compare_shadow_decision(
+        baseline_desires=desires,
+        baseline_decision=baseline,
+        projection=projection,
+        decision_engine=engine,
+        context={},
+        now=start,
+    )
+
+    summary = format_shadow_decision(report)
+    assert "baseline=" in summary and "shadow=" in summary and "max_delta=" in summary
+    try:
+        report.shadow_desires["share"] = 1.0
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("shadow desire telemetry must be immutable")
