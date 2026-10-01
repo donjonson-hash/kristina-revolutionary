@@ -107,8 +107,10 @@ The intended layering is:
 external/internal event
   -> appraisal
   -> EmotionalCore        # fast state
-  <-> organism modes      # slow state
-  -> DesireEngine
+  -> organism modes       # slow state learns from validated events
+       \
+        \-- read-only projection --> decision telemetry
+  -> DesireEngine         # projection does not change scores yet
   -> DecisionEngine
   -> action or silence
 ```

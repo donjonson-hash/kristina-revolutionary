@@ -60,7 +60,12 @@ try:
     from agents.kristina_creative import KristinaCreativeAgent
     from agents.trend_scout import TrendScoutAgent
     from emotional_core import get_emotional_core
-    from autonomy_decision import DesireEngine, DecisionEngine
+    from autonomy_decision import (
+        DesireEngine,
+        DecisionEngine,
+        format_organism_projection,
+        project_organism_modes,
+    )
 
     ai = get_ai_client()
 except ImportError as e:
@@ -452,8 +457,15 @@ async def creative_life_tick(bot, now: datetime, emotional_state: Dict):
     if _creative_busy or emotional_core.db_path is None:
         return
     life = get_creative_life()
-    decision = creative_decision(emotional_state, life.diary.last_created_at(), now,
-                                 desire_engine, decision_engine)
+    organism_projection = project_organism_modes(emotional_core.organism_modes)
+    decision = creative_decision(
+        emotional_state,
+        life.diary.last_created_at(),
+        now,
+        desire_engine,
+        decision_engine,
+        organism_projection=organism_projection,
+    )
     if decision.action != "message":
         logger.debug("Creative impulse held score=%.2f reason=%s", decision.score, decision.reason)
         return
@@ -512,16 +524,18 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                              if dialogue["last_user_at"] else last_user_activity.get(chat_id, now))
                 last_sent = (datetime.fromisoformat(dialogue["last_proactive_at"])
                              if dialogue["last_proactive_at"] else last_proactive.get(chat_id))
+                organism_projection = project_organism_modes(emotional_core.organism_modes)
                 decision_context = {
                     "hours_since_contact": max(0.0, (now - last_seen).total_seconds() / 3600.0),
                     "last_proactive": last_sent,
+                    "organism_projection": organism_projection,
                 }
                 desires = desire_engine.calculate(emotional_state, decision_context)
                 decision = decision_engine.decide(desires, decision_context, now=now)
                 logger.info(
-                    "Autonomous decision chat=%s action=%s intention=%s score=%.2f reason=%s next=%s",
+                    "Autonomous decision chat=%s action=%s intention=%s score=%.2f reason=%s next=%s organism=%s",
                     chat_id, decision.action, decision.intention, decision.score, decision.reason,
-                    next_due.isoformat(),
+                    next_due.isoformat(), format_organism_projection(organism_projection),
                 )
                 if decision.action != "message":
                     continue
