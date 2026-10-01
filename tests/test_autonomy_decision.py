@@ -157,3 +157,15 @@ def test_invalid_projection_fails_closed_in_desire_engine():
         assert "OrganismProjection" in str(exc)
     else:
         raise AssertionError("invalid projection must be rejected")
+
+
+def test_projection_mappings_are_immutable():
+    start = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
+    projection = project_organism_modes(OrganismModes(clock=lambda: start))
+
+    try:
+        projection.amplitudes["core_741"] = 0.0
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("organism projection must be immutable")
