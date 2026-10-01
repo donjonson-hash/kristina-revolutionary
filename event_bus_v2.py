@@ -12,8 +12,9 @@ import asyncio
 import logging
 from typing import Dict, List, Callable, Any, Optional, Awaitable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,8 @@ class Event:
     source: str = "unknown"
     target: Optional[str] = None  # None = broadcast
     priority: EventPriority = EventPriority.NORMAL
-    timestamp: datetime = field(default_factory=datetime.now)
-    event_id: str = field(default_factory=lambda: f"evt_{datetime.now().timestamp()}")
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    event_id: str = field(default_factory=lambda: "evt_" + uuid4().hex)
 
 
 @dataclass
@@ -44,7 +45,7 @@ class Request:
     data: Dict[str, Any] = field(default_factory=dict)
     source: str = "unknown"
     timeout: float = 5.0
-    request_id: str = field(default_factory=lambda: f"req_{datetime.now().timestamp()}")
+    request_id: str = field(default_factory=lambda: "req_" + uuid4().hex)
 
 
 @dataclass
@@ -143,6 +144,20 @@ class EventBusV2:
         
         logger.info(f"📢 Event: {event.type} (priority={event.priority.name})")
     
+    def publish_nowait(self, event: Event) -> bool:
+        """Schedule publication on the current asyncio loop.
+
+        Returns False when called outside an async runtime. This is intentionally
+        non-blocking and exists mainly for temporary compatibility adapters.
+        New runtime code should normally await :meth:`publish` directly.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return False
+        loop.create_task(self.publish(event))
+        return True
+
     async def _safe_call(self, callback: Callable, event: Event):
         """Безопасный вызов обработчика"""
         try:
@@ -268,6 +283,9 @@ class EventTypes:
     
     # Системные
     AGENT_REGISTERED = "agent:registered"
+    AGENT_SWITCHED = "agent:switched"
+    USER_ACTIVE = "user:active"
+    NIGHT_MODE = "night:mode"
     ERROR_OCCURRED = "error:occurred"
 
 
