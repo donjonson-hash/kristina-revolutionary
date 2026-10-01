@@ -15,7 +15,7 @@ import json
 import math
 import sqlite3
 from contextlib import closing
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from autonomy_decision import OrganismProjection, ShadowDecisionReport
