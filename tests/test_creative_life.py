@@ -4,7 +4,15 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from creative_life import CreativeDiary, CreativeLife, thought_prompt, time_of_day, validate_thought
+from creative_life import (
+    CreativeDiary,
+    CreativeLife,
+    creative_decision,
+    creative_shadow_decision,
+    thought_prompt,
+    time_of_day,
+    validate_thought,
+)
 from emotional_core import EmotionalCore
 
 DAY = datetime(2026, 9, 30, 10, tzinfo=timezone.utc)
@@ -112,7 +120,6 @@ def baseline_state(**overrides):
 
 
 def decide(state, last, now=NOON):
-    from creative_life import creative_decision
     return creative_decision(state, last, now, DesireEngine(), DecisionEngine())
 
 
@@ -208,3 +215,64 @@ async def test_heartbeat_skips_in_memory_core(heartbeat, monkeypatch):
     monkeypatch.setattr(bot, "emotional_core", EmotionalCore(clock=lambda: NOON))
     await bot.creative_life_tick(telegram, NOON, bot.emotional_core.evolve())
     telegram.send_message.assert_not_awaited()
+
+
+
+def test_creative_shadow_is_observational_only():
+    from autonomy_decision import project_organism_modes
+    from organism_modes import OrganismModes
+
+    modes = OrganismModes(clock=lambda: NOON)
+    modes.set_amplitude("aesthetic_drive", 1.0, at=NOON)
+    modes.set_amplitude("creativity_357", 1.0, at=NOON)
+    projection = project_organism_modes(modes)
+    state = baseline_state(creativity=0.5)
+    last = NOON - timedelta(hours=3)
+    desires, decisions = DesireEngine(), DecisionEngine()
+
+    baseline = creative_decision(
+        state, last, NOON, desires, decisions, organism_projection=projection
+    )
+    report = creative_shadow_decision(
+        state,
+        last,
+        NOON,
+        desires,
+        decisions,
+        baseline,
+        organism_projection=projection,
+    )
+
+    assert baseline.action == "none"
+    assert baseline.reason == "impulse_too_weak"
+    assert report.baseline == baseline
+    assert report.shadow.score > baseline.score
+    # The counterfactual is returned for telemetry only; the baseline object is unchanged.
+    assert baseline.action == "none"
+
+
+def test_creative_shadow_skips_night_without_counterfactual():
+    from autonomy_decision import project_organism_modes
+    from organism_modes import OrganismModes
+
+    modes = OrganismModes(clock=lambda: NOON)
+    projection = project_organism_modes(modes)
+    night = baseline_state()
+    night["is_night"] = True
+    desires, decisions = DesireEngine(), DecisionEngine()
+    baseline = creative_decision(
+        night, None, NOON, desires, decisions, organism_projection=projection
+    )
+
+    report = creative_shadow_decision(
+        night,
+        None,
+        NOON,
+        desires,
+        decisions,
+        baseline,
+        organism_projection=projection,
+    )
+
+    assert baseline.reason == "night"
+    assert report is None
