@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, Optional
+from types import MappingProxyType
+from typing import Dict, Mapping, Optional
 
 
 @dataclass(frozen=True)
@@ -21,9 +22,10 @@ class OrganismProjection:
     not use it to change scores in this stage.
     """
 
-    amplitudes: Dict[str, float]
-    deviations: Dict[str, float]
+    amplitudes: Mapping[str, float]
+    deviations: Mapping[str, float]
     dominant: tuple[str, ...]
+    shifted: tuple[str, ...]
     max_abs_deviation: float
 
 
@@ -45,11 +47,20 @@ def project_organism_modes(mode_store, limit: int = 3) -> OrganismProjection:
             key=lambda state: (-state.amplitude, state.name),
         )[:limit]
     )
+    shifted = tuple(
+        name
+        for name, deviation in sorted(
+            deviations.items(),
+            key=lambda item: (-abs(item[1]), item[0]),
+        )
+        if abs(deviation) > 1e-12
+    )[:limit]
     max_abs_deviation = max((abs(value) for value in deviations.values()), default=0.0)
     return OrganismProjection(
-        amplitudes=amplitudes,
-        deviations=deviations,
+        amplitudes=MappingProxyType(amplitudes),
+        deviations=MappingProxyType(deviations),
         dominant=dominant,
+        shifted=shifted,
         max_abs_deviation=max_abs_deviation,
     )
 
@@ -57,7 +68,8 @@ def project_organism_modes(mode_store, limit: int = 3) -> OrganismProjection:
 def format_organism_projection(projection: OrganismProjection) -> str:
     """Compact operational summary; contains no message text or user identity."""
     top = ",".join(projection.dominant) if projection.dominant else "none"
-    return f"top={top} max_dev={projection.max_abs_deviation:.3f}"
+    shifted = ",".join(projection.shifted) if projection.shifted else "none"
+    return f"top={top} shifted={shifted} max_dev={projection.max_abs_deviation:.3f}"
 
 
 class DesireEngine:
