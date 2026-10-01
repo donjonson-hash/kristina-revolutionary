@@ -109,11 +109,27 @@ external/internal event
   -> EmotionalCore        # fast state
   -> organism modes       # slow state learns from validated events
        \
-        \-- read-only projection --> decision telemetry
-  -> DesireEngine         # projection does not change scores yet
+        \-- read-only projection --> bounded shadow desires
+                                   --> shadow DecisionEngine
+                                   --> telemetry only
+  -> DesireEngine         # baseline formulas remain production authority
   -> DecisionEngine
-  -> action or silence
+  -> action or silence    # only this baseline result is executable
 ```
 
 Every durable organism event should carry a stable event ID so retries cannot
 apply the same experience twice.
+
+
+## Shadow decision safety boundary
+
+The shadow path in `autonomy_decision.py` is a counterfactual observer, not a
+second controller. It receives the already-computed baseline desires and
+baseline decision, applies bounded candidate slow-mode influence, and asks the
+same `DecisionEngine` what would have happened.
+
+`bot.py` always keeps and executes the baseline decision. Shadow calculation
+is wrapped separately so a shadow exception cannot suppress or create a
+production action. Do not route message generation, proactive claims, delivery,
+creative diary writes or cooldown state from the shadow result until a later
+explicit activation stage.

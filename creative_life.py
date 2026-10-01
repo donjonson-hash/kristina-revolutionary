@@ -127,6 +127,26 @@ def ai_generate(client) -> Callable[[str, str], Awaitable[str]]:
     return generate
 
 
+def creative_decision_inputs(
+    emotional_state: Dict,
+    last_expression: Optional[datetime],
+    now: datetime,
+    desire_engine,
+    *,
+    organism_projection=None,
+):
+    """Build the exact baseline inputs used by the creative decision path."""
+    hours = (now - last_expression).total_seconds() / 3600.0 if last_expression else 24.0
+    desire_context = {"hours_since_contact": hours}
+    if organism_projection is not None:
+        desire_context["organism_projection"] = organism_projection
+    desires = desire_engine.calculate(emotional_state, desire_context)
+    return (
+        {"share": desires["share"], "be_alone": desires["be_alone"]},
+        {"last_proactive": last_expression},
+    )
+
+
 def creative_decision(
     emotional_state: Dict,
     last_expression: Optional[datetime],
@@ -145,13 +165,46 @@ def creative_decision(
     from autonomy_decision import AutonomousDecision
     if emotional_state.get("is_night"):
         return AutonomousDecision("none", None, 0.0, "night")
-    hours = (now - last_expression).total_seconds() / 3600.0 if last_expression else 24.0
-    decision_context = {"hours_since_contact": hours}
-    if organism_projection is not None:
-        decision_context["organism_projection"] = organism_projection
-    desires = desire_engine.calculate(emotional_state, decision_context)
-    return decision_engine.decide({"share": desires["share"], "be_alone": desires["be_alone"]},
-                                  {"last_proactive": last_expression}, now=now)
+    desires, decision_context = creative_decision_inputs(
+        emotional_state,
+        last_expression,
+        now,
+        desire_engine,
+        organism_projection=organism_projection,
+    )
+    return decision_engine.decide(desires, decision_context, now=now)
+
+
+def creative_shadow_decision(
+    emotional_state: Dict,
+    last_expression: Optional[datetime],
+    now: datetime,
+    desire_engine,
+    decision_engine,
+    baseline_decision,
+    *,
+    organism_projection,
+):
+    """Counterfactual creative decision; caller must never execute it."""
+    if emotional_state.get("is_night"):
+        return None
+    from autonomy_decision import compare_shadow_decision
+
+    baseline_desires, decision_context = creative_decision_inputs(
+        emotional_state,
+        last_expression,
+        now,
+        desire_engine,
+        organism_projection=organism_projection,
+    )
+    return compare_shadow_decision(
+        baseline_desires=baseline_desires,
+        baseline_decision=baseline_decision,
+        projection=organism_projection,
+        decision_engine=decision_engine,
+        context=decision_context,
+        now=now,
+    )
 
 
 class CreativeLife:
