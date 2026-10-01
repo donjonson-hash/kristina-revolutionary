@@ -40,6 +40,7 @@ from proactive_naturalness import (
     is_opening_too_similar,
     next_opportunity_seconds,
 )
+from shadow_telemetry import ShadowTelemetryStore, shadow_time_bucket
 
 load_dotenv()
 
@@ -93,6 +94,21 @@ desire_engine = DesireEngine()
 decision_engine = DecisionEngine()
 creative_life = None
 _creative_busy = False
+_shadow_telemetry_store = None
+_shadow_telemetry_path = None
+
+
+def get_shadow_telemetry_store():
+    """Lazily bind telemetry to the currently active persistent state DB."""
+    global _shadow_telemetry_store, _shadow_telemetry_path
+    path = emotional_core.db_path
+    if path is None:
+        return None
+    normalized = str(path)
+    if _shadow_telemetry_store is None or _shadow_telemetry_path != normalized:
+        _shadow_telemetry_store = ShadowTelemetryStore(normalized)
+        _shadow_telemetry_path = normalized
+    return _shadow_telemetry_store
 
 
 def get_creative_life() -> CreativeLife:
@@ -491,6 +507,22 @@ async def creative_life_tick(bot, now: datetime, emotional_state: Dict):
                 format_organism_projection(organism_projection),
                 format_shadow_decision(shadow),
             )
+            telemetry = get_shadow_telemetry_store()
+            if telemetry is not None:
+                try:
+                    telemetry.record_once(
+                        kind="creative",
+                        scope="creative-global",
+                        opportunity_at=shadow_time_bucket(now, minutes=30),
+                        observed_at=now,
+                        projection=organism_projection,
+                        report=shadow,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Creative shadow telemetry persistence unavailable: %s",
+                        type(exc).__name__,
+                    )
     except Exception as exc:
         # Shadow analysis is observational. It must never block the baseline
         # creative decision or become a production control path.
@@ -572,6 +604,22 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                         now=now,
                     )
                     shadow_text = format_shadow_decision(shadow)
+                    telemetry = get_shadow_telemetry_store()
+                    if telemetry is not None:
+                        try:
+                            telemetry.record_once(
+                                kind="proactive",
+                                scope=session_id,
+                                opportunity_at=due,
+                                observed_at=now,
+                                projection=organism_projection,
+                                report=shadow,
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "Autonomous shadow telemetry persistence unavailable chat=%s error=%s",
+                                chat_id, type(exc).__name__,
+                            )
                 except Exception as exc:
                     # Never let counterfactual telemetry affect the baseline path.
                     logger.warning(
