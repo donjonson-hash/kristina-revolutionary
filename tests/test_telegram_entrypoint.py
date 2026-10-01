@@ -67,6 +67,7 @@ def test_telegram_registers_agents_without_legacy_auth_or_network(tmp_path):
         assert callable(bot.handle_message)
         assert callable(bot.setup_proactive_messaging)
         assert callable(bot.setup_weekly_trends)
+        assert callable(bot.shadow_command)
         print("TELEGRAM_ENTRYPOINT_OK")
     """)
     result = subprocess.run(
