@@ -14,8 +14,9 @@ import hashlib
 import json
 import math
 import sqlite3
+from collections import Counter, defaultdict
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from autonomy_decision import OrganismProjection, ShadowDecisionReport
@@ -23,6 +24,28 @@ from autonomy_decision import OrganismProjection, ShadowDecisionReport
 
 ALLOWED_KINDS = ("proactive", "creative")
 TELEMETRY_VERSION = 1
+REPORT_WINDOWS = {
+    "24h": timedelta(hours=24),
+    "7d": timedelta(days=7),
+    "all": None,
+}
+
+
+def parse_shadow_report_window(raw: Optional[str], now: datetime):
+    """Resolve a compact report window token to a UTC lower bound and label."""
+    aware_now = _aware(now)
+    token = (raw or "24h").strip().lower()
+    aliases = {
+        "24": "24h", "1d": "24h", "day": "24h", "сутки": "24h",
+        "7": "7d", "week": "7d", "неделя": "7d", "все": "all",
+    }
+    token = aliases.get(token, token)
+    if token not in REPORT_WINDOWS:
+        raise ValueError("Shadow report window must be 24h, 7d or all")
+    duration = REPORT_WINDOWS[token]
+    since = aware_now - duration if duration is not None else None
+    labels = {"24h": "последние 24 часа", "7d": "последние 7 дней", "all": "всё время"}
+    return token, since, labels[token]
 
 
 def shadow_time_bucket(at: datetime, minutes: int = 30) -> datetime:
@@ -296,8 +319,35 @@ class ShadowTelemetryStore:
                     ORDER BY kind""",
                 params,
             ).fetchall()
+            evidence = conn.execute(
+                f"""SELECT score_deltas_json, shifted_modes_json
+                    FROM shadow_decision_telemetry{where}""",
+                params,
+            ).fetchall()
 
         count = int(total["total"])
+        shifted_counts = Counter()
+        delta_sums = defaultdict(float)
+        delta_counts = Counter()
+        for row in evidence:
+            for mode_name in json.loads(row["shifted_modes_json"]):
+                shifted_counts[str(mode_name)] += 1
+            for desire, delta in json.loads(row["score_deltas_json"]).items():
+                delta_sums[str(desire)] += _finite(delta, f"stored score delta {desire}")
+                delta_counts[str(desire)] += 1
+
+        by_kind_result = {}
+        for row in by_kind:
+            kind_total = int(row["total"])
+            changed = int(row["decision_changed"])
+            by_kind_result[row["kind"]] = {
+                "total": kind_total,
+                "decision_changed": changed,
+                "action_changed": int(row["action_changed"]),
+                "intention_changed": int(row["intention_changed"]),
+                "decision_changed_rate": changed / kind_total if kind_total else 0.0,
+            }
+
         return {
             "total": count,
             "decision_changed": int(total["decision_changed"]),
@@ -308,13 +358,81 @@ class ShadowTelemetryStore:
             ),
             "avg_max_abs_score_delta": float(total["avg_max_delta"]),
             "max_abs_score_delta": float(total["max_delta"]),
-            "by_kind": {
-                row["kind"]: {
-                    "total": int(row["total"]),
-                    "decision_changed": int(row["decision_changed"]),
-                    "action_changed": int(row["action_changed"]),
-                    "intention_changed": int(row["intention_changed"]),
-                }
-                for row in by_kind
+            "by_kind": by_kind_result,
+            "top_shifted_modes": shifted_counts.most_common(5),
+            "avg_score_deltas": {
+                desire: delta_sums[desire] / delta_counts[desire]
+                for desire in sorted(delta_counts)
             },
         }
+
+
+def format_shadow_report(
+    store: ShadowTelemetryStore,
+    *,
+    window: Optional[str] = "24h",
+    now: Optional[datetime] = None,
+) -> str:
+    """Human-readable read-only calibration report for Telegram/admin use."""
+    if not isinstance(store, ShadowTelemetryStore):
+        raise ValueError("store must be a ShadowTelemetryStore")
+    current = _aware(now or datetime.now(timezone.utc))
+    token, since, label = parse_shadow_report_window(window, current)
+    summary = store.summary(since=since)
+    total = summary["total"]
+
+    lines = [
+        f"🧭 Shadow telemetry — {label}",
+        f"Наблюдений: {total}",
+    ]
+    if total == 0:
+        lines.extend([
+            "Данных пока недостаточно: production ещё не накопил shadow-наблюдения в этом окне.",
+            "",
+            "Baseline остаётся единственным исполняемым решением.",
+            f"Команда: /shadow {token}",
+        ])
+        return "\n".join(lines)
+
+    changed = summary["decision_changed"]
+    lines.extend([
+        f"Shadow изменил бы решение: {changed}/{total} ({summary['decision_changed_rate']:.1%})",
+        f"Изменил бы action: {summary['action_changed']}/{total}",
+        f"Изменил бы intention: {summary['intention_changed']}/{total}",
+        (
+            "Δ score: "
+            f"средний максимум {summary['avg_max_abs_score_delta']:.3f}; "
+            f"максимум {summary['max_abs_score_delta']:.3f}"
+        ),
+    ])
+
+    for kind in ALLOWED_KINDS:
+        stats = summary["by_kind"].get(kind)
+        if stats:
+            lines.append(
+                f"{kind}: {stats['total']} наблюдений; "
+                f"изменение решения {stats['decision_changed_rate']:.1%}"
+            )
+
+    shifted = summary["top_shifted_modes"]
+    if shifted:
+        lines.append(
+            "Чаще всего среди сильных сдвигов: "
+            + ", ".join(f"{name} ×{count}" for name, count in shifted)
+        )
+
+    average_deltas = summary["avg_score_deltas"]
+    if average_deltas:
+        lines.append(
+            "Средний shadow Δ: "
+            + "; ".join(
+                f"{name} {delta:+.3f}" for name, delta in average_deltas.items()
+            )
+        )
+
+    lines.extend([
+        "",
+        "Это наблюдение, не управление: production по-прежнему исполняет только baseline.",
+        f"Команда: /shadow {token}",
+    ])
+    return "\n".join(lines)
