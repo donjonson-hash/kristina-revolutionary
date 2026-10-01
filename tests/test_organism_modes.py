@@ -294,3 +294,23 @@ def test_adapter_rejects_unvalidated_event_kinds_without_mutation():
         )
 
     assert modes.snapshot() == before
+
+
+def test_stamped_event_with_older_wall_clock_applies_without_rewinding_modes():
+    modes = OrganismModes(clock=lambda: START + timedelta(hours=5))
+    before = modes.snapshot()
+
+    applied = modes.apply_message_event(
+        session_sha256="a" * 64,
+        event_id="clock-skew-1",
+        input_sha256="b" * 64,
+        kinds=["user_message"],
+        at=START,
+    )
+
+    after = modes.snapshot()
+    assert applied is True
+    assert after["empathy_963"].updated_at == START + timedelta(hours=5)
+    assert after["empathy_963"].amplitude == pytest.approx(
+        before["empathy_963"].amplitude + MODE_EVENT_DELTAS["user_message"]["empathy_963"]
+    )
