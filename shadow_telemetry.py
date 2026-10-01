@@ -163,9 +163,9 @@ class ShadowTelemetryStore:
     ) -> bool:
         """Persist one opportunity exactly once.
 
-        The primary identity is kind + hashed scope + opportunity time. A retry
-        with identical data is a no-op. Reusing that identity with different
-        data is rejected instead of silently replacing the original evidence.
+        The primary identity is kind + hashed scope + opportunity time. The
+        first accepted observation wins; later attempts for the same opportunity
+        are no-ops and can never overwrite the original evidence.
         """
         kind = self._validate_kind(kind)
         scope_sha256 = _hash_scope(scope)
@@ -193,13 +193,11 @@ class ShadowTelemetryStore:
         with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             existing = conn.execute(
-                """SELECT payload_sha256 FROM shadow_decision_telemetry
+                """SELECT 1 FROM shadow_decision_telemetry
                    WHERE observation_id=?""",
                 (observation_id,),
             ).fetchone()
             if existing is not None:
-                if existing["payload_sha256"] != payload_sha256:
-                    raise ValueError("Shadow telemetry observation ID was reused with different data")
                 return False
 
             conn.execute(
