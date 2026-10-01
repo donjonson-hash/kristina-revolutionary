@@ -205,3 +205,27 @@ too strong, too weak or directionally wrong.
 Only after that evidence should slow modes receive any authority over the live
 DesireEngine. Ontological tension, crisis 957, sleep integration and aesthetic
 breakpoints remain later layers.
+
+
+## Read-only calibration report
+
+Production administrators can inspect accumulated evidence without opening the
+SQLite database manually:
+
+```
+/shadow 24h
+/shadow 7d
+/shadow all
+```
+
+The Telegram command is restricted to user IDs listed in
+`KRISTINA_ADMIN_IDS`. If that setting is empty, nobody can use the command.
+
+The report is read-only. It does not advance modes, create new shadow
+observations or change any decision. It shows total observations, how often the
+counterfactual would have changed decision/action/intention, proactive vs
+creative rates, average and maximum score displacement, frequently shifted
+modes and average per-desire shadow deltas.
+
+The command intentionally remains absent from the public welcome text because
+it is an operational calibration tool, not a user feature.
