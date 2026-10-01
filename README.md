@@ -38,6 +38,10 @@ Telegram
 Подробная карта живого runtime и legacy-границы:
 [RUNTIME_ARCHITECTURE.md](RUNTIME_ARCHITECTURE.md).
 
+Административная read-only сводка shadow telemetry доступна в Telegram:
+`/shadow 24h`, `/shadow 7d` или `/shadow all`. Команда доступна только
+пользователям из `KRISTINA_ADMIN_IDS` и не влияет на решения агента.
+
 Ключевые модули:
 
 | Модуль | Назначение |
