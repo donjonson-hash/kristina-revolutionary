@@ -710,3 +710,37 @@ async def test_shadow_failure_cannot_block_baseline_proactive(dialogue_bot, monk
     b.generate.assert_awaited_once()
     b.delivery.bot.send_message.assert_awaited_once()
     assert p.memory.get_recent_messages(own)[-1]["content"] == b.generate.return_value
+
+
+
+async def test_proactive_shadow_telemetry_is_persisted(dialogue_bot):
+    b = dialogue_bot
+    p = b.pipeline
+    own = conversation_session_id(conversation())
+    p.memory.save_exchange(own, "До встречи", "Пока.", now=DAY)
+
+    await b.module.autonomous_proactive_tick(b.delivery)
+
+    rows = b.module.get_shadow_telemetry_store().recent(kind="proactive")
+    assert len(rows) == 1
+    assert rows[0]["baseline_action"] == "message"
+    assert rows[0]["scope_sha256"]
+    assert rows[0]["mode_deviations"] is not None
+
+
+async def test_shadow_telemetry_failure_cannot_block_baseline_proactive(dialogue_bot, monkeypatch):
+    b = dialogue_bot
+    p = b.pipeline
+    own = conversation_session_id(conversation())
+    p.memory.save_exchange(own, "До встречи", "Пока.", now=DAY)
+
+    class BrokenTelemetry:
+        def record_once(self, **kwargs):
+            raise sqlite3.OperationalError("telemetry unavailable")
+
+    monkeypatch.setattr(b.module, "get_shadow_telemetry_store", lambda: BrokenTelemetry())
+    await b.module.autonomous_proactive_tick(b.delivery)
+
+    b.generate.assert_awaited_once()
+    b.delivery.bot.send_message.assert_awaited_once()
+    assert p.memory.get_recent_messages(own)[-1]["content"] == b.generate.return_value

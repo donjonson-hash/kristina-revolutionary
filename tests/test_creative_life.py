@@ -1,6 +1,7 @@
 """A thought comes from the live emotional state, lands in SQLite, and eases creativity."""
 
 from datetime import datetime, timedelta, timezone
+import sqlite3
 
 import pytest
 
@@ -182,10 +183,14 @@ async def test_heartbeat_writes_and_publishes_once_then_holds(heartbeat, monkeyp
     entry = bot.get_creative_life().diary.recent()[0]
     assert entry["publish_target"] == "telegram_channel" and entry["published_at"] is not None
     assert core.state["creativity"] == pytest.approx(0.5)
+    telemetry = bot.get_shadow_telemetry_store()
+    assert len(telemetry.recent(kind="creative")) == 1
 
     # Same minute again: creativity dropped and cooldown holds — no second post.
+    # The 30-minute telemetry bucket also prevents heartbeat-level row growth.
     await bot.creative_life_tick(telegram, NOON + timedelta(minutes=1), core.evolve())
     telegram.send_message.assert_awaited_once()
+    assert len(telemetry.recent(kind="creative")) == 1
 
 
 async def test_heartbeat_keeps_diary_private_without_channel(heartbeat, monkeypatch):
@@ -287,6 +292,23 @@ async def test_creative_shadow_failure_cannot_block_baseline_action(heartbeat, m
         raise RuntimeError("shadow only")
 
     monkeypatch.setattr(bot, "creative_shadow_decision", broken_shadow)
+    await bot.creative_life_tick(telegram, NOON, core.evolve())
+
+    telegram.send_message.assert_not_awaited()
+    assert len(bot.get_creative_life().diary.recent()) == 1
+    assert core.state["creativity"] == pytest.approx(0.5)
+
+
+
+async def test_shadow_telemetry_failure_cannot_block_creative_baseline(heartbeat, monkeypatch):
+    bot, core, telegram = heartbeat
+    monkeypatch.delenv("KRISTINA_CHANNEL_ID", raising=False)
+
+    class BrokenTelemetry:
+        def record_once(self, **kwargs):
+            raise sqlite3.OperationalError("telemetry unavailable")
+
+    monkeypatch.setattr(bot, "get_shadow_telemetry_store", lambda: BrokenTelemetry())
     await bot.creative_life_tick(telegram, NOON, core.evolve())
 
     telegram.send_message.assert_not_awaited()

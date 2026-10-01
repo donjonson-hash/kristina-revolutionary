@@ -44,7 +44,8 @@ Telegram
 |---|---|
 | `brain_unified.py` | Мозг: 8 агентов + оркестратор |
 | `cognitive_appraisal.py` | Оценка событий → эмоциональная реакция |
-| `organism_modes.py` | Пассивное persistent-поле из 12 медленных внутренних мод |
+| `organism_modes.py` | Persistent-поле из 12 медленных внутренних мод; обучается от валидированных событий |
+| `shadow_telemetry.py` | Долговечная SQLite-телеметрия baseline vs shadow решений без текста переписки |
 | `dialogue_state.py` | Диалоговая модель: эпизоды, вопросы, паузы |
 | `persistent_memory.py` | Долговременная память (SQLite/Postgres) |
 | `autonomy_decision.py` + `creative_life.py` | Решение действовать/молчать и творческий жизненный цикл |
