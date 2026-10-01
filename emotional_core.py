@@ -130,6 +130,13 @@ class EmotionalCore:
                         applied = _new_event(self._message_events.get((event.session_sha256, event.event_id)), event)
                     before = self._advance(self._now(), context if applied else None)
                     if event is not None and applied:
+                        self.organism_modes.apply_message_event(
+                            session_sha256=event.session_sha256,
+                            event_id=event.event_id,
+                            input_sha256=event.input_sha256,
+                            kinds=self._organism_event_kinds(context),
+                            at=self.last_update,
+                        )
                         self._message_events[(event.session_sha256, event.event_id)] = event.input_sha256
                 else:
                     # Reload under a write lock so bot/web processes cannot overwrite
@@ -146,6 +153,14 @@ class EmotionalCore:
                             applied = _new_event(receipt[0] if receipt else None, event)
                         before = self._advance(self._now(), context if applied else None)
                         if event is not None and applied:
+                            self.organism_modes.apply_message_event(
+                                session_sha256=event.session_sha256,
+                                event_id=event.event_id,
+                                input_sha256=event.input_sha256,
+                                kinds=self._organism_event_kinds(context),
+                                at=self.last_update,
+                                conn=conn,
+                            )
                             conn.execute("""INSERT INTO emotional_message_events VALUES (?,?,?,?)""",
                                          (event.session_sha256, event.event_id, event.input_sha256,
                                           self.last_update.isoformat()))
@@ -285,6 +300,19 @@ class EmotionalCore:
         decay = math.exp(-elapsed_hours / 4.0)
         for emotion, target in targets.items():
             self.state[emotion] = target + (self.state[emotion] - target) * decay
+
+    @staticmethod
+    def _organism_event_kinds(context: Dict):
+        """Translate only validated current-message appraisal into slow-mode inputs."""
+        from cognitive_appraisal import Appraisal
+
+        if not context or context.get("user_message") is not True:
+            raise ValueError("Organism message event requires current user_message")
+        kinds = ["user_message"]
+        appraisal = context.get("appraisal")
+        if isinstance(appraisal, Appraisal) and appraisal.effects():
+            kinds.append("appraisal_" + appraisal.reaction)
+        return kinds
 
     def _apply_context_effects(self, context: Dict):
         """Only explicit events affect state; no guessing sentiment from keywords."""
