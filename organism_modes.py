@@ -265,22 +265,22 @@ class OrganismModes:
             amplitude, minimum=0.0, maximum=1.0, label="amplitude"
         )
         now = self._aware(at) if at is not None else self._now()
-        current = self.get(name)
-        if now < current.updated_at:
-            raise ValueError("Mode update cannot move backwards in time")
-        new_phase = current.phase if phase is None else (
-            self._validate_number(phase, label="phase") % math.tau
-        )
-        new_state = ModeState(
-            name,
-            current.baseline,
-            new_amplitude,
-            new_phase,
-            current.half_life_hours,
-            now,
-        )
 
         if self.db_path is None:
+            current = self.get(name)
+            if now < current.updated_at:
+                raise ValueError("Mode update cannot move backwards in time")
+            new_phase = current.phase if phase is None else (
+                self._validate_number(phase, label="phase") % math.tau
+            )
+            new_state = ModeState(
+                name,
+                current.baseline,
+                new_amplitude,
+                new_phase,
+                current.half_life_hours,
+                now,
+            )
             self._memory[name] = new_state
             return new_state
 
@@ -295,6 +295,9 @@ class OrganismModes:
             latest = self._from_row(row)
             if now < latest.updated_at:
                 raise ValueError("Mode update cannot move backwards in time")
+            new_phase = latest.phase if phase is None else (
+                self._validate_number(phase, label="phase") % math.tau
+            )
             conn.execute(
                 """UPDATE kristina_modes
                    SET amplitude = ?, phase = ?, updated_at = ?
