@@ -1,6 +1,7 @@
 """A thought comes from the live emotional state, lands in SQLite, and eases creativity."""
 
 from datetime import datetime, timedelta, timezone
+import sqlite3
 
 import pytest
 
