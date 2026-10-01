@@ -307,7 +307,7 @@ class TestRouterStatus:
         status = router.get_all_agents_status()
 
         assert "Kristina" in status
-        assert status["Kristina"]["description"] == "Senior Software Engineer / Team Lead, 25 лет, Стокгольм — живая, прямолинейная, саркастичная"
+        assert status["Kristina"]["description"] == "тревел-писательница / travel blogger, 25 лет, Стокгольм — живая, наблюдательная, саркастичная"
         assert status["Kristina"]["history_count"] == 0
         assert status["Kristina"]["is_active"] is False
 
