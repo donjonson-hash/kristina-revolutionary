@@ -11,7 +11,10 @@ reversible.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
+import re
 import sqlite3
 from contextlib import closing
 from dataclasses import dataclass
@@ -55,6 +58,36 @@ DEFAULT_MODE_DEFINITIONS: Dict[str, ModeDefinition] = {
 
 MODE_NAMES = tuple(DEFAULT_MODE_DEFINITIONS)
 
+# Small deterministic deltas for validated, transport-stamped user events.
+# These are engineering coefficients, not psychological measurements.
+MODE_EVENT_DELTAS = {
+    "user_message": {
+        "empathy_963": 0.003,
+        "withdrawal_147": -0.003,
+        "abandonment_wound": -0.002,
+    },
+    "appraisal_curiosity": {
+        "creativity_357": 0.008,
+        "aesthetic_drive": 0.004,
+        "agency_exec": 0.002,
+    },
+    "appraisal_warmth": {
+        "empathy_963": 0.008,
+        "validation_need": -0.004,
+        "abandonment_wound": -0.004,
+    },
+    "appraisal_concern": {
+        "empathy_963": 0.006,
+        "social_overload": 0.002,
+        "self_critique": 0.001,
+    },
+    "appraisal_frustration": {
+        "social_overload": 0.010,
+        "withdrawal_147": 0.006,
+        "self_critique": 0.004,
+    },
+}
+
 
 class OrganismModes:
     """Durable 12-mode slow state.
@@ -73,6 +106,7 @@ class OrganismModes:
         self.db_path = db_path
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._memory: Dict[str, ModeState] = {}
+        self._memory_events = {}
 
         now = self._now()
         if self.db_path is None:
@@ -113,6 +147,16 @@ class OrganismModes:
                     half_life_hours REAL NOT NULL CHECK (half_life_hours > 0.0),
                     updated_at TEXT NOT NULL,
                     version INTEGER NOT NULL DEFAULT 1
+                )"""
+            )
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS organism_mode_events (
+                    session_sha256 TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    payload_sha256 TEXT NOT NULL,
+                    deltas_json TEXT NOT NULL,
+                    applied_at TEXT NOT NULL,
+                    PRIMARY KEY (session_sha256, event_id)
                 )"""
             )
             self._insert_missing_defaults(conn, now)
@@ -305,6 +349,196 @@ class OrganismModes:
                 (new_amplitude, new_phase, now.isoformat(), name),
             )
         return self.get(name)
+
+    @classmethod
+    def _state_from_values(cls, values) -> ModeState:
+        name, baseline, amplitude, phase, half_life_hours, updated_at, version = values
+        if version != 1:
+            raise ValueError("Unsupported organism mode version")
+        try:
+            updated = datetime.fromisoformat(updated_at)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Invalid organism mode timestamp") from exc
+        return cls._validate_state(
+            ModeState(name, baseline, amplitude, phase, half_life_hours, updated)
+        )
+
+    @staticmethod
+    def _validate_event_identity(session_sha256, event_id, input_sha256):
+        for value in (session_sha256, input_sha256):
+            if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+                raise ValueError("Invalid organism event digest")
+        if not isinstance(event_id, str) or not event_id.strip() or len(event_id) > 240:
+            raise ValueError("Invalid organism event ID")
+
+    @staticmethod
+    def _canonical_event_kinds(kinds):
+        if not isinstance(kinds, (list, tuple)) or not kinds:
+            raise ValueError("Organism event requires at least one kind")
+        if "user_message" not in kinds:
+            raise ValueError("Organism message event must include user_message")
+        if any(kind not in MODE_EVENT_DELTAS for kind in kinds):
+            raise ValueError("Unsupported organism event kind")
+        if len(set(kinds)) != len(kinds):
+            raise ValueError("Duplicate organism event kind")
+        return tuple(sorted(kinds))
+
+    @staticmethod
+    def _combined_deltas(kinds):
+        totals = {}
+        for kind in kinds:
+            for name, change in MODE_EVENT_DELTAS[kind].items():
+                totals[name] = totals.get(name, 0.0) + change
+        return {name: totals[name] for name in sorted(totals)}
+
+    @staticmethod
+    def _event_payload_sha256(input_sha256, kinds):
+        payload = json.dumps(
+            {"input_sha256": input_sha256, "kinds": list(kinds)},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(payload.encode("utf8")).hexdigest()
+
+    @staticmethod
+    def _relax_state(state: ModeState, at: datetime) -> ModeState:
+        if at < state.updated_at:
+            raise ValueError("Organism event cannot move mode time backwards")
+        hours = (at - state.updated_at).total_seconds() / 3600.0
+        factor = math.exp(-math.log(2.0) * hours / state.half_life_hours)
+        amplitude = state.baseline + (state.amplitude - state.baseline) * factor
+        return ModeState(
+            state.name,
+            state.baseline,
+            amplitude,
+            state.phase,
+            state.half_life_hours,
+            at,
+        )
+
+    @classmethod
+    def _apply_deltas(cls, states, deltas, at):
+        # Wall clocks can move backwards and tests may deliberately inject an
+        # older clock. Never rewind slow state: apply the event at the latest
+        # already-persisted mode timestamp, just like EmotionalCore clamps its
+        # own wall-clock progression.
+        effective_at = max([at] + [state.updated_at for state in states.values()])
+        updated = {}
+        for name in MODE_NAMES:
+            state = cls._relax_state(states[name], effective_at)
+            amplitude = max(0.0, min(1.0, state.amplitude + deltas.get(name, 0.0)))
+            updated[name] = ModeState(
+                name,
+                state.baseline,
+                amplitude,
+                state.phase,
+                state.half_life_hours,
+                effective_at,
+            )
+        return updated
+
+    def apply_message_event(
+        self,
+        *,
+        session_sha256,
+        event_id,
+        input_sha256,
+        kinds,
+        at: Optional[datetime] = None,
+        conn=None,
+    ) -> bool:
+        """Apply one validated user-message experience exactly once.
+
+        When conn is provided, the caller owns the SQLite transaction. This is
+        used by EmotionalCore so fast emotion, slow modes and both receipts
+        commit or roll back together.
+        """
+        self._validate_event_identity(session_sha256, event_id, input_sha256)
+        event_kinds = self._canonical_event_kinds(kinds)
+        payload_sha256 = self._event_payload_sha256(input_sha256, event_kinds)
+        deltas = self._combined_deltas(event_kinds)
+        now = self._aware(at) if at is not None else self._now()
+
+        if self.db_path is None:
+            key = (session_sha256, event_id)
+            previous = self._memory_events.get(key)
+            if previous is not None:
+                if previous != payload_sha256:
+                    raise ValueError("Organism event ID was reused for different input")
+                return False
+            current = self.snapshot()
+            updated = self._apply_deltas(current, deltas, now)
+            self._memory = updated
+            self._memory_events[key] = payload_sha256
+            return True
+
+        owns_connection = conn is None
+        if owns_connection:
+            conn = self._connect()
+        try:
+            if owns_connection:
+                conn.execute("BEGIN IMMEDIATE")
+            receipt = conn.execute(
+                """SELECT payload_sha256 FROM organism_mode_events
+                   WHERE session_sha256=? AND event_id=?""",
+                (session_sha256, event_id),
+            ).fetchone()
+            if receipt is not None:
+                previous_sha = receipt[0]
+                if previous_sha != payload_sha256:
+                    raise ValueError("Organism event ID was reused for different input")
+                if owns_connection:
+                    conn.commit()
+                return False
+
+            placeholders = ",".join("?" for _ in MODE_NAMES)
+            rows = conn.execute(
+                f"""SELECT name, baseline, amplitude, phase, half_life_hours,
+                           updated_at, version
+                    FROM kristina_modes
+                    WHERE name IN ({placeholders})""",
+                MODE_NAMES,
+            ).fetchall()
+            current = {}
+            for row in rows:
+                values = tuple(row)
+                state = self._state_from_values(values)
+                current[state.name] = state
+            missing = set(MODE_NAMES) - set(current)
+            if missing:
+                raise ValueError("Missing canonical modes: " + ", ".join(sorted(missing)))
+
+            updated = self._apply_deltas(current, deltas, now)
+            for name in MODE_NAMES:
+                state = updated[name]
+                conn.execute(
+                    """UPDATE kristina_modes
+                       SET amplitude=?, phase=?, updated_at=?
+                       WHERE name=?""",
+                    (state.amplitude, state.phase, state.updated_at.isoformat(), name),
+                )
+            conn.execute(
+                """INSERT INTO organism_mode_events
+                   (session_sha256, event_id, payload_sha256, deltas_json, applied_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (
+                    session_sha256,
+                    event_id,
+                    payload_sha256,
+                    json.dumps(deltas, sort_keys=True, separators=(",", ":")),
+                    max(state.updated_at for state in updated.values()).isoformat(),
+                ),
+            )
+            if owns_connection:
+                conn.commit()
+            return True
+        except Exception:
+            if owns_connection:
+                conn.rollback()
+            raise
+        finally:
+            if owns_connection:
+                conn.close()
 
     def relax_to_baseline(self, at: Optional[datetime] = None) -> Dict[str, ModeState]:
         """Explicitly relax every mode toward its baseline using real elapsed time.

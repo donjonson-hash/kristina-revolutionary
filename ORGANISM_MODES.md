@@ -1,11 +1,11 @@
-# Kristina organism modes — stage 1
+# Kristina organism modes — stage 2
 
-This is the first persistent slow-state layer of Kristina's organism model.
+This is the persistent slow-state layer of Kristina's organism model.
 
-It is deliberately **passive** in this stage. The live bot creates and restores
-the 12 modes, but they do not yet change emotions, prompts, desires, decisions,
-messages, publishing or sleep. This lets us verify persistence before coupling
-the slow layer to behaviour.
+The 12 modes now receive small changes from **validated, transport-stamped user
+events**. They still do not influence prompts, emotions, desires, decisions,
+messages, publishing, crisis behaviour or sleep. The direction remains one-way:
+experience can shape slow state, but slow state cannot shape behaviour yet.
 
 ## Why a second timescale
 
@@ -67,29 +67,42 @@ result apart from floating-point rounding.
 
 Reads do not advance time. Relaxation is an explicit operation.
 
-## Stage-1 runtime contract
+## Stage-2 event contract
 
-`EmotionalCore` owns an `organism_modes` field, but its existing
-`evolve()` method does not mutate it.
+Only a current user message with a valid transport identity can mutate the slow
+field. The accepted event kinds are derived from the same validated context
+used by `EmotionalCore`:
 
-Changing a mode manually must not change the result of
-`get_emotional_state()`.
+```
+stamped user message
+   -> user_message
+   -> optional validated appraisal
+   -> deterministic small mode deltas
+   -> organism_mode_events receipt
+```
 
-The heartbeat also does not advance modes yet.
+The receipt stores pseudonymized session identity, transport event ID, a payload
+hash, the applied delta vector and timestamp. It does **not** store message text.
 
-This is intentional.
+For persistent state, the fast emotional update, slow-mode update, emotional
+message receipt and organism event receipt use the **same SQLite transaction**.
+If any write fails, all four roll back. A retry of the same transport event is a
+no-op; reusing the event ID with a different payload is rejected.
+
+Unstamped legacy calls and ordinary heartbeats do not change slow modes.
+
+## Current mapping boundary
+
+The coefficients in `MODE_EVENT_DELTAS` are deliberately small and
+deterministic. They are engineering calibration, not psychological claims.
+
+`crisis_957` is not directly increased by ordinary messages. A later tension
+engine should derive crisis pressure from accumulated slow state rather than
+turning one conversation into a crisis.
 
 ## Next stage
 
-After persistence has survived production restarts, the next PR can add a
-validated, idempotent event-to-mode adapter:
-
-```
-validated event
-   -> emotional impulse
-   -> mode deltas
-   -> durable event receipt
-```
-
-Only after that layer is stable should modes begin influencing DesireEngine,
+First validate this one-way learning layer through production restarts. After
+that, introduce a read-only projection of slow state into the decision layer and
+measure its effect before allowing modes to influence DesireEngine,
 ontological tension, crisis 957, sleep integration or aesthetic breakpoints.

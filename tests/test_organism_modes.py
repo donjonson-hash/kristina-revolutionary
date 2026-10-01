@@ -6,8 +6,14 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from emotional_core import EmotionalCore
-from organism_modes import DEFAULT_MODE_DEFINITIONS, MODE_NAMES, OrganismModes
+from cognitive_appraisal import Appraisal
+from emotional_core import EmotionalCore, EmotionalEvent
+from organism_modes import (
+    DEFAULT_MODE_DEFINITIONS,
+    MODE_EVENT_DELTAS,
+    MODE_NAMES,
+    OrganismModes,
+)
 
 
 START = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
@@ -160,3 +166,151 @@ def test_emotional_heartbeat_does_not_advance_modes_yet(tmp_path):
     after = core.organism_modes.snapshot()
 
     assert after == before
+
+
+def _warm_appraisal():
+    return Appraisal(
+        "warmth",
+        0.5,
+        "Рад тебя видеть",
+        "replace",
+        "встреча",
+        "Мне тоже приятно это слышать.",
+    )
+
+
+def test_stamped_message_changes_modes_once_and_survives_restart(tmp_path):
+    path = str(tmp_path / "state.db")
+    core = EmotionalCore(path, clock=lambda: START)
+    event = EmotionalEvent.from_message(
+        "telegram:private:42",
+        "message-1001",
+        "Рад тебя видеть",
+    )
+    context = {"user_message": True, "appraisal": _warm_appraisal()}
+
+    before = core.organism_modes.snapshot()
+    core.evolve(context, event=event)
+    first = core.organism_modes.snapshot()
+
+    assert first["empathy_963"].amplitude == pytest.approx(
+        before["empathy_963"].amplitude
+        + MODE_EVENT_DELTAS["user_message"]["empathy_963"]
+        + MODE_EVENT_DELTAS["appraisal_warmth"]["empathy_963"]
+    )
+    assert first["withdrawal_147"].amplitude == pytest.approx(
+        before["withdrawal_147"].amplitude
+        + MODE_EVENT_DELTAS["user_message"]["withdrawal_147"]
+    )
+    assert first["validation_need"].amplitude == pytest.approx(
+        before["validation_need"].amplitude
+        + MODE_EVENT_DELTAS["appraisal_warmth"]["validation_need"]
+    )
+    assert first["crisis_957"].amplitude == pytest.approx(
+        before["crisis_957"].amplitude
+    )
+
+    # Transport replay is a true no-op for the slow field.
+    core.evolve(context, event=event)
+    assert core.organism_modes.snapshot() == first
+
+    restarted = EmotionalCore(path, clock=lambda: START)
+    assert restarted.organism_modes.snapshot() == first
+
+    with sqlite3.connect(path) as conn:
+        count = conn.execute("SELECT COUNT(*) FROM organism_mode_events").fetchone()[0]
+    assert count == 1
+
+
+def test_conflicting_reuse_cannot_change_modes(tmp_path):
+    path = str(tmp_path / "state.db")
+    core = EmotionalCore(path, clock=lambda: START)
+    event = EmotionalEvent.from_message("session", "same-id", "Рад тебя видеть")
+    context = {"user_message": True, "appraisal": _warm_appraisal()}
+
+    core.evolve(context, event=event)
+    accepted = core.organism_modes.snapshot()
+
+    conflicting = EmotionalEvent.from_message("session", "same-id", "Совсем другой текст")
+    with pytest.raises(ValueError, match="reused"):
+        core.evolve({"user_message": True}, event=conflicting)
+
+    assert core.organism_modes.snapshot() == accepted
+
+
+def test_fast_slow_and_receipts_roll_back_together_on_mode_receipt_failure(tmp_path):
+    path = str(tmp_path / "state.db")
+    core = EmotionalCore(path, clock=lambda: START)
+    event = EmotionalEvent.from_message("session", "atomic-1", "Рад тебя видеть")
+    context = {"user_message": True, "appraisal": _warm_appraisal()}
+    emotional_before = core.get_emotional_state()
+    modes_before = core.organism_modes.snapshot()
+
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            """CREATE TRIGGER fail_mode_receipt
+               BEFORE INSERT ON organism_mode_events
+               BEGIN
+                   SELECT RAISE(ABORT, 'forced organism receipt failure');
+               END"""
+        )
+
+    with pytest.raises(sqlite3.DatabaseError, match="forced organism receipt failure"):
+        core.evolve(context, event=event)
+
+    assert core.get_emotional_state() == emotional_before
+    assert core.organism_modes.snapshot() == modes_before
+
+    with sqlite3.connect(path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM emotional_message_events").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM organism_mode_events").fetchone()[0] == 0
+        conn.execute("DROP TRIGGER fail_mode_receipt")
+
+    core.evolve(context, event=event)
+    assert core.organism_modes.snapshot() != modes_before
+
+
+def test_unstamped_legacy_message_still_does_not_change_slow_modes(tmp_path):
+    path = str(tmp_path / "state.db")
+    core = EmotionalCore(path, clock=lambda: START)
+    before = core.organism_modes.snapshot()
+
+    core.evolve({"user_message": True, "appraisal": _warm_appraisal()})
+
+    assert core.organism_modes.snapshot() == before
+
+
+def test_adapter_rejects_unvalidated_event_kinds_without_mutation():
+    modes = OrganismModes(clock=lambda: START)
+    before = modes.snapshot()
+
+    with pytest.raises(ValueError, match="Unsupported organism event kind"):
+        modes.apply_message_event(
+            session_sha256="a" * 64,
+            event_id="x",
+            input_sha256="b" * 64,
+            kinds=["user_message", "assistant_guess"],
+            at=START,
+        )
+
+    assert modes.snapshot() == before
+
+
+def test_stamped_event_with_older_wall_clock_applies_without_rewinding_modes():
+    modes = OrganismModes(clock=lambda: START + timedelta(hours=5))
+    before = modes.snapshot()
+
+    applied = modes.apply_message_event(
+        session_sha256="a" * 64,
+        event_id="clock-skew-1",
+        input_sha256="b" * 64,
+        kinds=["user_message"],
+        at=START,
+    )
+
+    after = modes.snapshot()
+    assert applied is True
+    assert after["empathy_963"].updated_at == START + timedelta(hours=5)
+    assert after["empathy_963"].amplitude == pytest.approx(
+        before["empathy_963"].amplitude + MODE_EVENT_DELTAS["user_message"]["empathy_963"]
+    )
