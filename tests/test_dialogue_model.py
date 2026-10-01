@@ -692,3 +692,21 @@ async def test_concurrent_routers_return_first_committed_answer_and_agent_name(p
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         other_memory.close()
+
+
+
+async def test_shadow_failure_cannot_block_baseline_proactive(dialogue_bot, monkeypatch):
+    b = dialogue_bot
+    p = b.pipeline
+    own = conversation_session_id(conversation())
+    p.memory.save_exchange(own, "До встречи", "Пока.", now=DAY)
+
+    def broken_shadow(**kwargs):
+        raise RuntimeError("shadow only")
+
+    monkeypatch.setattr(b.module, "compare_shadow_decision", broken_shadow)
+    await b.module.autonomous_proactive_tick(b.delivery)
+
+    b.generate.assert_awaited_once()
+    b.delivery.bot.send_message.assert_awaited_once()
+    assert p.memory.get_recent_messages(own)[-1]["content"] == b.generate.return_value
