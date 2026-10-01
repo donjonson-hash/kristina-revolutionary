@@ -9,19 +9,21 @@ async def test_legacy_publish_keeps_sync_callback_and_forwards_to_v2():
     canonical = EventBusV2()
     seen_legacy = []
     seen_canonical = []
+    forwarded = asyncio.Event()
 
     def legacy_handler(event):
         seen_legacy.append(event)
 
     async def canonical_handler(event):
         seen_canonical.append(event)
+        forwarded.set()
 
     canonical.subscribe(EventTypes.MOOD_CHANGED, canonical_handler)
     legacy = LegacyEventBus(canonical_bus=canonical)
     legacy.subscribe(Events.MOOD_CHANGED, legacy_handler)
 
     legacy.publish(Events.MOOD_CHANGED, {"old_mood": "спокойная", "new_mood": "любопытная"})
-    await asyncio.sleep(0)
+    await asyncio.wait_for(forwarded.wait(), timeout=0.5)
 
     assert len(seen_legacy) == 1
     assert seen_legacy[0]["type"] == Events.MOOD_CHANGED
