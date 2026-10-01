@@ -14,24 +14,29 @@
 
 ```
 Telegram
-        │
-   bot.py
-        │
-   ┌────┴─────────────────────────────────────┐
-   │              Brain v5.0                  │
-   │  8 агентов: Cortex · Emotional · Memory  │
-   │  Visual · Auditory · Motor · Language ·  │
-   │  Freelance, маршрутизация — ThalamusRouter
-   └────┬──────────────┬──────────────────────┘
-        │              │
-  emotional_core.py  persistent_memory.py
-  mood_engine.py     (SQLite / PostgreSQL)
-  cognitive_appraisal.py
-        │
-  autonomous_life.py — жизненный цикл 24/7:
-  эмоции → обучение (Perplexity) → мысль →
-  пост с фото (Kling) → дневник
+   │
+ bot.py
+   │
+ AgentRouter
+   │
+ KristinaPersonaAgent
+   │
+ BrainBridge
+   ├── cognitive_appraisal.py
+   ├── emotional_core.py
+   └── persistent_memory.py
+             │
+      autonomy_decision.py
+       ├── proactive message / silence
+       └── creative_life.py → diary / channel
 ```
+
+Новый runtime-код использует `event_bus_v2.py` как единственную событийную
+шину. `broadcast.py` оставлен временным compatibility-адаптером. Старые
+`autonomous_life.py` и `proactive_messaging.py` не подключаются к production.
+
+Подробная карта живого runtime и legacy-границы:
+[RUNTIME_ARCHITECTURE.md](RUNTIME_ARCHITECTURE.md).
 
 Ключевые модули:
 
@@ -41,7 +46,7 @@ Telegram
 | `cognitive_appraisal.py` | Оценка событий → эмоциональная реакция |
 | `dialogue_state.py` | Диалоговая модель: эпизоды, вопросы, паузы |
 | `persistent_memory.py` | Долговременная память (SQLite/Postgres) |
-| `autonomous_life.py` | Автономный жизненный цикл агента |
+| `autonomy_decision.py` + `creative_life.py` | Решение действовать/молчать и творческий жизненный цикл |
 | `self_learning.py` | Самообучение через Perplexity API |
 | `avatar_platform/` | Фабрика цифровых двойников (Big Five, профессии) |
 | `trend_collector.py` + `agents/trend_scout.py` | Разведка трендов с отчётами |

@@ -1,6 +1,11 @@
+"""LEGACY fixed-schedule proactive prototype.
+
+Production proactive behaviour is owned by bot.py, autonomy_decision.py,
+dialogue_state.py and telegram_runtime.py. This module is intentionally kept
+for reference only; do not call setup_proactive() from the live bot.
 """
-Proactive Messaging v2.0 — с генерацией через DeepSeek
-"""
+
+LEGACY_RUNTIME = True
 
 import asyncio
 from datetime import datetime
@@ -79,7 +84,7 @@ class ProactiveMessagingManager:
         energy = state['energy']
         archetype = state.get('archetype', 'друг')
         
-        prompt = f"""Ты Кристина, 25-летний UX-дизайнер из Стокгольма. 
+        prompt = f"""Ты Кристина, 25-летняя тревел-писательница из Стокгольма. 
 Твое текущее настроение: {mood} (энергия: {energy}%).
 Твоя роль сейчас: {archetype}.
 
