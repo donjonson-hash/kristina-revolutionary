@@ -40,7 +40,11 @@ from proactive_naturalness import (
     is_opening_too_similar,
     next_opportunity_seconds,
 )
-from shadow_telemetry import ShadowTelemetryStore, shadow_time_bucket
+from shadow_telemetry import (
+    ShadowTelemetryStore,
+    format_shadow_report,
+    shadow_time_bucket,
+)
 
 load_dotenv()
 
@@ -239,6 +243,34 @@ async def research_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     async with router.session_lock(session_id):
         store = IntentionStore(router.memory)
         report = research_status(store.get_current(session_id), store.availability(session_id), emotional_core.evolve())
+    for part in split_message(report):
+        await update.message.reply_text(part)
+
+
+async def shadow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin-only, read-only report over persisted shadow decision evidence."""
+    admin_ids = parse_admin_ids(os.getenv("KRISTINA_ADMIN_IDS", ""))
+    user_id = update.effective_user.id
+    if user_id not in admin_ids:
+        logger.warning("Shadow report denied for non-admin user=%s", user_id)
+        await update.message.reply_text("⛔ Команда доступна только администратору.")
+        return
+
+    window = context.args[0] if context.args else "24h"
+    telemetry = get_shadow_telemetry_store()
+    if telemetry is None:
+        await update.message.reply_text("Shadow telemetry недоступна: persistent state DB не настроена.")
+        return
+    try:
+        report = format_shadow_report(
+            telemetry,
+            window=window,
+            now=datetime.now(timezone.utc),
+        )
+    except ValueError:
+        await update.message.reply_text("Используй: /shadow 24h, /shadow 7d или /shadow all")
+        return
+
     for part in split_message(report):
         await update.message.reply_text(part)
 
@@ -720,6 +752,7 @@ def main():
     application.add_handler(CommandHandler("clear", clear_command))
     application.add_handler(CommandHandler("trends", trends_command))
     application.add_handler(CommandHandler("research", research_command))
+    application.add_handler(CommandHandler("shadow", shadow_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     application.add_handler(CallbackQueryHandler(button_callback))
