@@ -1,12 +1,13 @@
-# Kristina organism modes — stage 4
+# Kristina organism modes — stage 5
 
 This is the persistent slow-state layer of Kristina's organism model.
 
 The 12 modes receive small changes from **validated, transport-stamped user
 events** and are exposed to the autonomy layer through a **read-only
-projection**. Production now also computes a bounded **shadow decision** from
-that projection. The shadow result is telemetry only: the unchanged baseline
-decision remains the only executable decision.
+projection**. Production computes a bounded **shadow decision** from that
+projection and now persists those counterfactual observations in SQLite. The
+shadow result remains telemetry only: the unchanged baseline decision is still
+the only executable decision.
 
 ## Why a second timescale
 
@@ -157,13 +158,50 @@ logged and the baseline production action continues unchanged.
 Telemetry contains decision labels, scores, maximum score delta and the compact
 organism projection. It contains no message text.
 
+## Stage-5 durable shadow telemetry
+
+`shadow_telemetry.py` stores shadow observations in the same persistent state
+database as `EmotionalCore`. The table is append-only by observation identity:
+the first observation for a decision opportunity wins and later retries cannot
+overwrite it.
+
+Each row stores:
+
+- decision kind (`proactive` or `creative`);
+- a SHA-256 scope digest instead of a raw chat/session identifier;
+- opportunity and observation timestamps;
+- baseline action, intention, score and reason;
+- shadow action, intention, score and reason;
+- whether action, intention or overall decision changed;
+- maximum absolute score delta and the complete per-desire delta vector;
+- all 12 mode deviations from baseline plus the strongest shifted mode names.
+
+No conversation text, prompt, generated message or raw Telegram/session ID is
+stored.
+
+Proactive opportunities use their persisted scheduled due time as the stable
+observation identity. Creative shadow telemetry is sampled into 30-minute UTC
+buckets, so the one-minute heartbeat cannot create one database row per minute.
+This sampling affects telemetry volume only and does not change creative
+decisions.
+
+Telemetry writes are outside the production control path. A telemetry database
+failure is logged but cannot suppress or create a proactive message, diary
+entry or other baseline action.
+
+`ShadowTelemetryStore.summary()` provides the initial calibration dataset:
+total observations, decision/action/intention change counts and rates, plus
+average and maximum shadow score displacement. Raw recent rows remain available
+for deeper offline analysis.
+
 ## Next stage
 
-Collect enough shadow observations to answer concrete questions: how often the
-counterfactual changes action vs silence, how often it changes intention, which
-mode deviations drive the largest score changes, and whether the ±0.12 cap is
-too weak or too strong.
+Accumulate a meaningful production sample before changing any live decision
+formula. The first calibration pass should compare proactive and creative
+observations separately, inspect which mode deviations dominate changed
+decisions, and test whether the ±0.12 cap or individual candidate weights are
+too strong, too weak or directionally wrong.
 
-Only after those observations should slow modes receive any authority over the
-live DesireEngine. Ontological tension, crisis 957, sleep integration and
-aesthetic breakpoints remain later layers.
+Only after that evidence should slow modes receive any authority over the live
+DesireEngine. Ontological tension, crisis 957, sleep integration and aesthetic
+breakpoints remain later layers.
