@@ -276,3 +276,19 @@ def test_creative_shadow_skips_night_without_counterfactual():
 
     assert baseline.reason == "night"
     assert report is None
+
+
+
+async def test_creative_shadow_failure_cannot_block_baseline_action(heartbeat, monkeypatch):
+    bot, core, telegram = heartbeat
+    monkeypatch.delenv("KRISTINA_CHANNEL_ID", raising=False)
+
+    def broken_shadow(*args, **kwargs):
+        raise RuntimeError("shadow only")
+
+    monkeypatch.setattr(bot, "creative_shadow_decision", broken_shadow)
+    await bot.creative_life_tick(telegram, NOON, core.evolve())
+
+    telegram.send_message.assert_not_awaited()
+    assert len(bot.get_creative_life().diary.recent()) == 1
+    assert core.state["creativity"] == pytest.approx(0.5)
