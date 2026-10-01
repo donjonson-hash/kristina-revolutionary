@@ -13,12 +13,66 @@ class AutonomousDecision:
     reason: str
 
 
+@dataclass(frozen=True)
+class OrganismProjection:
+    """Read-only slow-state view for decision observability.
+
+    This object is deliberately descriptive. DesireEngine and DecisionEngine do
+    not use it to change scores in this stage.
+    """
+
+    amplitudes: Dict[str, float]
+    deviations: Dict[str, float]
+    dominant: tuple[str, ...]
+    max_abs_deviation: float
+
+
+def project_organism_modes(mode_store, limit: int = 3) -> OrganismProjection:
+    """Snapshot slow modes without advancing or mutating them."""
+    if type(limit) is not int or limit < 1:
+        raise ValueError("limit must be a positive integer")
+
+    snapshot = mode_store.snapshot()
+    amplitudes = {name: float(state.amplitude) for name, state in snapshot.items()}
+    deviations = {
+        name: float(state.amplitude - state.baseline)
+        for name, state in snapshot.items()
+    }
+    dominant = tuple(
+        state.name
+        for state in sorted(
+            snapshot.values(),
+            key=lambda state: (-state.amplitude, state.name),
+        )[:limit]
+    )
+    max_abs_deviation = max((abs(value) for value in deviations.values()), default=0.0)
+    return OrganismProjection(
+        amplitudes=amplitudes,
+        deviations=deviations,
+        dominant=dominant,
+        max_abs_deviation=max_abs_deviation,
+    )
+
+
+def format_organism_projection(projection: OrganismProjection) -> str:
+    """Compact operational summary; contains no message text or user identity."""
+    top = ",".join(projection.dominant) if projection.dominant else "none"
+    return f"top={top} max_dev={projection.max_abs_deviation:.3f}"
+
+
 class DesireEngine:
     """Transforms emotional state and interaction context into desires."""
 
     def calculate(self, emotional_state: Dict, context: Optional[Dict] = None) -> Dict[str, float]:
         context = context or {}
         state = emotional_state.get("state", emotional_state)
+
+        # Stage 3 observation boundary: the caller may include a read-only
+        # organism projection in context. It is intentionally not referenced
+        # in any score formula below, so current behaviour remains invariant.
+        projection = context.get("organism_projection")
+        if projection is not None and not isinstance(projection, OrganismProjection):
+            raise ValueError("organism_projection must be an OrganismProjection")
 
         energy = float(state.get("energy", 0.5))
         curiosity = float(state.get("curiosity", 0.5))
