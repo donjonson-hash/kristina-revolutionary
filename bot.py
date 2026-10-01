@@ -28,7 +28,13 @@ from intention_cycle import (IntentionStore, IntentionWorker, intention_context,
 from conversation_context import (
     conversation_session_id, telegram_conversation, format_conversation_history,
 )
-from creative_life import CreativeDiary, CreativeLife, ai_generate, creative_decision
+from creative_life import (
+    CreativeDiary,
+    CreativeLife,
+    ai_generate,
+    creative_decision,
+    creative_shadow_decision,
+)
 from proactive_naturalness import (
     format_recent_messages,
     is_opening_too_similar,
@@ -63,7 +69,9 @@ try:
     from autonomy_decision import (
         DesireEngine,
         DecisionEngine,
+        compare_shadow_decision,
         format_organism_projection,
+        format_shadow_decision,
         project_organism_modes,
     )
 
@@ -458,14 +466,35 @@ async def creative_life_tick(bot, now: datetime, emotional_state: Dict):
         return
     life = get_creative_life()
     organism_projection = project_organism_modes(emotional_core.organism_modes)
+    last_expression = life.diary.last_created_at()
     decision = creative_decision(
         emotional_state,
-        life.diary.last_created_at(),
+        last_expression,
         now,
         desire_engine,
         decision_engine,
         organism_projection=organism_projection,
     )
+    try:
+        shadow = creative_shadow_decision(
+            emotional_state,
+            last_expression,
+            now,
+            desire_engine,
+            decision_engine,
+            decision,
+            organism_projection=organism_projection,
+        )
+        if shadow is not None:
+            logger.info(
+                "Creative shadow decision organism=%s shadow=%s",
+                format_organism_projection(organism_projection),
+                format_shadow_decision(shadow),
+            )
+    except Exception as exc:
+        # Shadow analysis is observational. It must never block the baseline
+        # creative decision or become a production control path.
+        logger.warning("Creative shadow decision unavailable: %s", type(exc).__name__)
     if decision.action != "message":
         logger.debug("Creative impulse held score=%.2f reason=%s", decision.score, decision.reason)
         return
@@ -532,10 +561,27 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                 }
                 desires = desire_engine.calculate(emotional_state, decision_context)
                 decision = decision_engine.decide(desires, decision_context, now=now)
+                shadow_text = "unavailable"
+                try:
+                    shadow = compare_shadow_decision(
+                        baseline_desires=desires,
+                        baseline_decision=decision,
+                        projection=organism_projection,
+                        decision_engine=decision_engine,
+                        context=decision_context,
+                        now=now,
+                    )
+                    shadow_text = format_shadow_decision(shadow)
+                except Exception as exc:
+                    # Never let counterfactual telemetry affect the baseline path.
+                    logger.warning(
+                        "Autonomous shadow decision unavailable chat=%s error=%s",
+                        chat_id, type(exc).__name__,
+                    )
                 logger.info(
-                    "Autonomous decision chat=%s action=%s intention=%s score=%.2f reason=%s next=%s organism=%s",
+                    "Autonomous decision chat=%s action=%s intention=%s score=%.2f reason=%s next=%s organism=%s shadow=%s",
                     chat_id, decision.action, decision.intention, decision.score, decision.reason,
-                    next_due.isoformat(), format_organism_projection(organism_projection),
+                    next_due.isoformat(), format_organism_projection(organism_projection), shadow_text,
                 )
                 if decision.action != "message":
                     continue
