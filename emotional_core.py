@@ -17,6 +17,8 @@ from zoneinfo import ZoneInfo
 from typing import Dict
 import logging
 
+from organism_modes import OrganismModes
+
 logger = logging.getLogger(__name__)
 STOCKHOLM = ZoneInfo("Europe/Stockholm")
 
@@ -98,6 +100,13 @@ class EmotionalCore:
                     input_sha256 TEXT NOT NULL, applied_at TEXT NOT NULL,
                     PRIMARY KEY (session_sha256, event_id)
                 )""")
+
+        # Slow organism state lives beside, not inside, the fast emotional
+        # state. In this rollout it is persistence-only: evolve() does not
+        # mutate modes and modes do not influence any emotional result.
+        self.organism_modes = OrganismModes(db_path=db_path, clock=self._clock)
+
+        if db_path is not None:
             self.evolve()
         
     def _now(self):

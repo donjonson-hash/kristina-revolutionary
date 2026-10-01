@@ -95,8 +95,9 @@ unless needed to migrate an existing legacy caller.
 
 ## Rule for the organism layer
 
-The upcoming slow organism state (modes/strings, hidden aesthetic vector,
-tension, crisis 957, sleep integration) must be added around the current
+The slow organism state begins with the passive 12-mode field documented in
+[ORGANISM_MODES.md](ORGANISM_MODES.md). Hidden aesthetic vector, tension,
+crisis 957 and sleep integration must continue to be added around the current
 EmotionalCore, not as a second EmotionalCore and not as another independent
 scheduler.
 
