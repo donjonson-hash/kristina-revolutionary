@@ -418,9 +418,14 @@ class OrganismModes:
 
     @classmethod
     def _apply_deltas(cls, states, deltas, at):
+        # Wall clocks can move backwards and tests may deliberately inject an
+        # older clock. Never rewind slow state: apply the event at the latest
+        # already-persisted mode timestamp, just like EmotionalCore clamps its
+        # own wall-clock progression.
+        effective_at = max([at] + [state.updated_at for state in states.values()])
         updated = {}
         for name in MODE_NAMES:
-            state = cls._relax_state(states[name], at)
+            state = cls._relax_state(states[name], effective_at)
             amplitude = max(0.0, min(1.0, state.amplitude + deltas.get(name, 0.0)))
             updated[name] = ModeState(
                 name,
@@ -428,7 +433,7 @@ class OrganismModes:
                 amplitude,
                 state.phase,
                 state.half_life_hours,
-                at,
+                effective_at,
             )
         return updated
 
@@ -521,7 +526,7 @@ class OrganismModes:
                     event_id,
                     payload_sha256,
                     json.dumps(deltas, sort_keys=True, separators=(",", ":")),
-                    now.isoformat(),
+                    max(state.updated_at for state in updated.values()).isoformat(),
                 ),
             )
             if owns_connection:
