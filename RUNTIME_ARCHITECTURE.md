@@ -52,6 +52,7 @@ Durable autonomous work lives in `intention_cycle.py`.
 | Long-lived dialogue gates | `dialogue_state.py` |
 | Telegram runtime / schedules | `telegram_runtime.py` |
 | Desire and action choice | `autonomy_decision.py` |
+| Shadow decision evidence | `shadow_telemetry.py` |
 | Creative diary / expression | `creative_life.py` |
 | Durable autonomous work | `intention_cycle.py` |
 | Runtime event bus | `event_bus_v2.py` |
@@ -133,3 +134,19 @@ is wrapped separately so a shadow exception cannot suppress or create a
 production action. Do not route message generation, proactive claims, delivery,
 creative diary writes or cooldown state from the shadow result until a later
 explicit activation stage.
+
+
+## Durable shadow evidence
+
+`shadow_telemetry.py` is the persistence boundary for counterfactual autonomy
+observations. It writes to the same state database but is not part of the
+baseline decision transaction and must never become a prerequisite for action.
+
+Production callers use stable opportunity identities so retries are idempotent.
+Only hashed scope identifiers are persisted. Creative observations are bounded
+to one row per 30-minute UTC bucket; proactive observations use the durable
+scheduled opportunity time.
+
+A telemetry failure is deliberately isolated from generation, proactive claims,
+delivery and creative diary writes. This preserves the architectural rule that
+shadow analysis can observe production decisions but cannot control them.
