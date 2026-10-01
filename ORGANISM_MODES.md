@@ -1,12 +1,12 @@
-# Kristina organism modes — stage 3
+# Kristina organism modes — stage 4
 
 This is the persistent slow-state layer of Kristina's organism model.
 
 The 12 modes receive small changes from **validated, transport-stamped user
-events** and are now also exposed to the autonomy layer through a **read-only
-projection**. The projection is observable but deliberately excluded from all
-desire and decision formulas. Experience can shape slow state; slow state still
-cannot shape behaviour.
+events** and are exposed to the autonomy layer through a **read-only
+projection**. Production now also computes a bounded **shadow decision** from
+that projection. The shadow result is telemetry only: the unchanged baseline
+decision remains the only executable decision.
 
 ## Why a second timescale
 
@@ -123,11 +123,47 @@ as when no projection is supplied.
 
 Reading the projection does not advance mode time or mutate persistence.
 
+## Stage-4 shadow decision
+
+For every eligible proactive or daytime creative decision, production keeps the
+existing baseline path unchanged and separately calculates a counterfactual:
+
+```
+fast emotional state
+  -> baseline desires
+  -> baseline decision ---------------------> executable action/silence
+          |
+          + organism baseline deviations
+          -> bounded shadow desire deltas
+          -> shadow decision ----------------> telemetry only
+```
+
+Shadow coupling uses **deviation from each mode's own baseline**, not raw mode
+amplitude. A mode sitting at its resting baseline therefore contributes exactly
+zero.
+
+Each desire's total shadow adjustment is capped at ±0.12 before the score is
+clamped to [0, 1]. The current coefficients in `SHADOW_MODE_WEIGHTS` are
+engineering hypotheses to observe, not psychological measurements.
+
+The shadow path uses the same `DecisionEngine` hard gates as production. It
+cannot bypass cooldown. It may predict that slow state would have changed an
+intention, crossed the action threshold, or increased the desire for space, but
+that result is never executed.
+
+Shadow failures are isolated: an exception in counterfactual calculation is
+logged and the baseline production action continues unchanged.
+
+Telemetry contains decision labels, scores, maximum score delta and the compact
+organism projection. It contains no message text.
+
 ## Next stage
 
-Collect production observations first. Then we can introduce a **shadow
-decision**: calculate what the decision would have been with a proposed
-slow-mode influence while still executing the unchanged baseline decision.
+Collect enough shadow observations to answer concrete questions: how often the
+counterfactual changes action vs silence, how often it changes intention, which
+mode deviations drive the largest score changes, and whether the ±0.12 cap is
+too weak or too strong.
 
-Only after shadow data is stable should slow modes influence DesireEngine,
-ontological tension, crisis 957, sleep integration or aesthetic breakpoints.
+Only after those observations should slow modes receive any authority over the
+live DesireEngine. Ontological tension, crisis 957, sleep integration and
+aesthetic breakpoints remain later layers.
