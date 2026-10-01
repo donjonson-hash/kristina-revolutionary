@@ -12,7 +12,12 @@ from autonomy_decision import (
     project_organism_modes,
 )
 from organism_modes import OrganismModes
-from shadow_telemetry import ShadowTelemetryStore, shadow_time_bucket
+from shadow_telemetry import (
+    ShadowTelemetryStore,
+    format_shadow_report,
+    parse_shadow_report_window,
+    shadow_time_bucket,
+)
 
 
 START = datetime(2026, 10, 1, 12, 7, tzinfo=timezone.utc)
@@ -230,3 +235,100 @@ def test_invalid_timestamps_or_kind_do_not_write(tmp_path):
 
     with sqlite3.connect(store.db_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM shadow_decision_telemetry").fetchone()[0] == 0
+
+
+
+def test_report_window_parser_supports_24h_7d_and_all():
+    token, since, label = parse_shadow_report_window("24h", START)
+    assert token == "24h"
+    assert since == START - timedelta(hours=24)
+    assert "24 часа" in label
+
+    token, since, label = parse_shadow_report_window("7d", START)
+    assert token == "7d"
+    assert since == START - timedelta(days=7)
+    assert "7 дней" in label
+
+    token, since, label = parse_shadow_report_window("all", START)
+    assert token == "all"
+    assert since is None
+    assert "всё время" in label
+
+    with pytest.raises(ValueError):
+        parse_shadow_report_window("30d", START)
+
+
+def test_report_for_empty_window_is_explicit_and_read_only(tmp_path):
+    store = ShadowTelemetryStore(str(tmp_path / "state.db"))
+    before = store.recent()
+
+    report = format_shadow_report(store, window="24h", now=START)
+
+    assert "Наблюдений: 0" in report
+    assert "данных пока недостаточно" in report.lower()
+    assert "Baseline" in report
+    assert store.recent() == before
+
+
+def test_report_summarizes_kind_rates_modes_and_desire_deltas(tmp_path):
+    store = ShadowTelemetryStore(str(tmp_path / "state.db"))
+    projection, report_a = make_observation(share=0.60, aesthetic=1.0, creativity=1.0)
+    neutral_projection, report_b = make_observation(
+        share=0.40,
+        aesthetic=0.25,
+        creativity=0.22,
+    )
+
+    assert store.record_once(
+        kind="proactive",
+        scope="session-a",
+        opportunity_at=START - timedelta(minutes=2),
+        observed_at=START,
+        projection=projection,
+        report=report_a,
+    )
+    assert store.record_once(
+        kind="creative",
+        scope="creative-global",
+        opportunity_at=START - timedelta(minutes=1),
+        observed_at=START,
+        projection=neutral_projection,
+        report=report_b,
+    )
+
+    text = format_shadow_report(store, window="24h", now=START + timedelta(minutes=1))
+    summary = store.summary(since=START - timedelta(hours=24))
+
+    assert "Наблюдений: 2" in text
+    assert "proactive:" in text
+    assert "creative:" in text
+    assert "Средний shadow Δ:" in text
+    assert "Чаще всего среди сильных сдвигов:" in text
+    assert summary["top_shifted_modes"]
+    assert "share" in summary["avg_score_deltas"]
+
+
+def test_7d_report_excludes_older_rows(tmp_path):
+    store = ShadowTelemetryStore(str(tmp_path / "state.db"))
+    projection, report = make_observation()
+    now = START + timedelta(days=10)
+
+    assert store.record_once(
+        kind="proactive",
+        scope="old",
+        opportunity_at=START,
+        observed_at=START,
+        projection=projection,
+        report=report,
+    )
+    assert store.record_once(
+        kind="proactive",
+        scope="new",
+        opportunity_at=now - timedelta(days=1),
+        observed_at=now - timedelta(days=1),
+        projection=projection,
+        report=report,
+    )
+
+    text = format_shadow_report(store, window="7d", now=now)
+    assert "Наблюдений: 1" in text
