@@ -1,11 +1,12 @@
-# Kristina organism modes — stage 2
+# Kristina organism modes — stage 3
 
 This is the persistent slow-state layer of Kristina's organism model.
 
-The 12 modes now receive small changes from **validated, transport-stamped user
-events**. They still do not influence prompts, emotions, desires, decisions,
-messages, publishing, crisis behaviour or sleep. The direction remains one-way:
-experience can shape slow state, but slow state cannot shape behaviour yet.
+The 12 modes receive small changes from **validated, transport-stamped user
+events** and are now also exposed to the autonomy layer through a **read-only
+projection**. The projection is observable but deliberately excluded from all
+desire and decision formulas. Experience can shape slow state; slow state still
+cannot shape behaviour.
 
 ## Why a second timescale
 
@@ -100,9 +101,33 @@ deterministic. They are engineering calibration, not psychological claims.
 engine should derive crisis pressure from accumulated slow state rather than
 turning one conversation into a crisis.
 
+## Stage-3 decision observation
+
+The autonomy layer can call `project_organism_modes()` to obtain an immutable
+snapshot containing:
+
+- current amplitudes;
+- deviations from each mode's baseline;
+- the strongest modes by absolute amplitude;
+- the strongest changed modes by absolute baseline deviation;
+- the maximum absolute deviation.
+
+The projection is passed through decision context for proactive and creative
+decision opportunities and is included only in operational telemetry.
+
+`DesireEngine.calculate()` validates the projection type but does not use any
+mode value in its scoring formulas. Tests assert that extreme values such as
+`crisis_957 = 1.0`, `social_overload = 1.0` or
+`withdrawal_147 = 0.95` produce exactly the same desire scores and decisions
+as when no projection is supplied.
+
+Reading the projection does not advance mode time or mutate persistence.
+
 ## Next stage
 
-First validate this one-way learning layer through production restarts. After
-that, introduce a read-only projection of slow state into the decision layer and
-measure its effect before allowing modes to influence DesireEngine,
+Collect production observations first. Then we can introduce a **shadow
+decision**: calculate what the decision would have been with a proposed
+slow-mode influence while still executing the unchanged baseline decision.
+
+Only after shadow data is stable should slow modes influence DesireEngine,
 ontological tension, crisis 957, sleep integration or aesthetic breakpoints.
