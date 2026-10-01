@@ -127,8 +127,15 @@ def ai_generate(client) -> Callable[[str, str], Awaitable[str]]:
     return generate
 
 
-def creative_decision(emotional_state: Dict, last_expression: Optional[datetime], now: datetime,
-                      desire_engine, decision_engine):
+def creative_decision(
+    emotional_state: Dict,
+    last_expression: Optional[datetime],
+    now: datetime,
+    desire_engine,
+    decision_engine,
+    *,
+    organism_projection=None,
+):
     """Decide whether Kristina writes now. Reuses the shared desire/decision layer.
 
     The `share` desire's distance term is fed with hours since the last diary
@@ -139,7 +146,10 @@ def creative_decision(emotional_state: Dict, last_expression: Optional[datetime]
     if emotional_state.get("is_night"):
         return AutonomousDecision("none", None, 0.0, "night")
     hours = (now - last_expression).total_seconds() / 3600.0 if last_expression else 24.0
-    desires = desire_engine.calculate(emotional_state, {"hours_since_contact": hours})
+    decision_context = {"hours_since_contact": hours}
+    if organism_projection is not None:
+        decision_context["organism_projection"] = organism_projection
+    desires = desire_engine.calculate(emotional_state, decision_context)
     return decision_engine.decide({"share": desires["share"], "be_alone": desires["be_alone"]},
                                   {"last_proactive": last_expression}, now=now)
 
