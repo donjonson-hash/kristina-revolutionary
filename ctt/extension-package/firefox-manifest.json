@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Compare These Texts — Compare & Edit BETA",
+  "version": "0.33.6",
+  "homepage_url": "https://comparethesetexts.com/",
+  "description": "Compare Word, PDF, text and Excel files side by side. Edit differences and save the result. Works locally in your browser.",
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon.png"
+  },
+  "action": {
+    "default_title": "CTT — Compare & Edit",
+    "default_popup": "launcher.html",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon.png"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; img-src 'self' data: blob:; connect-src 'none'; worker-src 'self'; base-uri 'none'; form-action 'none'"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "kristina-reconciliation@donjonson-hash.github.io",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}

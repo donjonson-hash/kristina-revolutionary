@@ -1,0 +1,237 @@
+[
+  {
+    "file": "engine.mjs",
+    "start": 907,
+    "end": 916,
+    "type": "Literal",
+    "source": "артикул",
+    "translation": "артикул",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 941,
+    "end": 956,
+    "type": "Literal",
+    "source": "идентификатор",
+    "translation": "идентификатор",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1018,
+    "end": 1023,
+    "type": "Literal",
+    "source": "код",
+    "translation": "код",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1054,
+    "end": 1066,
+    "type": "Literal",
+    "source": "код товара",
+    "translation": "код товара",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1068,
+    "end": 1080,
+    "type": "Literal",
+    "source": "код_товара",
+    "translation": "код_товара",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1115,
+    "end": 1127,
+    "type": "Literal",
+    "source": "количество",
+    "translation": "количество",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1147,
+    "end": 1153,
+    "type": "Literal",
+    "source": "цена",
+    "translation": "цена",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1183,
+    "end": 1193,
+    "type": "Literal",
+    "source": "цена_руб",
+    "translation": "цена_руб",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1211,
+    "end": 1220,
+    "type": "Literal",
+    "source": "единица",
+    "translation": "единица",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1222,
+    "end": 1241,
+    "type": "Literal",
+    "source": "единица измерения",
+    "translation": "единица измерения",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1261,
+    "end": 1275,
+    "type": "Literal",
+    "source": "наименование",
+    "translation": "наименование",
+    "reason": "Input column alias used by the tabular parser to recognize Russian user data; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 16714,
+    "end": 16783,
+    "type": "Literal",
+    "source": "Показаны первые 100 замечаний. Исправьте данные и повторите сверку.",
+    "translation": "Only the first 100 issues are shown. Fix the data and compare again."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 16156,
+    "end": 16164,
+    "type": "TemplateElement",
+    "source": "Таблица ",
+    "translation": "Table "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 16185,
+    "end": 16194,
+    "type": "TemplateElement",
+    "source": ", строка ",
+    "translation": ", row "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 16213,
+    "end": 16223,
+    "type": "TemplateElement",
+    "source": ", столбец ",
+    "translation": ", column "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 16245,
+    "end": 16253,
+    "type": "TemplateElement",
+    "source": ", абзац ",
+    "translation": ", paragraph "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 16304,
+    "end": 16312,
+    "type": "Literal",
+    "source": "Строка",
+    "translation": "Line"
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 16315,
+    "end": 16322,
+    "type": "Literal",
+    "source": "Абзац",
+    "translation": "Paragraph"
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 10196,
+    "end": 10328,
+    "type": "Literal",
+    "source": "Сверяется только выбранный лист, включая скрытые строки и столбцы. Пустые строки пропущены. Первая заполненная строка — заголовки.",
+    "translation": "Only the selected sheet is compared, including hidden rows and columns. Empty rows are skipped. The first filled row contains the headers."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 10330,
+    "end": 10491,
+    "type": "Literal",
+    "source": "Числа сверяются по значениям; простой формат 000… сохраняет ведущие нули. Даты приведены к ISO. Оформление, комментарии, изображения и формулы не сравниваются.",
+    "translation": "Numbers are compared by value; a simple 000… format preserves leading zeros. Dates are converted to ISO format. Formatting, comments, images, and formulas are not compared."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 380,
+    "end": 436,
+    "type": "Literal",
+    "source": "отрисовка страниц при чтении текста не поддерживается.",
+    "translation": "rendering pages while reading text is not supported."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 536,
+    "end": 636,
+    "type": "Literal",
+    "source": "внешние шрифты и таблицы символов не загружаются. Подготовьте PDF со встроенными шрифтами Unicode.",
+    "translation": "external fonts and character maps are not loaded. Prepare a PDF with embedded Unicode fonts."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 7715,
+    "end": 7724,
+    "type": "TemplateElement",
+    "source": "Страница ",
+    "translation": "Page "
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 7737,
+    "end": 7747,
+    "type": "TemplateElement",
+    "source": " · строка ",
+    "translation": " · line "
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 16813,
+    "end": 16847,
+    "type": "Literal",
+    "source": "Текст этой строки уже совпадает.",
+    "translation": "The text in this row already matches."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 17254,
+    "end": 17291,
+    "type": "Literal",
+    "source": "Неизвестное положение новой строки.",
+    "translation": "Unknown position for the new row."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 18237,
+    "end": 18285,
+    "type": "Literal",
+    "source": "В таблице должна остаться хотя бы одна строка.",
+    "translation": "The table must contain at least one row."
+  },
+  {
+    "file": "worker.mjs",
+    "start": 3116,
+    "end": 3146,
+    "type": "Literal",
+    "source": "Не удалось обработать файлы.",
+    "translation": "Could not process the files."
+  }
+]

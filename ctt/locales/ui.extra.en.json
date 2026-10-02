@@ -1,0 +1,282 @@
+[
+  {
+    "file": "app.js",
+    "start": 24469,
+    "end": 24477,
+    "type": "TemplateElement",
+    "source": "Открыть ",
+    "translation": "Open "
+  },
+  {
+    "file": "app.js",
+    "start": 24509,
+    "end": 24522,
+    "type": "TemplateElement",
+    "source": " в документах",
+    "translation": " in documents"
+  },
+  {
+    "file": "app.js",
+    "start": 32646,
+    "end": 32673,
+    "type": "Literal",
+    "source": "Редактирование документов",
+    "translation": "Edit documents"
+  },
+  {
+    "file": "app.js",
+    "start": 32676,
+    "end": 32698,
+    "type": "Literal",
+    "source": "Сравнение документов",
+    "translation": "Compare documents"
+  },
+  {
+    "file": "app.js",
+    "start": 32750,
+    "end": 32776,
+    "type": "Literal",
+    "source": "Исходные отличия · PDF ↓",
+    "translation": "Original differences · PDF ↓"
+  },
+  {
+    "file": "app.js",
+    "start": 32779,
+    "end": 32794,
+    "type": "Literal",
+    "source": "Отчёт · PDF ↓",
+    "translation": "Report · PDF ↓"
+  },
+  {
+    "file": "app.js",
+    "start": 40523,
+    "end": 40538,
+    "type": "Literal",
+    "source": "Текст изменён",
+    "translation": "Text changed"
+  },
+  {
+    "file": "app.js",
+    "start": 40549,
+    "end": 40566,
+    "type": "Literal",
+    "source": "Текст совпадает",
+    "translation": "Text matches"
+  },
+  {
+    "file": "app.js",
+    "start": 40579,
+    "end": 40591,
+    "type": "Literal",
+    "source": "Только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "app.js",
+    "start": 40605,
+    "end": 40617,
+    "type": "Literal",
+    "source": "Только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "app.js",
+    "start": 40626,
+    "end": 40659,
+    "type": "Literal",
+    "source": "Перемещено без изменения текста",
+    "translation": "Moved without text changes"
+  },
+  {
+    "file": "app.js",
+    "start": 40669,
+    "end": 40694,
+    "type": "Literal",
+    "source": "Изменены переносы строк",
+    "translation": "Line breaks changed"
+  },
+  {
+    "file": "app.js",
+    "start": 43093,
+    "end": 43109,
+    "type": "Literal",
+    "source": "Есть изменения",
+    "translation": "Changes found"
+  },
+  {
+    "file": "app.js",
+    "start": 43122,
+    "end": 43134,
+    "type": "Literal",
+    "source": "Только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "app.js",
+    "start": 43148,
+    "end": 43160,
+    "type": "Literal",
+    "source": "Только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "app.js",
+    "start": 43171,
+    "end": 43197,
+    "type": "Literal",
+    "source": "Проверенные поля совпали",
+    "translation": "Checked fields match"
+  },
+  {
+    "file": "app.js",
+    "start": 46365,
+    "end": 46375,
+    "type": "Literal",
+    "source": "Изменено",
+    "translation": "Changed"
+  },
+  {
+    "file": "app.js",
+    "start": 46388,
+    "end": 46400,
+    "type": "Literal",
+    "source": "Только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "app.js",
+    "start": 46414,
+    "end": 46426,
+    "type": "Literal",
+    "source": "Только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "app.js",
+    "start": 46435,
+    "end": 46468,
+    "type": "Literal",
+    "source": "Перемещено без изменения текста",
+    "translation": "Moved without text changes"
+  },
+  {
+    "file": "app.js",
+    "start": 46478,
+    "end": 46503,
+    "type": "Literal",
+    "source": "Изменены переносы строк",
+    "translation": "Line breaks changed"
+  },
+  {
+    "file": "text-editor.js",
+    "start": 6592,
+    "end": 6626,
+    "type": "Literal",
+    "source": "Сохранённая редакция повреждена.",
+    "translation": "The saved version is corrupted."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 6841,
+    "end": 6875,
+    "type": "Literal",
+    "source": "Сохранённая редакция повреждена.",
+    "translation": "The saved version is corrupted."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 506,
+    "end": 597,
+    "type": "Literal",
+    "source": "для этой страницы нужны внешние шрифты или данные. Сохраните PDF со встроенными шрифтами.",
+    "translation": "this page requires external fonts or data. Save the PDF with embedded fonts."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 7374,
+    "end": 7396,
+    "type": "Literal",
+    "source": "просмотр уже закрыт.",
+    "translation": "the preview is already closed."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 7494,
+    "end": 7516,
+    "type": "Literal",
+    "source": "страница не найдена.",
+    "translation": "page not found."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 7588,
+    "end": 7624,
+    "type": "Literal",
+    "source": "неподдерживаемый масштаб страницы.",
+    "translation": "unsupported page scale."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 7781,
+    "end": 7824,
+    "type": "Literal",
+    "source": "страница слишком большая для отображения.",
+    "translation": "the page is too large to display."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 6768,
+    "end": 6904,
+    "type": "Literal",
+    "source": "Заголовки, таблицы, списки, стили текста и встроенные фотографии сохранены. Разбиение на страницы в браузере может отличаться от Word.",
+    "translation": "Headings, tables, lists, text styles, and embedded photos are preserved. Page breaks in the browser may differ from Word."
+  },
+  {
+    "file": "transport.js",
+    "start": 361,
+    "end": 371,
+    "type": "Literal",
+    "source": "Отменено",
+    "translation": "Canceled"
+  },
+  {
+    "file": "transport.js",
+    "start": 810,
+    "end": 820,
+    "type": "Literal",
+    "source": "Отменено",
+    "translation": "Canceled"
+  },
+  {
+    "file": "transport.js",
+    "start": 894,
+    "end": 960,
+    "type": "Literal",
+    "source": "Обработка заняла слишком много времени. Попробуйте меньший файл.",
+    "translation": "Processing took too long. Try a smaller file."
+  },
+  {
+    "file": "transport.js",
+    "start": 1223,
+    "end": 1293,
+    "type": "Literal",
+    "source": "Не удалось запустить обработку в браузере. Перезагрузите расширение.",
+    "translation": "Couldn't start processing in your browser. Reload the extension."
+  },
+  {
+    "file": "transport.js",
+    "start": 1355,
+    "end": 1397,
+    "type": "Literal",
+    "source": "Не удалось получить результат обработки.",
+    "translation": "Couldn't retrieve the processing results."
+  },
+  {
+    "file": "site.js",
+    "start": 272,
+    "end": 293,
+    "type": "Literal",
+    "source": "Состояние сравнения",
+    "translation": "Comparison status"
+  }
+]

@@ -1,0 +1,1488 @@
+[
+  {
+    "file": "office.js",
+    "start": 930,
+    "end": 976,
+    "type": "Literal",
+    "source": "… [значение сокращено; полное — в документе]",
+    "translation": "… [value shortened; see the document for the full value]"
+  },
+  {
+    "file": "office.js",
+    "start": 1071,
+    "end": 1074,
+    "type": "Literal",
+    "source": "ё",
+    "translation": "ё",
+    "reason": "Preserve parser alias or Russian character normalization mapping."
+  },
+  {
+    "file": "office.js",
+    "start": 1076,
+    "end": 1079,
+    "type": "Literal",
+    "source": "е",
+    "translation": "е",
+    "reason": "Preserve parser alias or Russian character normalization mapping."
+  },
+  {
+    "file": "office.js",
+    "start": 1483,
+    "end": 1492,
+    "type": "Literal",
+    "source": "единица",
+    "translation": "единица",
+    "reason": "Preserve parser alias or Russian character normalization mapping."
+  },
+  {
+    "file": "office.js",
+    "start": 1494,
+    "end": 1513,
+    "type": "Literal",
+    "source": "единица измерения",
+    "translation": "единица измерения",
+    "reason": "Preserve parser alias or Russian character normalization mapping."
+  },
+  {
+    "file": "office.js",
+    "start": 1515,
+    "end": 1525,
+    "type": "Literal",
+    "source": "ед. изм.",
+    "translation": "ед. изм.",
+    "reason": "Preserve parser alias or Russian character normalization mapping."
+  },
+  {
+    "file": "office.js",
+    "start": 1527,
+    "end": 1536,
+    "type": "Literal",
+    "source": "ед.изм.",
+    "translation": "ед.изм.",
+    "reason": "Preserve parser alias or Russian character normalization mapping."
+  },
+  {
+    "file": "office.js",
+    "start": 2193,
+    "end": 2218,
+    "type": "TemplateElement",
+    "source": "Ответ сокращён: показано ",
+    "translation": "Response shortened: showing "
+  },
+  {
+    "file": "office.js",
+    "start": 2232,
+    "end": 2236,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "office.js",
+    "start": 2251,
+    "end": 2322,
+    "type": "TemplateElement",
+    "source": " блоков. Остальные сведения доступны в документах и полном HTML-отчёте.",
+    "translation": " blocks. The rest is available in the documents and the full HTML report."
+  },
+  {
+    "file": "office.js",
+    "start": 2375,
+    "end": 2401,
+    "type": "TemplateElement",
+    "source": "Кнопки перехода: показано ",
+    "translation": "Navigation buttons: showing "
+  },
+  {
+    "file": "office.js",
+    "start": 2415,
+    "end": 2419,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "office.js",
+    "start": 2436,
+    "end": 2499,
+    "type": "TemplateElement",
+    "source": ". Остальные позиции доступны в документах и полном HTML-отчёте.",
+    "translation": ". The remaining items are available in the documents and the full HTML report."
+  },
+  {
+    "file": "office.js",
+    "start": 2722,
+    "end": 2844,
+    "type": "Literal",
+    "source": "Я Кристина, ваш офисный помощник. Загрузите два CSV-файла — после сверки я объясню различия и помогу подготовить письмо.",
+    "translation": "I'm the CTT assistant. Upload two CSV files, and after the comparison I can explain the differences and help draft a letter."
+  },
+  {
+    "file": "office.js",
+    "start": 2910,
+    "end": 2989,
+    "type": "Literal",
+    "source": "Сверка ещё не завершена. Пока нельзя делать выводы о совпадениях и различиях.",
+    "translation": "The comparison is not complete yet. Matches and differences cannot be determined yet."
+  },
+  {
+    "file": "office.js",
+    "start": 3101,
+    "end": 3166,
+    "type": "Literal",
+    "source": "Уточните данные или настройки сопоставления и повторите сверку.",
+    "translation": "Review the data or matching settings and run the comparison again."
+  },
+  {
+    "file": "office.js",
+    "start": 3385,
+    "end": 3415,
+    "type": "Literal",
+    "source": "совпали по проверенным полям",
+    "translation": "matched on the checked fields"
+  },
+  {
+    "file": "office.js",
+    "start": 3418,
+    "end": 3448,
+    "type": "Literal",
+    "source": "ключи найдены в обоих файлах",
+    "translation": "keys found in both files"
+  },
+  {
+    "file": "office.js",
+    "start": 3240,
+    "end": 3252,
+    "type": "TemplateElement",
+    "source": "Изменились: ",
+    "translation": "Changed: "
+  },
+  {
+    "file": "office.js",
+    "start": 3276,
+    "end": 3290,
+    "type": "TemplateElement",
+    "source": "; только в A: ",
+    "translation": "; only in A: "
+  },
+  {
+    "file": "office.js",
+    "start": 3316,
+    "end": 3330,
+    "type": "TemplateElement",
+    "source": "; только в B: ",
+    "translation": "; only in B: "
+  },
+  {
+    "file": "office.js",
+    "start": 3670,
+    "end": 3693,
+    "type": "TemplateElement",
+    "source": ": проверен только лист ",
+    "translation": ": only sheet "
+  },
+  {
+    "file": "office.js",
+    "start": 3728,
+    "end": 3771,
+    "type": "TemplateElement",
+    "source": ". Другие листы и оформление не проверялись.",
+    "translation": " was checked. Other sheets and formatting were not checked."
+  },
+  {
+    "file": "office.js",
+    "start": 3991,
+    "end": 4018,
+    "type": "TemplateElement",
+    "source": "Сопоставление по ключам: A ",
+    "translation": "Key matching: A "
+  },
+  {
+    "file": "office.js",
+    "start": 4123,
+    "end": 4201,
+    "type": "Literal",
+    "source": "Проверялось только наличие ключей. Значения других столбцов не сравнивались.",
+    "translation": "Only key presence was checked. Values in other columns were not compared."
+  },
+  {
+    "file": "office.js",
+    "start": 4232,
+    "end": 4251,
+    "type": "Literal",
+    "source": "Проверенные поля:",
+    "translation": "Checked fields:"
+  },
+  {
+    "file": "office.js",
+    "start": 4363,
+    "end": 4370,
+    "type": "Literal",
+    "source": "число",
+    "translation": "number"
+  },
+  {
+    "file": "office.js",
+    "start": 4373,
+    "end": 4380,
+    "type": "Literal",
+    "source": "текст",
+    "translation": "text"
+  },
+  {
+    "file": "office.js",
+    "start": 4403,
+    "end": 4469,
+    "type": "Literal",
+    "source": "Поля, не включённые в эти правила, не оценивались на совпадение.",
+    "translation": "Fields outside these rules were not checked for matches."
+  },
+  {
+    "file": "office.js",
+    "start": 4507,
+    "end": 4573,
+    "type": "Literal",
+    "source": "При сравнении игнорировались пробелы по краям значений и ключей.",
+    "translation": "Leading and trailing spaces in values and keys were ignored."
+  },
+  {
+    "file": "office.js",
+    "start": 4576,
+    "end": 4625,
+    "type": "Literal",
+    "source": "Пробелы по краям значений и ключей учитывались.",
+    "translation": "Leading and trailing spaces in values and keys were included in the comparison."
+  },
+  {
+    "file": "office.js",
+    "start": 4890,
+    "end": 4959,
+    "type": "Literal",
+    "source": "Перемещения и переносы строк показаны отдельно от изменений текста.",
+    "translation": "Moved text and line break changes are shown separately from text changes."
+  },
+  {
+    "file": "office.js",
+    "start": 5516,
+    "end": 5617,
+    "type": "Literal",
+    "source": "Сравнивался извлечённый текст. Юридический смысл, достоверность фактов и орфография не оценивались.",
+    "translation": "The extracted text was compared. Legal meaning, factual accuracy, and spelling were not assessed."
+  },
+  {
+    "file": "office.js",
+    "start": 5747,
+    "end": 5809,
+    "type": "Literal",
+    "source": "Сравнивается текст; оформление и изображения не проверяются.",
+    "translation": "Text is compared; formatting and images are not checked."
+  },
+  {
+    "file": "office.js",
+    "start": 5818,
+    "end": 5887,
+    "type": "Literal",
+    "source": "Нормализованы только переводы строк; пробелы и регистр учитываются.",
+    "translation": "Only line endings were normalized; spaces and letter case are included in the comparison."
+  },
+  {
+    "file": "office.js",
+    "start": 5937,
+    "end": 5956,
+    "type": "TemplateElement",
+    "source": "Изменённых блоков: ",
+    "translation": "Changed blocks: "
+  },
+  {
+    "file": "office.js",
+    "start": 5980,
+    "end": 5994,
+    "type": "TemplateElement",
+    "source": "; только в A: ",
+    "translation": "; only in A: "
+  },
+  {
+    "file": "office.js",
+    "start": 6020,
+    "end": 6034,
+    "type": "TemplateElement",
+    "source": "; только в B: ",
+    "translation": "; only in B: "
+  },
+  {
+    "file": "office.js",
+    "start": 6061,
+    "end": 6074,
+    "type": "TemplateElement",
+    "source": "; совпавших: ",
+    "translation": "; matched: "
+  },
+  {
+    "file": "office.js",
+    "start": 6128,
+    "end": 6162,
+    "type": "TemplateElement",
+    "source": " Перемещено без изменения текста: ",
+    "translation": " Moved without text changes: "
+  },
+  {
+    "file": "office.js",
+    "start": 6221,
+    "end": 6247,
+    "type": "TemplateElement",
+    "source": " Изменены переносы строк: ",
+    "translation": " Line breaks changed: "
+  },
+  {
+    "file": "office.js",
+    "start": 7052,
+    "end": 7091,
+    "type": "TemplateElement",
+    "source": ": сопоставленного текстового блока нет.",
+    "translation": ": no matching text block."
+  },
+  {
+    "file": "office.js",
+    "start": 7215,
+    "end": 7263,
+    "type": "Literal",
+    "source": "Подходящих блоков в текущем отчёте не найдено.",
+    "translation": "No matching blocks were found in the current report."
+  },
+  {
+    "file": "office.js",
+    "start": 7522,
+    "end": 7551,
+    "type": "Literal",
+    "source": "Сравнила текст двух файлов.",
+    "translation": "The text in the two files has been compared."
+  },
+  {
+    "file": "office.js",
+    "start": 7597,
+    "end": 7659,
+    "type": "Literal",
+    "source": "Сравнивается текст; оформление и изображения не проверяются.",
+    "translation": "Text is compared; formatting and images are not checked."
+  },
+  {
+    "file": "office.js",
+    "start": 7794,
+    "end": 7844,
+    "type": "Literal",
+    "source": "В обоих файлах нет извлечённых текстовых блоков.",
+    "translation": "Neither file contains any extracted text blocks."
+  },
+  {
+    "file": "office.js",
+    "start": 8072,
+    "end": 8095,
+    "type": "TemplateElement",
+    "source": "Примеры: показано 2 из ",
+    "translation": "Examples: showing 2 of "
+  },
+  {
+    "file": "office.js",
+    "start": 8112,
+    "end": 8165,
+    "type": "TemplateElement",
+    "source": " различий. Полный текст — в документах и HTML-отчёте.",
+    "translation": " differences. The full text is available in the documents and HTML report."
+  },
+  {
+    "file": "office.js",
+    "start": 8235,
+    "end": 8253,
+    "type": "Literal",
+    "source": "Текст совпадает.",
+    "translation": "The text matches."
+  },
+  {
+    "file": "office.js",
+    "start": 8271,
+    "end": 8377,
+    "type": "Literal",
+    "source": "Можно открыть блок по номеру или фразе, показать добавления и удаления либо подготовить черновик письма.",
+    "translation": "You can open a block by number or phrase, show additions and deletions, or draft a letter."
+  },
+  {
+    "file": "office.js",
+    "start": 9005,
+    "end": 9020,
+    "type": "Literal",
+    "source": "Здравствуйте!",
+    "translation": "Hello,"
+  },
+  {
+    "file": "office.js",
+    "start": 9049,
+    "end": 9092,
+    "type": "TemplateElement",
+    "source": "При сравнении извлечённого текста файлов A ",
+    "translation": "Comparing the extracted text in file A "
+  },
+  {
+    "file": "office.js",
+    "start": 9126,
+    "end": 9131,
+    "type": "TemplateElement",
+    "source": " и B ",
+    "translation": " and file B "
+  },
+  {
+    "file": "office.js",
+    "start": 9166,
+    "end": 9197,
+    "type": "TemplateElement",
+    "source": " получены следующие результаты.",
+    "translation": " produced the following results."
+  },
+  {
+    "file": "office.js",
+    "start": 9260,
+    "end": 9315,
+    "type": "Literal",
+    "source": "Ниже перечислены все обнаруженные текстовые различия.",
+    "translation": "All detected text differences are listed below."
+  },
+  {
+    "file": "office.js",
+    "start": 9655,
+    "end": 9690,
+    "type": "Literal",
+    "source": "Текстовых различий не обнаружено.",
+    "translation": "No text differences were found."
+  },
+  {
+    "file": "office.js",
+    "start": 9718,
+    "end": 9819,
+    "type": "Literal",
+    "source": "Просьба проверить перечисленные текстовые различия и уточнить, какую редакцию следует использовать.",
+    "translation": "Please review the text differences listed above and clarify which version to use."
+  },
+  {
+    "file": "office.js",
+    "start": 9847,
+    "end": 9909,
+    "type": "Literal",
+    "source": "Сравнивается текст; оформление и изображения не проверяются.",
+    "translation": "Text is compared; formatting and images are not checked."
+  },
+  {
+    "file": "office.js",
+    "start": 9935,
+    "end": 10067,
+    "type": "Literal",
+    "source": "Черновик готов: в нём перечислены все текстовые различия, без оценки их смысла. Текст можно отредактировать. Письмо не отправлено.",
+    "translation": "The draft is ready. It lists all text differences without assessing their meaning. You can edit the text. The letter has not been sent."
+  },
+  {
+    "file": "office.js",
+    "start": 10225,
+    "end": 10359,
+    "type": "Literal",
+    "source": "Полный черновик превышает лимит 1 МиБ. Я не сформировала сокращённое письмо: скачайте полный HTML-отчёт и приложите его к сообщению.",
+    "translation": "The full draft exceeds the 1 MiB limit. No shortened letter was created. Download the full HTML report and attach it to your message."
+  },
+  {
+    "file": "office.js",
+    "start": 10490,
+    "end": 10623,
+    "type": "Literal",
+    "source": "Можно спросить: «Что изменилось?», «Что добавилось?», «Что удалено?», «Покажи абзац 3 в A», «Найди «фразу»» или «Подготовь письмо».",
+    "translation": "You can ask: “What changed?”, “What was added?”, “What was deleted?”, “Show paragraph 3 in A”, “Find \"phrase\"”, or “Draft a letter”."
+  },
+  {
+    "file": "office.js",
+    "start": 10951,
+    "end": 10986,
+    "type": "Literal",
+    "source": "Текстовый блок из текущей сверки:",
+    "translation": "Text block from the current comparison:"
+  },
+  {
+    "file": "office.js",
+    "start": 11084,
+    "end": 11153,
+    "type": "Literal",
+    "source": "Черновик не создаю. Можно продолжить обсуждение текстовых различий.",
+    "translation": "No draft will be created. You can continue discussing the text differences."
+  },
+  {
+    "file": "office.js",
+    "start": 11926,
+    "end": 11931,
+    "type": "Literal",
+    "source": " в ",
+    "translation": " in "
+  },
+  {
+    "file": "office.js",
+    "start": 11966,
+    "end": 12024,
+    "type": "Literal",
+    "source": " (поиск в A и B; номера могут относиться к разным парам)",
+    "translation": " (searching A and B; numbers may refer to different pairs)"
+  },
+  {
+    "file": "office.js",
+    "start": 11891,
+    "end": 11908,
+    "type": "TemplateElement",
+    "source": "Исходная позиция ",
+    "translation": "Original position "
+  },
+  {
+    "file": "office.js",
+    "start": 12649,
+    "end": 12654,
+    "type": "Literal",
+    "source": " в ",
+    "translation": " in "
+  },
+  {
+    "file": "office.js",
+    "start": 12693,
+    "end": 12711,
+    "type": "Literal",
+    "source": " (поиск в A и B)",
+    "translation": " (searching A and B)"
+  },
+  {
+    "file": "office.js",
+    "start": 12608,
+    "end": 12626,
+    "type": "TemplateElement",
+    "source": "Исходная страница ",
+    "translation": "Original page "
+  },
+  {
+    "file": "office.js",
+    "start": 13437,
+    "end": 13449,
+    "type": "TemplateElement",
+    "source": "Поиск фразы ",
+    "translation": "Searching for the phrase "
+  },
+  {
+    "file": "office.js",
+    "start": 13465,
+    "end": 13513,
+    "type": "TemplateElement",
+    "source": " в извлечённом тексте (без учёта регистра, е/ё).",
+    "translation": " in the extracted text (ignoring letter case and treating Russian е/ё as equivalent)."
+  },
+  {
+    "file": "office.js",
+    "start": 13691,
+    "end": 13762,
+    "type": "Literal",
+    "source": "Могу показать точные текстовые отличия и места в исходных документах.",
+    "translation": "I can show the exact text differences and their locations in the source documents."
+  },
+  {
+    "file": "office.js",
+    "start": 13881,
+    "end": 13921,
+    "type": "Literal",
+    "source": "Сравнивался извлечённый текст блоков. ",
+    "translation": "The extracted text of the blocks was compared. "
+  },
+  {
+    "file": "office.js",
+    "start": 13952,
+    "end": 14020,
+    "type": "Literal",
+    "source": " Подсветка показывает изменённые фрагменты, а не оценку их смысла.",
+    "translation": " Highlighting shows changed text, without assessing its meaning."
+  },
+  {
+    "file": "office.js",
+    "start": 14252,
+    "end": 14286,
+    "type": "Literal",
+    "source": "Перемещено без изменения текста:",
+    "translation": "Moved without text changes:"
+  },
+  {
+    "file": "office.js",
+    "start": 14424,
+    "end": 14450,
+    "type": "Literal",
+    "source": "Изменены переносы строк:",
+    "translation": "Line breaks changed:"
+  },
+  {
+    "file": "office.js",
+    "start": 14670,
+    "end": 14699,
+    "type": "Literal",
+    "source": "Текстовые блоки только в B:",
+    "translation": "Text blocks only in B:"
+  },
+  {
+    "file": "office.js",
+    "start": 14836,
+    "end": 14865,
+    "type": "Literal",
+    "source": "Текстовые блоки только в A:",
+    "translation": "Text blocks only in A:"
+  },
+  {
+    "file": "office.js",
+    "start": 15014,
+    "end": 15041,
+    "type": "Literal",
+    "source": "Текстовые блоки без пары:",
+    "translation": "Text blocks without a match:"
+  },
+  {
+    "file": "office.js",
+    "start": 15273,
+    "end": 15343,
+    "type": "Literal",
+    "source": "Этот вопрос не удалось связать с поддерживаемой текстовой проверкой.",
+    "translation": "I couldn't match this question to a supported text comparison request."
+  },
+  {
+    "file": "office.js",
+    "start": 15345,
+    "end": 15479,
+    "type": "Literal",
+    "source": "Можно спросить: «Что изменилось?», «Что добавилось?», «Покажи text-2», «Покажи абзац 3 в A», «Найди «фразу»» или «Подготовь письмо».",
+    "translation": "You can ask: “What changed?”, “What was added?”, “Show text-2”, “Show paragraph 3 in A”, “Find \"phrase\"”, or “Draft a letter”."
+  },
+  {
+    "file": "office.js",
+    "start": 16101,
+    "end": 16120,
+    "type": "TemplateElement",
+    "source": "; изменение B − A: ",
+    "translation": "; change B − A: "
+  },
+  {
+    "file": "office.js",
+    "start": 16413,
+    "end": 16438,
+    "type": "TemplateElement",
+    "source": "Расчёт по всем позициям: ",
+    "translation": "Calculation includes all items: "
+  },
+  {
+    "file": "office.js",
+    "start": 16458,
+    "end": 16462,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "office.js",
+    "start": 16515,
+    "end": 16533,
+    "type": "TemplateElement",
+    "source": "Частичный расчёт: ",
+    "translation": "Partial calculation: "
+  },
+  {
+    "file": "office.js",
+    "start": 16553,
+    "end": 16557,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "office.js",
+    "start": 16574,
+    "end": 16594,
+    "type": "TemplateElement",
+    "source": " позиций; исключено ",
+    "translation": " items; excluded: "
+  },
+  {
+    "file": "office.js",
+    "start": 16614,
+    "end": 16644,
+    "type": "TemplateElement",
+    "source": ". Это не итог всего документа.",
+    "translation": ". This is not the total for the entire document."
+  },
+  {
+    "file": "office.js",
+    "start": 16649,
+    "end": 16715,
+    "type": "TemplateElement",
+    "source": "Денежное влияние не рассчитано: недостаточно сопоставимых данных (",
+    "translation": "Financial impact was not calculated: not enough comparable data ("
+  },
+  {
+    "file": "office.js",
+    "start": 16735,
+    "end": 16755,
+    "type": "TemplateElement",
+    "source": " позиций исключено).",
+    "translation": " items excluded)."
+  },
+  {
+    "file": "office.js",
+    "start": 16863,
+    "end": 16934,
+    "type": "Literal",
+    "source": "Валюты показаны отдельно; общий итог в одной валюте не рассчитывался.",
+    "translation": "Currencies are shown separately; no combined total in a single currency was calculated."
+  },
+  {
+    "file": "office.js",
+    "start": 16952,
+    "end": 17086,
+    "type": "Literal",
+    "source": "Расчёт: количество × указанная цена за единицу. НДС, доставка и другие начисления отдельно не рассчитываются; это не сумма к оплате.",
+    "translation": "Calculation: quantity × listed unit price. Tax, shipping, and other charges are not calculated separately; this is not an amount due."
+  },
+  {
+    "file": "office.js",
+    "start": 17243,
+    "end": 17362,
+    "type": "Literal",
+    "source": "Для этой сверки денежное влияние не рассчитывалось. Могу показать изменения цены, количества и отсутствующие позиции.",
+    "translation": "Financial impact was not calculated for this comparison. I can show price and quantity changes and missing items."
+  },
+  {
+    "file": "office.js",
+    "start": 17754,
+    "end": 17768,
+    "type": "TemplateElement",
+    "source": "Показано 6 из ",
+    "translation": "Showing 6 of "
+  },
+  {
+    "file": "office.js",
+    "start": 17785,
+    "end": 17839,
+    "type": "TemplateElement",
+    "source": " денежных изменений; остальные — в полном HTML-отчёте.",
+    "translation": " financial changes; the rest are in the full HTML report."
+  },
+  {
+    "file": "office.js",
+    "start": 17933,
+    "end": 17958,
+    "type": "TemplateElement",
+    "source": " — исключено из расчёта: ",
+    "translation": " — excluded from the calculation: "
+  },
+  {
+    "file": "office.js",
+    "start": 18090,
+    "end": 18104,
+    "type": "TemplateElement",
+    "source": "Показано 6 из ",
+    "translation": "Showing 6 of "
+  },
+  {
+    "file": "office.js",
+    "start": 18129,
+    "end": 18184,
+    "type": "TemplateElement",
+    "source": " исключённых позиций; остальные — в полном HTML-отчёте.",
+    "translation": " excluded items; the rest are in the full HTML report."
+  },
+  {
+    "file": "office.js",
+    "start": 18410,
+    "end": 18466,
+    "type": "Literal",
+    "source": "Я Кристина, ваш офисный помощник. Проверила два файла.",
+    "translation": "I'm the CTT assistant. The two files have been compared."
+  },
+  {
+    "file": "office.js",
+    "start": 18686,
+    "end": 18752,
+    "type": "Literal",
+    "source": "В обоих файлах нет строк данных; сравнивать позиции пока нечего.",
+    "translation": "Neither file contains data rows, so there are no items to compare yet."
+  },
+  {
+    "file": "office.js",
+    "start": 18793,
+    "end": 18895,
+    "type": "Literal",
+    "source": "По выбранным ключам общих позиций нет. Сначала проверьте, что ключи в A и B обозначают одно и то же.",
+    "translation": "No items share the selected keys. First check that the keys in A and B refer to the same thing."
+  },
+  {
+    "file": "office.js",
+    "start": 18941,
+    "end": 19017,
+    "type": "Literal",
+    "source": "Проверила только наличие ключей. Значения других столбцов не сравнивались.",
+    "translation": "Only key presence was checked. Values in other columns were not compared."
+  },
+  {
+    "file": "office.js",
+    "start": 19040,
+    "end": 19092,
+    "type": "Literal",
+    "source": "Сравнила выбранные поля; остальные не проверялись.",
+    "translation": "The selected fields were compared; other fields were not checked."
+  },
+  {
+    "file": "office.js",
+    "start": 19396,
+    "end": 19411,
+    "type": "TemplateElement",
+    "source": " Показано 3 из ",
+    "translation": " Showing 3 of "
+  },
+  {
+    "file": "office.js",
+    "start": 19426,
+    "end": 19474,
+    "type": "TemplateElement",
+    "source": "; остальные — в документах и полном HTML-отчёте.",
+    "translation": "; the rest are in the documents and the full HTML report."
+  },
+  {
+    "file": "office.js",
+    "start": 19312,
+    "end": 19331,
+    "type": "TemplateElement",
+    "source": "Изменившиеся поля: ",
+    "translation": "Changed fields: "
+  },
+  {
+    "file": "office.js",
+    "start": 19687,
+    "end": 19701,
+    "type": "TemplateElement",
+    "source": " — только в A.",
+    "translation": " — only in A."
+  },
+  {
+    "file": "office.js",
+    "start": 19788,
+    "end": 19802,
+    "type": "TemplateElement",
+    "source": " — только в B.",
+    "translation": " — only in B."
+  },
+  {
+    "file": "office.js",
+    "start": 20110,
+    "end": 20128,
+    "type": "TemplateElement",
+    "source": "Примеры: показано ",
+    "translation": "Examples: showing "
+  },
+  {
+    "file": "office.js",
+    "start": 20146,
+    "end": 20150,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "office.js",
+    "start": 20158,
+    "end": 20215,
+    "type": "TemplateElement",
+    "source": " различий. Остальные — в документах и полном HTML-отчёте.",
+    "translation": " differences. The rest are in the documents and the full HTML report."
+  },
+  {
+    "file": "office.js",
+    "start": 20234,
+    "end": 20301,
+    "type": "Literal",
+    "source": "Могу объяснить различия, показать позицию или подготовить письмо.",
+    "translation": "I can explain differences, show an item, or draft a letter."
+  },
+  {
+    "file": "office.js",
+    "start": 20670,
+    "end": 20736,
+    "type": "Literal",
+    "source": "Совпадение относится только к выбранным полям и правилам сверки.",
+    "translation": "A match applies only to the selected fields and comparison rules."
+  },
+  {
+    "file": "office.js",
+    "start": 20739,
+    "end": 20789,
+    "type": "Literal",
+    "source": "В этой сверке проверялось только наличие ключей.",
+    "translation": "This comparison checked only whether keys were present."
+  },
+  {
+    "file": "office.js",
+    "start": 20878,
+    "end": 21010,
+    "type": "Literal",
+    "source": "В режиме «Число» сравнивается точное десятичное значение: например, 10 и 10.00 равны. Исходное написание в документах сохраняется.",
+    "translation": "Number mode compares exact decimal values: for example, 10 and 10.00 are equal. The original text is preserved in the documents."
+  },
+  {
+    "file": "office.js",
+    "start": 21075,
+    "end": 21160,
+    "type": "Literal",
+    "source": "В режиме «Текст» сравниваются символы; 10 и 10.00 различаются. Регистр учитывается.",
+    "translation": "Text mode compares characters, so 10 and 10.00 differ. Letter case matters."
+  },
+  {
+    "file": "office.js",
+    "start": 21201,
+    "end": 21276,
+    "type": "Literal",
+    "source": "В текущей сверке общих ключей нет, поэтому пары значений не сравнивались.",
+    "translation": "There are no shared keys in this comparison, so no pairs of values were compared."
+  },
+  {
+    "file": "office.js",
+    "start": 21742,
+    "end": 21753,
+    "type": "TemplateElement",
+    "source": " (строки A ",
+    "translation": " (rows A "
+  },
+  {
+    "file": "office.js",
+    "start": 22119,
+    "end": 22250,
+    "type": "TemplateElement",
+    "source": ": это поле не включено в правила текущей сверки. Я не могу сказать, совпадает ли оно. Добавьте его в настройках и повторите сверку.",
+    "translation": ": this field is not included in the current comparison rules. I cannot determine whether it matches. Add it in the settings and run the comparison again."
+  },
+  {
+    "file": "office.js",
+    "start": 22480,
+    "end": 22523,
+    "type": "TemplateElement",
+    "source": ": изменений в проверенных парах значений — ",
+    "translation": ": changes in the checked pairs of values: "
+  },
+  {
+    "file": "office.js",
+    "start": 22614,
+    "end": 22674,
+    "type": "Literal",
+    "source": "Общих позиций нет: значения между файлами не сравнивались.",
+    "translation": "There are no shared items, so values were not compared between files."
+  },
+  {
+    "file": "office.js",
+    "start": 22718,
+    "end": 22805,
+    "type": "Literal",
+    "source": "В сопоставленных строках выбранные значения этого поля совпали по правилам сравнения.",
+    "translation": "The selected values of this field match in the paired rows under the comparison rules."
+  },
+  {
+    "file": "office.js",
+    "start": 22959,
+    "end": 23004,
+    "type": "TemplateElement",
+    "source": "Отдельно есть позиции без пары: только в A — ",
+    "translation": "There are also unmatched items: only in A — "
+  },
+  {
+    "file": "office.js",
+    "start": 23030,
+    "end": 23045,
+    "type": "TemplateElement",
+    "source": ", только в B — ",
+    "translation": ", only in B — "
+  },
+  {
+    "file": "office.js",
+    "start": 23072,
+    "end": 23116,
+    "type": "TemplateElement",
+    "source": ". Их значения между файлами не сравнивались.",
+    "translation": ". Their values were not compared between files."
+  },
+  {
+    "file": "office.js",
+    "start": 23135,
+    "end": 23229,
+    "type": "Literal",
+    "source": "Причины различий, правильность цен и фактическая поставка по этой сверке не устанавливаются.",
+    "translation": "This comparison does not determine why differences occurred, whether prices are correct, or what was actually delivered."
+  },
+  {
+    "file": "office.js",
+    "start": 23466,
+    "end": 23601,
+    "type": "Literal",
+    "source": "Наличие проверено по выбранным ключам. «Только в A/B» означает отсутствие ключа в другом файле, а не установленный факт недопоставки.",
+    "translation": "Presence was checked using the selected keys. “Only in A/B” means the key is missing from the other file; it does not establish that a delivery was short."
+  },
+  {
+    "file": "office.js",
+    "start": 23743,
+    "end": 23752,
+    "type": "TemplateElement",
+    "source": "Только в ",
+    "translation": "Only in "
+  },
+  {
+    "file": "office.js",
+    "start": 23870,
+    "end": 23880,
+    "type": "TemplateElement",
+    "source": " — строка ",
+    "translation": " — row "
+  },
+  {
+    "file": "office.js",
+    "start": 23898,
+    "end": 23901,
+    "type": "TemplateElement",
+    "source": " в ",
+    "translation": " in "
+  },
+  {
+    "file": "office.js",
+    "start": 23998,
+    "end": 24102,
+    "type": "Literal",
+    "source": "Общих позиций нет. Проверьте выбор ключей, прежде чем трактовать строки как добавленные или удалённые.",
+    "translation": "There are no shared items. Check the selected keys before interpreting rows as added or deleted."
+  },
+  {
+    "file": "office.js",
+    "start": 24419,
+    "end": 24447,
+    "type": "Literal",
+    "source": "Ключ найден в обоих файлах",
+    "translation": "Key found in both files"
+  },
+  {
+    "file": "office.js",
+    "start": 24338,
+    "end": 24346,
+    "type": "TemplateElement",
+    "source": "Позиция ",
+    "translation": "Item "
+  },
+  {
+    "file": "office.js",
+    "start": 24611,
+    "end": 24620,
+    "type": "TemplateElement",
+    "source": "Источник ",
+    "translation": "Source "
+  },
+  {
+    "file": "office.js",
+    "start": 24627,
+    "end": 24636,
+    "type": "TemplateElement",
+    "source": ", строка ",
+    "translation": ", row "
+  },
+  {
+    "file": "office.js",
+    "start": 24654,
+    "end": 24750,
+    "type": "TemplateElement",
+    "source": ". Пары в другом файле по выбранному ключу нет; сравнение значений для этой позиции не выполнено.",
+    "translation": ". The selected key has no match in the other file, so values for this item were not compared."
+  },
+  {
+    "file": "office.js",
+    "start": 24785,
+    "end": 24804,
+    "type": "TemplateElement",
+    "source": "Исходные строки: A ",
+    "translation": "Source rows: A "
+  },
+  {
+    "file": "office.js",
+    "start": 24897,
+    "end": 24967,
+    "type": "Literal",
+    "source": "Проверялось только наличие ключа, значения столбцов не сравнивались.",
+    "translation": "Only key presence was checked; column values were not compared."
+  },
+  {
+    "file": "office.js",
+    "start": 25313,
+    "end": 25326,
+    "type": "Literal",
+    "source": "различаются",
+    "translation": "differ"
+  },
+  {
+    "file": "office.js",
+    "start": 25329,
+    "end": 25338,
+    "type": "Literal",
+    "source": "совпали",
+    "translation": "match"
+  },
+  {
+    "file": "office.js",
+    "start": 25363,
+    "end": 25384,
+    "type": "Literal",
+    "source": "сравнение как числа",
+    "translation": "compared as numbers"
+  },
+  {
+    "file": "office.js",
+    "start": 25387,
+    "end": 25409,
+    "type": "Literal",
+    "source": "сравнение как текста",
+    "translation": "compared as text"
+  },
+  {
+    "file": "office.js",
+    "start": 25490,
+    "end": 25583,
+    "type": "Literal",
+    "source": "Написание чисел различается, но точное десятичное значение одинаково по выбранному правилу.",
+    "translation": "The numbers are written differently, but their exact decimal values are equal under the selected rule."
+  },
+  {
+    "file": "office.js",
+    "start": 25611,
+    "end": 25657,
+    "type": "Literal",
+    "source": "Остальные поля не оценивались на совпадение.",
+    "translation": "Other fields were not checked for matches."
+  },
+  {
+    "file": "office.js",
+    "start": 26200,
+    "end": 26215,
+    "type": "Literal",
+    "source": "Здравствуйте!",
+    "translation": "Hello,"
+  },
+  {
+    "file": "office.js",
+    "start": 26244,
+    "end": 26264,
+    "type": "TemplateElement",
+    "source": "При сверке файлов A ",
+    "translation": "Comparing file A "
+  },
+  {
+    "file": "office.js",
+    "start": 26298,
+    "end": 26303,
+    "type": "TemplateElement",
+    "source": " и B ",
+    "translation": " and file B "
+  },
+  {
+    "file": "office.js",
+    "start": 26338,
+    "end": 26369,
+    "type": "TemplateElement",
+    "source": " получены следующие результаты.",
+    "translation": " produced the following results."
+  },
+  {
+    "file": "office.js",
+    "start": 26553,
+    "end": 26588,
+    "type": "TemplateElement",
+    "source": " — исключено из денежного расчёта: ",
+    "translation": " — excluded from the financial calculation: "
+  },
+  {
+    "file": "office.js",
+    "start": 26653,
+    "end": 26760,
+    "type": "Literal",
+    "source": "По выбранным ключам общих позиций не найдено. Просьба сначала уточнить корректность ключей сопоставления.",
+    "translation": "No items with shared keys were found. Please first confirm that the matching keys are correct."
+  },
+  {
+    "file": "office.js",
+    "start": 26805,
+    "end": 26848,
+    "type": "Literal",
+    "source": "В обоих файлах отсутствуют строки данных.",
+    "translation": "Neither file contains data rows."
+  },
+  {
+    "file": "office.js",
+    "start": 26876,
+    "end": 26943,
+    "type": "Literal",
+    "source": "Ниже перечислены все обнаруженные различия по выбранным правилам.",
+    "translation": "All differences detected under the selected rules are listed below."
+  },
+  {
+    "file": "office.js",
+    "start": 27232,
+    "end": 27244,
+    "type": "TemplateElement",
+    "source": " — только в ",
+    "translation": " — only in "
+  },
+  {
+    "file": "office.js",
+    "start": 27251,
+    "end": 27260,
+    "type": "TemplateElement",
+    "source": ", строка ",
+    "translation": ", row "
+  },
+  {
+    "file": "office.js",
+    "start": 27278,
+    "end": 27303,
+    "type": "TemplateElement",
+    "source": "; соответствующий ключ в ",
+    "translation": "; no matching key was found in "
+  },
+  {
+    "file": "office.js",
+    "start": 27311,
+    "end": 27322,
+    "type": "TemplateElement",
+    "source": " не найден.",
+    "translation": "."
+  },
+  {
+    "file": "office.js",
+    "start": 27432,
+    "end": 27479,
+    "type": "Literal",
+    "source": "Различий по выбранным правилам не обнаружено.",
+    "translation": "No differences were found under the selected rules."
+  },
+  {
+    "file": "office.js",
+    "start": 27592,
+    "end": 27680,
+    "type": "Literal",
+    "source": "Просьба уточнить перечисленные различия и сообщить, какие данные следует использовать.",
+    "translation": "Please clarify the differences listed above and let us know which data to use."
+  },
+  {
+    "file": "office.js",
+    "start": 27683,
+    "end": 27761,
+    "type": "Literal",
+    "source": "Просьба подтвердить, что выбранных полей достаточно для поставленной задачи.",
+    "translation": "Please confirm that the selected fields are sufficient for the task."
+  },
+  {
+    "file": "office.js",
+    "start": 27789,
+    "end": 27826,
+    "type": "Literal",
+    "source": "Сравнивались только выбранные поля.",
+    "translation": "Only the selected fields were compared."
+  },
+  {
+    "file": "office.js",
+    "start": 27918,
+    "end": 28040,
+    "type": "Literal",
+    "source": "Черновик готов: он содержит все обнаруженные различия. Проверьте адресата и текст перед отправкой. Письмо не отправлено.",
+    "translation": "The draft is ready and includes all detected differences. Review the recipient and text before sending. The letter has not been sent."
+  },
+  {
+    "file": "office.js",
+    "start": 28198,
+    "end": 28332,
+    "type": "Literal",
+    "source": "Полный черновик превышает лимит 1 МиБ. Я не сформировала сокращённое письмо: скачайте полный HTML-отчёт и приложите его к сообщению.",
+    "translation": "The full draft exceeds the 1 MiB limit. No shortened letter was created. Download the full HTML report and attach it to your message."
+  },
+  {
+    "file": "office.js",
+    "start": 28579,
+    "end": 28694,
+    "type": "Literal",
+    "source": "Напишите вопрос о текущей сверке: цены, количество, отсутствующие позиции, правила сравнения или конкретный ключ.",
+    "translation": "Ask about the current comparison: prices, quantities, missing items, comparison rules, or a specific key."
+  },
+  {
+    "file": "office.js",
+    "start": 29376,
+    "end": 29445,
+    "type": "Literal",
+    "source": "Черновик не создаю. Можно продолжить обсуждение результатов сверки.",
+    "translation": "No draft will be created. You can continue discussing the comparison results."
+  },
+  {
+    "file": "office.js",
+    "start": 30685,
+    "end": 30687,
+    "type": "TemplateElement",
+    "source": "В ",
+    "translation": "In "
+  },
+  {
+    "file": "office.js",
+    "start": 30695,
+    "end": 30704,
+    "type": "TemplateElement",
+    "source": " столбец ",
+    "translation": ", column "
+  },
+  {
+    "file": "office.js",
+    "start": 30720,
+    "end": 30778,
+    "type": "TemplateElement",
+    "source": " использован как ключ для сопоставления строк со столбцом ",
+    "translation": " is used as the key for matching rows to column "
+  },
+  {
+    "file": "office.js",
+    "start": 30815,
+    "end": 30818,
+    "type": "TemplateElement",
+    "source": " в ",
+    "translation": " in "
+  },
+  {
+    "file": "office.js",
+    "start": 30826,
+    "end": 30880,
+    "type": "TemplateElement",
+    "source": ". Отдельно добавлять его в сравниваемые поля не нужно.",
+    "translation": ". It does not need to be added separately to the fields being compared."
+  },
+  {
+    "file": "office.js",
+    "start": 31141,
+    "end": 31148,
+    "type": "Literal",
+    "source": "число",
+    "translation": "number"
+  },
+  {
+    "file": "office.js",
+    "start": 31151,
+    "end": 31158,
+    "type": "Literal",
+    "source": "текст",
+    "translation": "text"
+  },
+  {
+    "file": "office.js",
+    "start": 30987,
+    "end": 30989,
+    "type": "TemplateElement",
+    "source": "В ",
+    "translation": "In "
+  },
+  {
+    "file": "office.js",
+    "start": 30997,
+    "end": 31006,
+    "type": "TemplateElement",
+    "source": " столбец ",
+    "translation": ", column "
+  },
+  {
+    "file": "office.js",
+    "start": 31022,
+    "end": 31064,
+    "type": "TemplateElement",
+    "source": " включён в сравнение значений со столбцом ",
+    "translation": " is included in the value comparison with column "
+  },
+  {
+    "file": "office.js",
+    "start": 31092,
+    "end": 31095,
+    "type": "TemplateElement",
+    "source": " в ",
+    "translation": " in "
+  },
+  {
+    "file": "office.js",
+    "start": 31103,
+    "end": 31113,
+    "type": "TemplateElement",
+    "source": "; режим — ",
+    "translation": "; mode: "
+  },
+  {
+    "file": "office.js",
+    "start": 31181,
+    "end": 31183,
+    "type": "TemplateElement",
+    "source": "В ",
+    "translation": "In "
+  },
+  {
+    "file": "office.js",
+    "start": 31191,
+    "end": 31200,
+    "type": "TemplateElement",
+    "source": " столбец ",
+    "translation": ", column "
+  },
+  {
+    "file": "office.js",
+    "start": 31216,
+    "end": 31317,
+    "type": "TemplateElement",
+    "source": " не использован как ключ и не включён в сравниваемые поля. Его значения не проверялись на совпадение.",
+    "translation": " is neither a matching key nor a field selected for comparison. Its values were not checked for matches."
+  },
+  {
+    "file": "office.js",
+    "start": 31492,
+    "end": 31497,
+    "type": "TemplateElement",
+    "source": "Поле ",
+    "translation": "Field "
+  },
+  {
+    "file": "office.js",
+    "start": 31522,
+    "end": 31650,
+    "type": "TemplateElement",
+    "source": " не включено в правила текущей сверки. Его значения не проверялись на совпадение. Добавьте поле в настройках и повторите сверку.",
+    "translation": " is not included in the current comparison rules. Its values were not checked for matches. Add the field in the settings and run the comparison again."
+  },
+  {
+    "file": "office.js",
+    "start": 32341,
+    "end": 32473,
+    "type": "Literal",
+    "source": "Причины, виновника и фактические убытки по двум файлам установить нельзя. Я могу показать только различия в проверенных значениях.",
+    "translation": "Two files cannot establish the cause, who is responsible, or actual losses. I can show only differences in the checked values."
+  },
+  {
+    "file": "office.js",
+    "start": 33362,
+    "end": 33494,
+    "type": "Literal",
+    "source": "Точного ключа с таким написанием в текущем отчёте не найдено. Скопируйте ключ из документа; регистр и ведущие нули имеют значение.",
+    "translation": "No exact key with that spelling was found in the current report. Copy the key from the document; letter case and leading zeros matter."
+  },
+  {
+    "file": "office.js",
+    "start": 33519,
+    "end": 33620,
+    "type": "Literal",
+    "source": "Я отвечаю по результатам текущей сверки. Этот вопрос не удалось связать с поддерживаемой проверкой.",
+    "translation": "I answer questions about the current comparison. I couldn't match this question to a supported comparison request."
+  },
+  {
+    "file": "office.js",
+    "start": 33622,
+    "end": 33845,
+    "type": "Literal",
+    "source": "Можно спросить: «Что изменилось?», «Что с ценами?», «Что отсутствует?», «Почему совпали?», «Покажи [точный ключ]» или «Подготовь письмо». Для оценки содержания договора, доклада или книги эта версия пока не предназначена.",
+    "translation": "You can ask: “What changed?”, “What about prices?”, “What is missing?”, “Why do they match?”, “Show [exact key]”, or “Draft a letter”. This version does not assess the content of contracts, reports, or books."
+  }
+]

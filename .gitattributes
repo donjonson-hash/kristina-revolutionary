@@ -7,3 +7,7 @@
 
 # Vendor-бандлы не диффим
 extension/*-vendor.mjs -diff -merge
+
+# CTT ships the audited browser bundles as real Git blobs, never LFS pointers.
+ctt/src/*-vendor.mjs -diff -merge
+ctt/src/*font*.mjs -diff -merge

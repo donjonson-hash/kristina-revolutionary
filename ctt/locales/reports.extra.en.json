@@ -1,0 +1,490 @@
+[
+  {
+    "file": "report.mjs",
+    "start": 5675,
+    "end": 5690,
+    "type": "Literal",
+    "source": "Есть различия",
+    "translation": "Differences found"
+  },
+  {
+    "file": "report.mjs",
+    "start": 5703,
+    "end": 5715,
+    "type": "Literal",
+    "source": "Только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "report.mjs",
+    "start": 5729,
+    "end": 5741,
+    "type": "Literal",
+    "source": "Только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "report.mjs",
+    "start": 5752,
+    "end": 5776,
+    "type": "Literal",
+    "source": "Совпали выбранные поля",
+    "translation": "Selected fields match"
+  },
+  {
+    "file": "report.mjs",
+    "start": 6159,
+    "end": 6184,
+    "type": "Literal",
+    "source": "Расчёт по всем позициям",
+    "translation": "All items calculated"
+  },
+  {
+    "file": "report.mjs",
+    "start": 6195,
+    "end": 6213,
+    "type": "Literal",
+    "source": "Частичный расчёт",
+    "translation": "Partial calculation"
+  },
+  {
+    "file": "report.mjs",
+    "start": 6228,
+    "end": 6249,
+    "type": "Literal",
+    "source": "Сумма не рассчитана",
+    "translation": "Amount not calculated"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 374,
+    "end": 391,
+    "type": "Literal",
+    "source": "Текст изменился",
+    "translation": "Text changed"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 404,
+    "end": 416,
+    "type": "Literal",
+    "source": "Только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 430,
+    "end": 442,
+    "type": "Literal",
+    "source": "Только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 451,
+    "end": 484,
+    "type": "Literal",
+    "source": "Перемещено без изменения текста",
+    "translation": "Moved without text changes"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 494,
+    "end": 519,
+    "type": "Literal",
+    "source": "Изменены переносы строк",
+    "translation": "Line breaks changed"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 530,
+    "end": 544,
+    "type": "Literal",
+    "source": "Текст совпал",
+    "translation": "Text matches"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 453,
+    "end": 468,
+    "type": "Literal",
+    "source": "Есть различия",
+    "translation": "Differences found"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 481,
+    "end": 493,
+    "type": "Literal",
+    "source": "Только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 507,
+    "end": 519,
+    "type": "Literal",
+    "source": "Только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 528,
+    "end": 561,
+    "type": "Literal",
+    "source": "Перемещено без изменения текста",
+    "translation": "Moved without text changes"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 571,
+    "end": 596,
+    "type": "Literal",
+    "source": "Изменены переносы строк",
+    "translation": "Line breaks changed"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 607,
+    "end": 633,
+    "type": "Literal",
+    "source": "Совпали проверенные поля",
+    "translation": "Checked fields match"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2770,
+    "end": 2795,
+    "type": "Literal",
+    "source": "Расчёт по всем позициям",
+    "translation": "All items calculated"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2806,
+    "end": 2824,
+    "type": "Literal",
+    "source": "Частичный расчёт",
+    "translation": "Partial calculation"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2839,
+    "end": 2860,
+    "type": "Literal",
+    "source": "Сумма не рассчитана",
+    "translation": "Amount not calculated"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 7052,
+    "end": 7072,
+    "type": "Literal",
+    "source": "Расчёт по позициям",
+    "translation": "Item calculations"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 7167,
+    "end": 7187,
+    "type": "Literal",
+    "source": "Расчёт по позициям",
+    "translation": "Item calculations"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 7306,
+    "end": 7327,
+    "type": "Literal",
+    "source": "Исключённые позиции",
+    "translation": "Excluded items"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 275,
+    "end": 290,
+    "type": "Literal",
+    "source": "Есть различия",
+    "translation": "Differences found"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 301,
+    "end": 327,
+    "type": "Literal",
+    "source": "Совпали проверенные поля",
+    "translation": "Checked fields match"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 340,
+    "end": 352,
+    "type": "Literal",
+    "source": "Только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 366,
+    "end": 378,
+    "type": "Literal",
+    "source": "Только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 409,
+    "end": 434,
+    "type": "Literal",
+    "source": "Расчёт по всем позициям",
+    "translation": "All items calculated"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 445,
+    "end": 489,
+    "type": "Literal",
+    "source": "Частичный расчёт — не итог всего документа",
+    "translation": "Partial calculation — not the full document total"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 504,
+    "end": 525,
+    "type": "Literal",
+    "source": "Сумма не рассчитана",
+    "translation": "Amount not calculated"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 7302,
+    "end": 7331,
+    "type": "Literal",
+    "source": "Кристина — результат сверки",
+    "translation": "Compare These Texts — comparison results"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 7342,
+    "end": 7379,
+    "type": "Literal",
+    "source": "Зафиксированные значения без формул",
+    "translation": "Saved values without formulas"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 7389,
+    "end": 7399,
+    "type": "Literal",
+    "source": "Кристина",
+    "translation": "Compare These Texts"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 227,
+    "end": 239,
+    "type": "Literal",
+    "source": "количество",
+    "translation": "количество",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 289,
+    "end": 295,
+    "type": "Literal",
+    "source": "цена",
+    "translation": "цена",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 310,
+    "end": 320,
+    "type": "Literal",
+    "source": "цена_руб",
+    "translation": "цена_руб",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 347,
+    "end": 356,
+    "type": "Literal",
+    "source": "единица",
+    "translation": "единица",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 358,
+    "end": 377,
+    "type": "Literal",
+    "source": "единица измерения",
+    "translation": "единица измерения",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 379,
+    "end": 398,
+    "type": "Literal",
+    "source": "единица_измерения",
+    "translation": "единица_измерения",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 400,
+    "end": 410,
+    "type": "Literal",
+    "source": "ед. изм.",
+    "translation": "ед. изм.",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 438,
+    "end": 446,
+    "type": "Literal",
+    "source": "валюта",
+    "translation": "валюта",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 471,
+    "end": 476,
+    "type": "Literal",
+    "source": "ндс",
+    "translation": "ндс",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 502,
+    "end": 514,
+    "type": "Literal",
+    "source": "ставка ндс",
+    "translation": "ставка ндс",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 516,
+    "end": 528,
+    "type": "Literal",
+    "source": "ставка_ндс",
+    "translation": "ставка_ндс",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 577,
+    "end": 590,
+    "type": "Literal",
+    "source": "ндс включен",
+    "translation": "ндс включен",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 592,
+    "end": 605,
+    "type": "Literal",
+    "source": "ндс_включен",
+    "translation": "ндс_включен",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 607,
+    "end": 614,
+    "type": "Literal",
+    "source": "с ндс",
+    "translation": "с ндс",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 678,
+    "end": 687,
+    "type": "Literal",
+    "source": "цена за",
+    "translation": "цена за",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 689,
+    "end": 698,
+    "type": "Literal",
+    "source": "цена_за",
+    "translation": "цена_за",
+    "reason": "Preserved input header alias used for source column matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 1342,
+    "end": 1364,
+    "type": "Literal",
+    "source": "значение отсутствует",
+    "translation": "value missing"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 1654,
+    "end": 1668,
+    "type": "TemplateElement",
+    "source": "число длиннее ",
+    "translation": "number exceeds "
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 1681,
+    "end": 1686,
+    "type": "TemplateElement",
+    "source": " цифр",
+    "translation": " digits"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 1775,
+    "end": 1829,
+    "type": "Literal",
+    "source": "нужны десятичные цифры с точкой, без валюты и единиц",
+    "translation": "use decimal digits with a period, without currency or units"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 1926,
+    "end": 1940,
+    "type": "TemplateElement",
+    "source": "число длиннее ",
+    "translation": "number exceeds "
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 1953,
+    "end": 1958,
+    "type": "TemplateElement",
+    "source": " цифр",
+    "translation": " digits"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2049,
+    "end": 2091,
+    "type": "Literal",
+    "source": "отрицательное значение не поддерживается",
+    "translation": "negative values are not supported"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 7380,
+    "end": 7539,
+    "type": "Literal",
+    "source": "Переход A → B: количество × указанная цена, отдельно по валютам. Это не сумма к оплате и не факт поставки; НДС, доставка и пересчёт единиц не рассчитываются.",
+    "translation": "Change from A → B: quantity × listed price, separately for each currency. This is not an amount due or confirmation of delivery; VAT, shipping, and unit conversions are not calculated."
+  }
+]

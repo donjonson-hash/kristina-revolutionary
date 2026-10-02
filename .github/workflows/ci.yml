@@ -72,5 +72,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: kristina-browser-extensions
+          name: historical-kristina-browser-extensions-0.18.1
           path: dist/extension/*.zip
