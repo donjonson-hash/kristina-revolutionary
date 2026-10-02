@@ -1,0 +1,2626 @@
+[
+  {
+    "file": "app.js",
+    "start": 1323,
+    "end": 1336,
+    "type": "Literal",
+    "source": "Все позиции",
+    "translation": "All items"
+  },
+  {
+    "file": "app.js",
+    "start": 1351,
+    "end": 1363,
+    "type": "Literal",
+    "source": "Изменились",
+    "translation": "Changed"
+  },
+  {
+    "file": "app.js",
+    "start": 1380,
+    "end": 1392,
+    "type": "Literal",
+    "source": "Только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "app.js",
+    "start": 1410,
+    "end": 1422,
+    "type": "Literal",
+    "source": "Только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "app.js",
+    "start": 1437,
+    "end": 1446,
+    "type": "Literal",
+    "source": "Совпали",
+    "translation": "Matched"
+  },
+  {
+    "file": "app.js",
+    "start": 1459,
+    "end": 1492,
+    "type": "Literal",
+    "source": "Перемещено без изменения текста",
+    "translation": "Moved without text changes"
+  },
+  {
+    "file": "app.js",
+    "start": 1506,
+    "end": 1531,
+    "type": "Literal",
+    "source": "Изменены переносы строк",
+    "translation": "Line breaks changed"
+  },
+  {
+    "file": "app.js",
+    "start": 2615,
+    "end": 2651,
+    "type": "Literal",
+    "source": "Например: что изменилось в тексте?",
+    "translation": "For example: what changed in the text?"
+  },
+  {
+    "file": "app.js",
+    "start": 2654,
+    "end": 2692,
+    "type": "Literal",
+    "source": "Например: почему эти строки совпали?",
+    "translation": "For example: why did these rows match?"
+  },
+  {
+    "file": "app.js",
+    "start": 2696,
+    "end": 2724,
+    "type": "Literal",
+    "source": "Сначала добавьте два файла",
+    "translation": "Add two files first"
+  },
+  {
+    "file": "app.js",
+    "start": 2760,
+    "end": 2777,
+    "type": "Literal",
+    "source": "Что изменилось?",
+    "translation": "What changed?"
+  },
+  {
+    "file": "app.js",
+    "start": 2779,
+    "end": 2795,
+    "type": "Literal",
+    "source": "Что добавлено?",
+    "translation": "What was added?"
+  },
+  {
+    "file": "app.js",
+    "start": 2797,
+    "end": 2811,
+    "type": "Literal",
+    "source": "Что удалено?",
+    "translation": "What was removed?"
+  },
+  {
+    "file": "app.js",
+    "start": 2813,
+    "end": 2831,
+    "type": "Literal",
+    "source": "Подготовь письмо",
+    "translation": "Draft an email"
+  },
+  {
+    "file": "app.js",
+    "start": 2836,
+    "end": 2855,
+    "type": "Literal",
+    "source": "Объясни результат",
+    "translation": "Explain the results"
+  },
+  {
+    "file": "app.js",
+    "start": 2857,
+    "end": 2879,
+    "type": "Literal",
+    "source": "Где изменилась цена?",
+    "translation": "Where did the price change?"
+  },
+  {
+    "file": "app.js",
+    "start": 2881,
+    "end": 2899,
+    "type": "Literal",
+    "source": "Что отсутствует?",
+    "translation": "What's missing?"
+  },
+  {
+    "file": "app.js",
+    "start": 2901,
+    "end": 2919,
+    "type": "Literal",
+    "source": "Подготовь письмо",
+    "translation": "Draft an email"
+  },
+  {
+    "file": "app.js",
+    "start": 3152,
+    "end": 3242,
+    "type": "Literal",
+    "source": "Добавьте два файла. Я помогу разобраться в различиях и подготовить письмо по результату.",
+    "translation": "Add two files. I'll help you understand the differences and draft an email about the results."
+  },
+  {
+    "file": "app.js",
+    "start": 6050,
+    "end": 6054,
+    "type": "Literal",
+    "source": "Вы",
+    "translation": "You"
+  },
+  {
+    "file": "app.js",
+    "start": 6057,
+    "end": 6067,
+    "type": "Literal",
+    "source": "Кристина",
+    "translation": "CTT"
+  },
+  {
+    "file": "app.js",
+    "start": 6679,
+    "end": 6723,
+    "type": "Literal",
+    "source": "Черновик готов. Отправка остаётся за вами.",
+    "translation": "Your draft is ready. You can send it when you're ready."
+  },
+  {
+    "file": "app.js",
+    "start": 7426,
+    "end": 7463,
+    "type": "Literal",
+    "source": "Сократите вопрос до 1 000 символов.",
+    "translation": "Shorten your question to 1,000 characters."
+  },
+  {
+    "file": "app.js",
+    "start": 7826,
+    "end": 7862,
+    "type": "Literal",
+    "source": "Уточните вопрос по текущей сверке.",
+    "translation": "Ask a more specific question about this comparison."
+  },
+  {
+    "file": "app.js",
+    "start": 8006,
+    "end": 8079,
+    "type": "Literal",
+    "source": "Не удалось подготовить ответ. Найденные различия доступны в документах.",
+    "translation": "Couldn't prepare a response. You can review the differences in the documents."
+  },
+  {
+    "file": "app.js",
+    "start": 8638,
+    "end": 8657,
+    "type": "Literal",
+    "source": "Текст скопирован.",
+    "translation": "Text copied."
+  },
+  {
+    "file": "app.js",
+    "start": 8660,
+    "end": 8736,
+    "type": "Literal",
+    "source": "Скопирована версия на момент нажатия. Изменённый текст скопируйте ещё раз.",
+    "translation": "Copied the version from when you clicked. Copy again to include your latest changes."
+  },
+  {
+    "file": "app.js",
+    "start": 8954,
+    "end": 9033,
+    "type": "Literal",
+    "source": "Автоматическое копирование недоступно. Текст выделен — нажмите Ctrl+C или ⌘C.",
+    "translation": "Automatic copying isn't available. The text is selected—press Ctrl+C or ⌘C."
+  },
+  {
+    "file": "app.js",
+    "start": 9504,
+    "end": 9547,
+    "type": "Literal",
+    "source": "Черновик передан браузеру для скачивания.",
+    "translation": "The draft has been sent to your browser for download."
+  },
+  {
+    "file": "app.js",
+    "start": 9829,
+    "end": 9913,
+    "type": "Literal",
+    "source": "Читаю документы и проверяю данные. Отвечу по новой сверке, когда она будет готова.",
+    "translation": "Reading the documents and checking the data. I'll answer questions about the new comparison when it's ready."
+  },
+  {
+    "file": "app.js",
+    "start": 10345,
+    "end": 10359,
+    "type": "Literal",
+    "source": "Обрабатываю…",
+    "translation": "Processing…"
+  },
+  {
+    "file": "app.js",
+    "start": 10362,
+    "end": 10383,
+    "type": "Literal",
+    "source": "Применить настройки",
+    "translation": "Apply settings"
+  },
+  {
+    "file": "app.js",
+    "start": 11223,
+    "end": 11316,
+    "type": "Literal",
+    "source": "Текущая сверка сброшена. Добавьте файлы или примените настройки — разберём новый результат.",
+    "translation": "The comparison has been reset. Add files or apply settings to review new results."
+  },
+  {
+    "file": "app.js",
+    "start": 11366,
+    "end": 11435,
+    "type": "Literal",
+    "source": "Настройки изменены. Нажмите «Применить настройки» или «Продолжить».",
+    "translation": "Settings changed. Click “Apply settings” or “Continue.”"
+  },
+  {
+    "file": "app.js",
+    "start": 12100,
+    "end": 12171,
+    "type": "Literal",
+    "source": "Не удалось загрузить сравнение. Обновите страницу и попробуйте снова.",
+    "translation": "Couldn't load the comparison. Refresh the page and try again."
+  },
+  {
+    "file": "app.js",
+    "start": 12274,
+    "end": 12309,
+    "type": "Literal",
+    "source": "Выберите файл или перетащите сюда",
+    "translation": "Choose a file or drop it here"
+  },
+  {
+    "file": "app.js",
+    "start": 12354,
+    "end": 12393,
+    "type": "Literal",
+    "source": "Файл выбран · нажмите, чтобы заменить",
+    "translation": "File selected · click to replace"
+  },
+  {
+    "file": "app.js",
+    "start": 12424,
+    "end": 12462,
+    "type": "Literal",
+    "source": "XLSX, CSV, TXT, DOCX, PDF · до 2 MiB",
+    "translation": "XLSX, CSV, TXT, DOCX, PDF · up to 2 MiB"
+  },
+  {
+    "file": "app.js",
+    "start": 12465,
+    "end": 12489,
+    "type": "Literal",
+    "source": "CSV · UTF-8 · до 2 MiB",
+    "translation": "CSV · UTF-8 · up to 2 MiB"
+  },
+  {
+    "file": "app.js",
+    "start": 12718,
+    "end": 12733,
+    "type": "Literal",
+    "source": "Выберите лист",
+    "translation": "Choose a sheet"
+  },
+  {
+    "file": "app.js",
+    "start": 12826,
+    "end": 12838,
+    "type": "Literal",
+    "source": " (скрытый)",
+    "translation": " (hidden)"
+  },
+  {
+    "file": "app.js",
+    "start": 14319,
+    "end": 14338,
+    "type": "Literal",
+    "source": "Соответствует в B",
+    "translation": "Matching field in B"
+  },
+  {
+    "file": "app.js",
+    "start": 14437,
+    "end": 14451,
+    "type": "TemplateElement",
+    "source": "Столбец B для ",
+    "translation": "Column B for "
+  },
+  {
+    "file": "app.js",
+    "start": 14542,
+    "end": 14556,
+    "type": "Literal",
+    "source": "Не проверять",
+    "translation": "Don't check"
+  },
+  {
+    "file": "app.js",
+    "start": 14754,
+    "end": 14769,
+    "type": "Literal",
+    "source": "Как проверять",
+    "translation": "Compare as"
+  },
+  {
+    "file": "app.js",
+    "start": 14862,
+    "end": 14872,
+    "type": "TemplateElement",
+    "source": "Режим для ",
+    "translation": "Comparison mode for "
+  },
+  {
+    "file": "app.js",
+    "start": 14909,
+    "end": 14916,
+    "type": "Literal",
+    "source": "Текст",
+    "translation": "Text"
+  },
+  {
+    "file": "app.js",
+    "start": 14948,
+    "end": 14955,
+    "type": "Literal",
+    "source": "Число",
+    "translation": "Number"
+  },
+  {
+    "file": "app.js",
+    "start": 15845,
+    "end": 15867,
+    "type": "Literal",
+    "source": "Не будут проверены: ",
+    "translation": "Fields that won't be checked: "
+  },
+  {
+    "file": "app.js",
+    "start": 15891,
+    "end": 15945,
+    "type": "Literal",
+    "source": ". Сопоставьте поля или явно примените эти настройки.",
+    "translation": ". Match these fields or explicitly apply these settings."
+  },
+  {
+    "file": "app.js",
+    "start": 15948,
+    "end": 16044,
+    "type": "Literal",
+    "source": "Все поля сопоставлены. Идентификатор ищет пары; остальные поля проверяются внутри каждой пары.",
+    "translation": "All fields are matched. The identifier pairs the rows; the other fields are checked within each pair."
+  },
+  {
+    "file": "app.js",
+    "start": 16360,
+    "end": 16385,
+    "type": "Literal",
+    "source": "Определим автоматически",
+    "translation": "Detect automatically"
+  },
+  {
+    "file": "app.js",
+    "start": 16499,
+    "end": 16554,
+    "type": "Literal",
+    "source": "Добавьте второй файл — сверка начнётся автоматически.",
+    "translation": "Add the second file to start comparing automatically."
+  },
+  {
+    "file": "app.js",
+    "start": 16569,
+    "end": 16649,
+    "type": "Literal",
+    "source": "Первый файл готов. Добавьте второй — я сопоставлю позиции и объясню результат.",
+    "translation": "The first file is ready. Add the second, and I'll match the items and explain the results."
+  },
+  {
+    "file": "app.js",
+    "start": 16685,
+    "end": 16721,
+    "type": "Literal",
+    "source": "Читаю файлы и нахожу соответствия…",
+    "translation": "Reading files and finding matches…"
+  },
+  {
+    "file": "app.js",
+    "start": 17092,
+    "end": 17196,
+    "type": "Literal",
+    "source": "Выберите лист в каждом Excel-файле с несколькими заполненными листами. Я сверю только выбранные листы.",
+    "translation": "Choose a sheet in each Excel file that has multiple sheets with data. I'll compare only the selected sheets."
+  },
+  {
+    "file": "app.js",
+    "start": 17219,
+    "end": 17312,
+    "type": "Literal",
+    "source": "В книге несколько заполненных листов. Выберите нужный рядом с файлом — и я продолжу сверку.",
+    "translation": "This workbook has multiple sheets with data. Choose a sheet next to the file to continue."
+  },
+  {
+    "file": "app.js",
+    "start": 17656,
+    "end": 17666,
+    "type": "Literal",
+    "source": " стр. · ",
+    "translation": " pages · "
+  },
+  {
+    "file": "app.js",
+    "start": 17718,
+    "end": 17734,
+    "type": "TemplateElement",
+    "source": " · заменить файл",
+    "translation": " · replace file"
+  },
+  {
+    "file": "app.js",
+    "start": 18116,
+    "end": 18124,
+    "type": "Literal",
+    "source": "Лист «",
+    "translation": "Sheet «"
+  },
+  {
+    "file": "app.js",
+    "start": 18189,
+    "end": 18198,
+    "type": "TemplateElement",
+    "source": " строк · ",
+    "translation": " rows · "
+  },
+  {
+    "file": "app.js",
+    "start": 18230,
+    "end": 18255,
+    "type": "TemplateElement",
+    "source": " столбцов · заменить файл",
+    "translation": " columns · replace file"
+  },
+  {
+    "file": "app.js",
+    "start": 18318,
+    "end": 18342,
+    "type": "Literal",
+    "source": "Выберите идентификатор",
+    "translation": "Choose an identifier"
+  },
+  {
+    "file": "app.js",
+    "start": 19375,
+    "end": 19463,
+    "type": "Literal",
+    "source": "Файлы прочитаны. Уточните, как сопоставить позиции, — затем смогу объяснить результат.",
+    "translation": "The files are ready. Specify how to match the items so I can explain the results."
+  },
+  {
+    "file": "app.js",
+    "start": 19608,
+    "end": 19638,
+    "type": "Literal",
+    "source": "Не удалось прочитать файлы. ",
+    "translation": "Couldn't read the files. "
+  },
+  {
+    "file": "app.js",
+    "start": 19702,
+    "end": 19789,
+    "type": "Literal",
+    "source": "Не удалось прочитать файлы. Проверьте сообщение рядом с загрузкой и попробуйте снова.",
+    "translation": "Couldn't read the files. Check the message next to the upload and try again."
+  },
+  {
+    "file": "app.js",
+    "start": 20421,
+    "end": 20467,
+    "type": "Literal",
+    "source": "Файл превышает 2 MiB. Выберите меньший файл.",
+    "translation": "This file exceeds 2 MiB. Choose a smaller file."
+  },
+  {
+    "file": "app.js",
+    "start": 20570,
+    "end": 20640,
+    "type": "Literal",
+    "source": "TXT, DOCX и PDF доступны в расширении Кристины. Здесь загрузите CSV.",
+    "translation": "TXT, DOCX, and PDF are available in the CTT extension. Upload a CSV here."
+  },
+  {
+    "file": "app.js",
+    "start": 20753,
+    "end": 20813,
+    "type": "Literal",
+    "source": "Excel доступен в расширении Кристины. Здесь загрузите CSV.",
+    "translation": "Excel is available in the CTT extension. Upload a CSV here."
+  },
+  {
+    "file": "app.js",
+    "start": 21155,
+    "end": 21182,
+    "type": "Literal",
+    "source": "Не удалось открыть файл. ",
+    "translation": "Couldn't open the file. "
+  },
+  {
+    "file": "app.js",
+    "start": 21376,
+    "end": 21439,
+    "type": "Literal",
+    "source": "Выберите идентификатор одной и той же позиции в обоих файлах.",
+    "translation": "Choose an identifier for the same item in both files."
+  },
+  {
+    "file": "app.js",
+    "start": 21715,
+    "end": 21763,
+    "type": "Literal",
+    "source": "Каждому столбцу нужна одна пара. Повторяется: ",
+    "translation": "Each column needs a unique match. Duplicate: "
+  },
+  {
+    "file": "app.js",
+    "start": 21929,
+    "end": 22010,
+    "type": "Literal",
+    "source": "Выберите значения для проверки или включите «Проверить только наличие позиций».",
+    "translation": "Choose values to check or enable “Check only whether items are present.”"
+  },
+  {
+    "file": "app.js",
+    "start": 22379,
+    "end": 22401,
+    "type": "Literal",
+    "source": "Сравниваю документы…",
+    "translation": "Comparing documents…"
+  },
+  {
+    "file": "app.js",
+    "start": 22971,
+    "end": 22994,
+    "type": "Literal",
+    "source": "Сверка не выполнена. ",
+    "translation": "Comparison failed. "
+  },
+  {
+    "file": "app.js",
+    "start": 23031,
+    "end": 23108,
+    "type": "Literal",
+    "source": "Сверка не выполнена. Исправьте данные или настройки по сообщению об ошибке.",
+    "translation": "Comparison failed. Correct the data or settings described in the error message."
+  },
+  {
+    "file": "app.js",
+    "start": 23478,
+    "end": 23496,
+    "type": "Literal",
+    "source": "Влияние на сумму",
+    "translation": "Impact on total"
+  },
+  {
+    "file": "app.js",
+    "start": 23631,
+    "end": 23646,
+    "type": "Literal",
+    "source": "не определено",
+    "translation": "not determined"
+  },
+  {
+    "file": "app.js",
+    "start": 23689,
+    "end": 23706,
+    "type": "TemplateElement",
+    "source": "Изменилась цена: ",
+    "translation": "Price changed: "
+  },
+  {
+    "file": "app.js",
+    "start": 23743,
+    "end": 23758,
+    "type": "TemplateElement",
+    "source": " · количество: ",
+    "translation": " · quantity: "
+  },
+  {
+    "file": "app.js",
+    "start": 23798,
+    "end": 23813,
+    "type": "TemplateElement",
+    "source": " · только в A: ",
+    "translation": " · only in A: "
+  },
+  {
+    "file": "app.js",
+    "start": 23839,
+    "end": 23854,
+    "type": "TemplateElement",
+    "source": " · только в B: ",
+    "translation": " · only in B: "
+  },
+  {
+    "file": "app.js",
+    "start": 24699,
+    "end": 24714,
+    "type": "TemplateElement",
+    "source": "Показано 12 из ",
+    "translation": "Showing 12 of "
+  },
+  {
+    "file": "app.js",
+    "start": 24729,
+    "end": 24777,
+    "type": "TemplateElement",
+    "source": "; все позиции включены в скачиваемый HTML-отчёт.",
+    "translation": "; all items are included in the downloadable HTML report."
+  },
+  {
+    "file": "app.js",
+    "start": 24906,
+    "end": 24929,
+    "type": "Literal",
+    "source": "Изменения по позициям",
+    "translation": "Changes by item"
+  },
+  {
+    "file": "app.js",
+    "start": 25051,
+    "end": 25085,
+    "type": "Literal",
+    "source": "Что уточнить для полного расчёта",
+    "translation": "Information needed for a complete calculation"
+  },
+  {
+    "file": "app.js",
+    "start": 25709,
+    "end": 25732,
+    "type": "Literal",
+    "source": "Различия в документах",
+    "translation": "Document differences"
+  },
+  {
+    "file": "app.js",
+    "start": 25735,
+    "end": 25767,
+    "type": "Literal",
+    "source": "Проверенные значения совпадают",
+    "translation": "Checked values match"
+  },
+  {
+    "file": "app.js",
+    "start": 25771,
+    "end": 25794,
+    "type": "Literal",
+    "source": "Нужно уточнить данные",
+    "translation": "More information needed"
+  },
+  {
+    "file": "app.js",
+    "start": 26077,
+    "end": 26299,
+    "type": "Literal",
+    "source": "PDF: сравнивается извлечённый текстовый слой. Изображения не сравнивались; текст внутри них не распознавался. Исходная вёрстка и юридический смысл не проверяются; пробелы и порядок строк могут зависеть от устройства PDF.",
+    "translation": "PDF: only the extracted text layer is compared. Images were not compared, and text within images was not recognized. Original layout and legal meaning are not checked; spacing and line order may depend on how the PDF was created."
+  },
+  {
+    "file": "app.js",
+    "start": 26302,
+    "end": 26389,
+    "type": "Literal",
+    "source": "Сравнивается только текст: оформление, орфография и юридический смысл не проверяются.",
+    "translation": "Only text is compared. Formatting, spelling, and legal meaning are not checked."
+  },
+  {
+    "file": "app.js",
+    "start": 26432,
+    "end": 26449,
+    "type": "Literal",
+    "source": "Найти в тексте…",
+    "translation": "Find in text…"
+  },
+  {
+    "file": "app.js",
+    "start": 26452,
+    "end": 26468,
+    "type": "Literal",
+    "source": "Найти артикул…",
+    "translation": "Find an item code…"
+  },
+  {
+    "file": "app.js",
+    "start": 26522,
+    "end": 26548,
+    "type": "Literal",
+    "source": "Найти текст в документах",
+    "translation": "Find text in documents"
+  },
+  {
+    "file": "app.js",
+    "start": 26551,
+    "end": 26566,
+    "type": "Literal",
+    "source": "Найти позицию",
+    "translation": "Find an item"
+  },
+  {
+    "file": "app.js",
+    "start": 26622,
+    "end": 26642,
+    "type": "Literal",
+    "source": "Показать фрагменты",
+    "translation": "Show sections"
+  },
+  {
+    "file": "app.js",
+    "start": 26645,
+    "end": 26663,
+    "type": "Literal",
+    "source": "Показать позиции",
+    "translation": "Show items"
+  },
+  {
+    "file": "app.js",
+    "start": 26823,
+    "end": 26841,
+    "type": "TemplateElement",
+    "source": " фрагментов в A · ",
+    "translation": " sections in A · "
+  },
+  {
+    "file": "app.js",
+    "start": 26871,
+    "end": 26924,
+    "type": "TemplateElement",
+    "source": " в B. Показан извлечённый текст без исходной вёрстки.",
+    "translation": " in B. Showing extracted text without the original layout."
+  },
+  {
+    "file": "app.js",
+    "start": 27105,
+    "end": 27153,
+    "type": "Literal",
+    "source": "Изменены порядок фрагментов или переносы строк",
+    "translation": "Section order or line breaks changed"
+  },
+  {
+    "file": "app.js",
+    "start": 27167,
+    "end": 27196,
+    "type": "Literal",
+    "source": "Извлечённый текст совпадает",
+    "translation": "Extracted text matches"
+  },
+  {
+    "file": "app.js",
+    "start": 27199,
+    "end": 27227,
+    "type": "Literal",
+    "source": "Текст документов совпадает",
+    "translation": "Document text matches"
+  },
+  {
+    "file": "app.js",
+    "start": 27273,
+    "end": 27553,
+    "type": "Literal",
+    "source": "Сравнивается извлечённый текст: строки TXT и абзацы DOCX. Сохранены исходные слова и пробелы; унифицированы переводы строк. Номера и подписи фрагментов относятся к каждому исходному файлу. Фрагменты без пары показаны только с одной стороны. Оформление и вёрстка не сравниваются.",
+    "translation": "Comparing extracted text: lines in TXT files and paragraphs in DOCX files. Original words and spaces are preserved; line endings are standardized. Section numbers and labels refer to each original file. Unmatched sections appear on only one side. Formatting and layout are not compared."
+  },
+  {
+    "file": "app.js",
+    "start": 27611,
+    "end": 27845,
+    "type": "Literal",
+    "source": "Сравнивается текстовый слой PDF: строки связаны с номерами исходных страниц. Вёрстка и номера страниц не являются правилами сравнения. Пробелы и порядок строк восстановлены при извлечении; исходные страницы здесь не воспроизводятся.",
+    "translation": "Comparing the PDF text layer: lines are linked to their original page numbers. Layout and page numbers do not affect comparison. Spaces and line order are reconstructed during extraction; original pages are not reproduced here."
+  },
+  {
+    "file": "app.js",
+    "start": 27942,
+    "end": 28202,
+    "type": "Literal",
+    "source": " Показаны сопоставленные пары фрагментов; порядок показа может отличаться от исходного. Подписи указывают исходные координаты. Перемещения и переносы выделены отдельно. Переносы определяются эвристикой объединения строк, без оценки смысловой эквивалентности.",
+    "translation": " Matched section pairs are shown; their display order may differ from the original. Labels show original locations. Moves and line break changes are highlighted separately. Line break changes are detected by a line-joining heuristic, without assessing whether the meaning is equivalent."
+  },
+  {
+    "file": "app.js",
+    "start": 28428,
+    "end": 28455,
+    "type": "Literal",
+    "source": "Пары строк совмещены по «",
+    "translation": "Rows are paired by «"
+  },
+  {
+    "file": "app.js",
+    "start": 28491,
+    "end": 28531,
+    "type": "Literal",
+    "source": "». Номера записей — в исходных файлах.",
+    "translation": "». Record numbers refer to the original files."
+  },
+  {
+    "file": "app.js",
+    "start": 28642,
+    "end": 28648,
+    "type": "Literal",
+    "source": "По «",
+    "translation": "By «"
+  },
+  {
+    "file": "app.js",
+    "start": 28708,
+    "end": 28720,
+    "type": "Literal",
+    "source": " · числа: ",
+    "translation": " · numeric fields: "
+  },
+  {
+    "file": "app.js",
+    "start": 28744,
+    "end": 28772,
+    "type": "Literal",
+    "source": " · точное сравнение текста",
+    "translation": " · exact text comparison"
+  },
+  {
+    "file": "app.js",
+    "start": 28913,
+    "end": 29167,
+    "type": "Literal",
+    "source": "Показано содержимое выбранных таблиц. Пары выровнены по идентификатору, номера записей относятся к исходным файлам (заголовок — запись 1). Подсветка относится только к проверенным полям; остальные помечены отдельно. Единицы и валюты не пересчитываются.",
+    "translation": "Showing the selected tables. Rows are paired by identifier, and record numbers refer to the original files (the header is record 1). Only checked fields are highlighted; other fields are labeled separately. Units and currencies are not converted."
+  },
+  {
+    "file": "app.js",
+    "start": 29531,
+    "end": 29555,
+    "type": "Literal",
+    "source": "Сравнение не выполнено",
+    "translation": "Comparison not completed"
+  },
+  {
+    "file": "app.js",
+    "start": 29708,
+    "end": 29792,
+    "type": "Literal",
+    "source": "Исправьте указанные данные или измените настройки сравнения. Частичных итогов нет.",
+    "translation": "Correct the specified data or change the comparison settings. No partial results are available."
+  },
+  {
+    "file": "app.js",
+    "start": 29872,
+    "end": 29883,
+    "type": "Literal",
+    "source": "Подробнее",
+    "translation": "Details"
+  },
+  {
+    "file": "app.js",
+    "start": 31059,
+    "end": 31074,
+    "type": "Literal",
+    "source": "Все фрагменты",
+    "translation": "All sections"
+  },
+  {
+    "file": "app.js",
+    "start": 32089,
+    "end": 32151,
+    "type": "Literal",
+    "source": "Оба документа перед вами. Нажмите на текст, чтобы исправить.",
+    "translation": "Both documents are ready. Click any text to edit it."
+  },
+  {
+    "file": "app.js",
+    "start": 32193,
+    "end": 32280,
+    "type": "Literal",
+    "source": "Документы и правки сохраняются в этом браузере. Исправленные документы можно скачать.",
+    "translation": "Documents and edits are saved in this browser. You can download your edited documents."
+  },
+  {
+    "file": "app.js",
+    "start": 33378,
+    "end": 33411,
+    "type": "Literal",
+    "source": "Открываю сохранённые документы…",
+    "translation": "Opening saved documents…"
+  },
+  {
+    "file": "app.js",
+    "start": 34831,
+    "end": 34856,
+    "type": "Literal",
+    "source": "Определим автоматически",
+    "translation": "Detect automatically"
+  },
+  {
+    "file": "app.js",
+    "start": 34896,
+    "end": 34982,
+    "type": "Literal",
+    "source": "Сравнение начнётся автоматически. Файлы обрабатываются в браузере. До 2 MiB на файл.",
+    "translation": "Comparison starts automatically. Files are processed in your browser. Up to 2 MiB per file."
+  },
+  {
+    "file": "app.js",
+    "start": 35010,
+    "end": 35081,
+    "type": "Literal",
+    "source": "Работа завершена. Сохранённые документы и правки удалены из браузера.",
+    "translation": "Session ended. Saved documents and edits have been deleted from this browser."
+  },
+  {
+    "file": "app.js",
+    "start": 36049,
+    "end": 36124,
+    "type": "Literal",
+    "source": "Редакция B совпадает с извлечённым текстом A, включая порядок фрагментов.",
+    "translation": "Version B matches the extracted text of A, including section order."
+  },
+  {
+    "file": "app.js",
+    "start": 36144,
+    "end": 36197,
+    "type": "Literal",
+    "source": "Редакция B изменена. Остались отличия от эталона A.",
+    "translation": "Version B has been edited. Some differences from reference A remain."
+  },
+  {
+    "file": "app.js",
+    "start": 36200,
+    "end": 36244,
+    "type": "Literal",
+    "source": "Редакция B пока содержит исходный текст B.",
+    "translation": "Version B still contains its original text."
+  },
+  {
+    "file": "app.js",
+    "start": 37276,
+    "end": 37288,
+    "type": "Literal",
+    "source": "Редакция B",
+    "translation": "Version B"
+  },
+  {
+    "file": "app.js",
+    "start": 37522,
+    "end": 37535,
+    "type": "TemplateElement",
+    "source": "Редакция B · ",
+    "translation": "Version B · "
+  },
+  {
+    "file": "app.js",
+    "start": 38086,
+    "end": 38158,
+    "type": "Literal",
+    "source": "Фрагмент отсутствует в редакции B. Начните ввод или добавьте его из A.",
+    "translation": "This section is missing from version B. Start typing or add it from A."
+  },
+  {
+    "file": "app.js",
+    "start": 38297,
+    "end": 38320,
+    "type": "Literal",
+    "source": "Удалить из редакции B",
+    "translation": "Remove from version B"
+  },
+  {
+    "file": "app.js",
+    "start": 38355,
+    "end": 38370,
+    "type": "Literal",
+    "source": "Добавить из A",
+    "translation": "Add from A"
+  },
+  {
+    "file": "app.js",
+    "start": 38401,
+    "end": 38436,
+    "type": "Literal",
+    "source": "Взять из A и восстановить порядок",
+    "translation": "Use A and restore section order"
+  },
+  {
+    "file": "app.js",
+    "start": 38439,
+    "end": 38457,
+    "type": "Literal",
+    "source": "Взять текст из A",
+    "translation": "Use text from A"
+  },
+  {
+    "file": "app.js",
+    "start": 40299,
+    "end": 40314,
+    "type": "Literal",
+    "source": "Нет фрагмента",
+    "translation": "No section"
+  },
+  {
+    "file": "app.js",
+    "start": 40392,
+    "end": 40413,
+    "type": "Literal",
+    "source": "Нет этого фрагмента",
+    "translation": "This section is missing"
+  },
+  {
+    "file": "app.js",
+    "start": 40889,
+    "end": 40898,
+    "type": "TemplateElement",
+    "source": "Страница ",
+    "translation": "Page "
+  },
+  {
+    "file": "app.js",
+    "start": 41667,
+    "end": 41682,
+    "type": "Literal",
+    "source": "Пустая строка",
+    "translation": "Blank line"
+  },
+  {
+    "file": "app.js",
+    "start": 41862,
+    "end": 41882,
+    "type": "TemplateElement",
+    "source": "Исходные фрагменты: ",
+    "translation": "Original sections: "
+  },
+  {
+    "file": "app.js",
+    "start": 42089,
+    "end": 42097,
+    "type": "TemplateElement",
+    "source": " · блок ",
+    "translation": " · block "
+  },
+  {
+    "file": "app.js",
+    "start": 42713,
+    "end": 42731,
+    "type": "Literal",
+    "source": "Нет этой позиции",
+    "translation": "This item is missing"
+  },
+  {
+    "file": "app.js",
+    "start": 42969,
+    "end": 42980,
+    "type": "TemplateElement",
+    "source": "» · строка ",
+    "translation": "» · row "
+  },
+  {
+    "file": "app.js",
+    "start": 43022,
+    "end": 43029,
+    "type": "TemplateElement",
+    "source": "Запись ",
+    "translation": "Record "
+  },
+  {
+    "file": "app.js",
+    "start": 44084,
+    "end": 44104,
+    "type": "Literal",
+    "source": " · пустое значение",
+    "translation": " · empty value"
+  },
+  {
+    "file": "app.js",
+    "start": 44328,
+    "end": 44341,
+    "type": "Literal",
+    "source": " · изменено",
+    "translation": " · changed"
+  },
+  {
+    "file": "app.js",
+    "start": 44620,
+    "end": 44639,
+    "type": "Literal",
+    "source": " · не проверялось",
+    "translation": " · not checked"
+  },
+  {
+    "file": "app.js",
+    "start": 44799,
+    "end": 44819,
+    "type": "Literal",
+    "source": " · равно как число",
+    "translation": " · numerically equal"
+  },
+  {
+    "file": "app.js",
+    "start": 44964,
+    "end": 44999,
+    "type": "Literal",
+    "source": "Проверено наличие идентификатора.",
+    "translation": "Checked whether the identifier is present."
+  },
+  {
+    "file": "app.js",
+    "start": 46160,
+    "end": 46169,
+    "type": "TemplateElement",
+    "source": "Отличий: ",
+    "translation": "Differences: "
+  },
+  {
+    "file": "app.js",
+    "start": 46191,
+    "end": 46199,
+    "type": "TemplateElement",
+    "source": "Отличие ",
+    "translation": "Difference "
+  },
+  {
+    "file": "app.js",
+    "start": 46212,
+    "end": 46216,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "app.js",
+    "start": 47375,
+    "end": 47386,
+    "type": "TemplateElement",
+    "source": "» · строка ",
+    "translation": "» · row "
+  },
+  {
+    "file": "app.js",
+    "start": 47404,
+    "end": 47411,
+    "type": "TemplateElement",
+    "source": "запись ",
+    "translation": "record "
+  },
+  {
+    "file": "app.js",
+    "start": 47967,
+    "end": 47984,
+    "type": "Literal",
+    "source": " (пустой текст)",
+    "translation": " (empty text)"
+  },
+  {
+    "file": "app.js",
+    "start": 48509,
+    "end": 48599,
+    "type": "Literal",
+    "source": "В выбранных результатах отличий нет. Сбросьте фильтр или поиск, чтобы увидеть остальные.",
+    "translation": "No differences in the selected results. Clear the filter or search to see the rest."
+  },
+  {
+    "file": "app.js",
+    "start": 48602,
+    "end": 48647,
+    "type": "Literal",
+    "source": "Отличий не найдено по правилам этой сверки.",
+    "translation": "No differences found using these comparison rules."
+  },
+  {
+    "file": "app.js",
+    "start": 48790,
+    "end": 48794,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "app.js",
+    "start": 49389,
+    "end": 49401,
+    "type": "Literal",
+    "source": "фрагментов",
+    "translation": "sections"
+  },
+  {
+    "file": "app.js",
+    "start": 49404,
+    "end": 49413,
+    "type": "Literal",
+    "source": "позиций",
+    "translation": "items"
+  },
+  {
+    "file": "app.js",
+    "start": 49566,
+    "end": 49570,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "app.js",
+    "start": 50363,
+    "end": 50403,
+    "type": "Literal",
+    "source": "Нет фрагментов для выбранного фильтра.",
+    "translation": "No sections match this filter."
+  },
+  {
+    "file": "app.js",
+    "start": 50406,
+    "end": 50443,
+    "type": "Literal",
+    "source": "Нет позиций для выбранного фильтра.",
+    "translation": "No items match this filter."
+  },
+  {
+    "file": "app.js",
+    "start": 50495,
+    "end": 50504,
+    "type": "TemplateElement",
+    "source": "Страница ",
+    "translation": "Page "
+  },
+  {
+    "file": "app.js",
+    "start": 50521,
+    "end": 50525,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "app.js",
+    "start": 53193,
+    "end": 53203,
+    "type": "Literal",
+    "source": "Готовлю ",
+    "translation": "Preparing "
+  },
+  {
+    "file": "app.js",
+    "start": 53229,
+    "end": 53238,
+    "type": "Literal",
+    "source": "-отчёт…",
+    "translation": " report…"
+  },
+  {
+    "file": "app.js",
+    "start": 53746,
+    "end": 53803,
+    "type": "Literal",
+    "source": "Не удалось получить готовый файл. Повторите скачивание.",
+    "translation": "Couldn't retrieve the prepared file. Try downloading again."
+  },
+  {
+    "file": "app.js",
+    "start": 54155,
+    "end": 54196,
+    "type": "Literal",
+    "source": "-отчёт передан браузеру для скачивания.",
+    "translation": " report sent to your browser for download."
+  },
+  {
+    "file": "app.js",
+    "start": 54436,
+    "end": 54485,
+    "type": "Literal",
+    "source": " Повторите скачивание или сохраните HTML-отчёт.",
+    "translation": " Try downloading again or save the HTML report."
+  },
+  {
+    "file": "app.js",
+    "start": 54506,
+    "end": 54531,
+    "type": "Literal",
+    "source": "Не удалось подготовить ",
+    "translation": "Couldn't prepare "
+  },
+  {
+    "file": "app.js",
+    "start": 55174,
+    "end": 55197,
+    "type": "Literal",
+    "source": "Как изменилась сумма?",
+    "translation": "How did the total change?"
+  },
+  {
+    "file": "app.js",
+    "start": 55360,
+    "end": 55378,
+    "type": "Literal",
+    "source": "Подготовь письмо",
+    "translation": "Draft an email"
+  },
+  {
+    "file": "app.js",
+    "start": 55842,
+    "end": 55894,
+    "type": "Literal",
+    "source": "Черновик изменён. Проверьте текст перед отправкой.",
+    "translation": "Draft edited. Review it before sending."
+  },
+  {
+    "file": "app.js",
+    "start": 56208,
+    "end": 56228,
+    "type": "Literal",
+    "source": "Сохранённая работа",
+    "translation": "Saved work"
+  },
+  {
+    "file": "app.js",
+    "start": 56723,
+    "end": 56800,
+    "type": "Literal",
+    "source": "Автосохранение недоступно. Скачайте исправленные документы перед закрытием.",
+    "translation": "Autosave isn't available. Download your edited documents before closing."
+  },
+  {
+    "file": "app.js",
+    "start": 56911,
+    "end": 57100,
+    "type": "Literal",
+    "source": "Таблицы CSV/Excel, тексты TXT/DOCX и PDF с текстовым слоем, в том числе с логотипами и изображениями. Изображения не сравниваются; сканы без текста, формы и комментарии не поддерживаются.",
+    "translation": "CSV/Excel tables, TXT/DOCX text, and PDFs with a text layer, including those with logos and images. Images are not compared; scans without text, forms, and comments are not supported."
+  },
+  {
+    "file": "app.js",
+    "start": 57140,
+    "end": 57244,
+    "type": "Literal",
+    "source": "Сравнение начнётся автоматически. Файлы обрабатываются локально, без отправки в LLM. До 2 MiB на файл.",
+    "translation": "Comparison starts automatically. Files are processed locally, without sending them to an LLM. Up to 2 MiB per file."
+  },
+  {
+    "file": "app.js",
+    "start": 57621,
+    "end": 57638,
+    "type": "Literal",
+    "source": "Лист для сверки",
+    "translation": "Sheet to compare"
+  },
+  {
+    "file": "app.js",
+    "start": 57754,
+    "end": 57772,
+    "type": "Literal",
+    "source": "Лист для сверки ",
+    "translation": "Sheet to compare "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 3259,
+    "end": 3323,
+    "type": "Literal",
+    "source": "Не удалось восстановить сохранённую работу: данные повреждены.",
+    "translation": "Couldn't restore saved work: the data is corrupted."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 5012,
+    "end": 5020,
+    "type": "TemplateElement",
+    "source": "Вариант ",
+    "translation": "Version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 5035,
+    "end": 5055,
+    "type": "TemplateElement",
+    "source": " показан как текст. ",
+    "translation": " is shown as text. "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 5289,
+    "end": 5355,
+    "type": "Literal",
+    "source": "Не удалось восстановить сохранённую работу: страница не найдена.",
+    "translation": "Couldn't restore saved work: page not found."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 5405,
+    "end": 5424,
+    "type": "Literal",
+    "source": "Просмотр отменён.",
+    "translation": "Preview canceled."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 5939,
+    "end": 5960,
+    "type": "Literal",
+    "source": "Следующее отличие ↓",
+    "translation": "Next difference ↓"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 6010,
+    "end": 6030,
+    "type": "Literal",
+    "source": "Предыдущее отличие",
+    "translation": "Previous difference"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 6087,
+    "end": 6104,
+    "type": "Literal",
+    "source": "Сделать B как A",
+    "translation": "Make B match A"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 6367,
+    "end": 6372,
+    "type": "Literal",
+    "source": "Ещё",
+    "translation": "More"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 6398,
+    "end": 6415,
+    "type": "Literal",
+    "source": "Сделать A как B",
+    "translation": "Make A match B"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 6580,
+    "end": 6608,
+    "type": "Literal",
+    "source": "Вернуть исходные документы",
+    "translation": "Restore original documents"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 6870,
+    "end": 6943,
+    "type": "Literal",
+    "source": "Нажмите на текст, чтобы исправить. Подсветка показывает отличия текста.",
+    "translation": "Click any text to edit it. Highlights show text differences."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 7029,
+    "end": 7049,
+    "type": "Literal",
+    "source": "Масштаб документов",
+    "translation": "Document zoom"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 7090,
+    "end": 7101,
+    "type": "Literal",
+    "source": "По ширине",
+    "translation": "Fit to width"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 7853,
+    "end": 7881,
+    "type": "Literal",
+    "source": "Исправить выделенный текст",
+    "translation": "Edit selected text"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 7993,
+    "end": 8011,
+    "type": "Literal",
+    "source": "Выделенный текст",
+    "translation": "Selected text"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 8060,
+    "end": 8070,
+    "type": "Literal",
+    "source": "Готово ✓",
+    "translation": "Done ✓"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 8875,
+    "end": 8891,
+    "type": "TemplateElement",
+    "source": "Отменить правку ",
+    "translation": "Undo edit in "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 8935,
+    "end": 8943,
+    "type": "TemplateElement",
+    "source": "Скачать ",
+    "translation": "Download "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 9147,
+    "end": 9155,
+    "type": "TemplateElement",
+    "source": "Скачать ",
+    "translation": "Download "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 9170,
+    "end": 9178,
+    "type": "TemplateElement",
+    "source": " как TXT",
+    "translation": " as TXT"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 9963,
+    "end": 9983,
+    "type": "TemplateElement",
+    "source": "Предыдущая страница ",
+    "translation": "Previous page of "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 10040,
+    "end": 10059,
+    "type": "TemplateElement",
+    "source": "Следующая страница ",
+    "translation": "Next page of "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 10246,
+    "end": 10255,
+    "type": "TemplateElement",
+    "source": "Документ ",
+    "translation": "Document "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 10854,
+    "end": 10862,
+    "type": "TemplateElement",
+    "source": "Вариант ",
+    "translation": "Version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 10877,
+    "end": 10896,
+    "type": "TemplateElement",
+    "source": " · Выделенный текст",
+    "translation": " · Selected text"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 10989,
+    "end": 11005,
+    "type": "TemplateElement",
+    "source": "Править вариант ",
+    "translation": "Edit version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 11115,
+    "end": 11130,
+    "type": "TemplateElement",
+    "source": "Взять текст из ",
+    "translation": "Use text from "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 11598,
+    "end": 11615,
+    "type": "Literal",
+    "source": "+ Добавить выше",
+    "translation": "+ Add above"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 11674,
+    "end": 11691,
+    "type": "Literal",
+    "source": "+ Добавить ниже",
+    "translation": "+ Add below"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 11750,
+    "end": 11766,
+    "type": "Literal",
+    "source": "Удалить строку",
+    "translation": "Delete row"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 11983,
+    "end": 12066,
+    "type": "Literal",
+    "source": "Перенести все ячейки этой строки. Остальные правки соседнего варианта сохранятся.",
+    "translation": "Copy every cell in this row. Other edits in the adjacent version will be preserved."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 13440,
+    "end": 13450,
+    "type": "TemplateElement",
+    "source": "-редакция-",
+    "translation": "-version-"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 15627,
+    "end": 15653,
+    "type": "Literal",
+    "source": "Текст строки совпадает ✓",
+    "translation": "Row text matches ✓"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 15657,
+    "end": 15672,
+    "type": "TemplateElement",
+    "source": "Сделать строку ",
+    "translation": "Make row in "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 15694,
+    "end": 15699,
+    "type": "TemplateElement",
+    "source": " как ",
+    "translation": " match "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 16269,
+    "end": 16282,
+    "type": "TemplateElement",
+    "source": "Строка уже в ",
+    "translation": "Row already in "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 16317,
+    "end": 16327,
+    "type": "Literal",
+    "source": "Обновить",
+    "translation": "Update"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 16330,
+    "end": 16341,
+    "type": "Literal",
+    "source": "Перенести",
+    "translation": "Copy"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 16342,
+    "end": 16352,
+    "type": "TemplateElement",
+    "source": " строку в ",
+    "translation": " row to "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 16595,
+    "end": 16609,
+    "type": "Literal",
+    "source": "Новая строка",
+    "translation": "New row"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 16612,
+    "end": 16628,
+    "type": "Literal",
+    "source": "Строка таблицы",
+    "translation": "Table row"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 16964,
+    "end": 17087,
+    "type": "Literal",
+    "source": "Здесь одна ячейка занимает несколько строк. Текст можно исправлять. Для добавления строки выберите другую строку таблицы.",
+    "translation": "A cell here spans multiple rows. You can edit the text. To add a row, select a different table row."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17124,
+    "end": 17126,
+    "type": "TemplateElement",
+    "source": "В ",
+    "translation": "Version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17148,
+    "end": 17174,
+    "type": "TemplateElement",
+    "source": " копируется вся строка. В ",
+    "translation": " receives a copy of the entire row. Version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17189,
+    "end": 17242,
+    "type": "TemplateElement",
+    "source": " она остаётся. Повторное действие обновляет её текст.",
+    "translation": " keeps the row. Repeating this action updates the copied text."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17246,
+    "end": 17278,
+    "type": "Literal",
+    "source": "Заполните ячейки новой строки.",
+    "translation": "Fill in the new row's cells."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17297,
+    "end": 17349,
+    "type": "TemplateElement",
+    "source": "Добавьте пустую строку, заполните её и перенесите в ",
+    "translation": "Add a blank row, fill it in, and copy it to "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17376,
+    "end": 17416,
+    "type": "Literal",
+    "source": "Добавьте пустую строку и заполните её.",
+    "translation": "Add a blank row and fill it in."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17501,
+    "end": 17503,
+    "type": "TemplateElement",
+    "source": "В ",
+    "translation": "Version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17525,
+    "end": 17573,
+    "type": "TemplateElement",
+    "source": " обновится весь текст строки. Фото и оформление ",
+    "translation": " will have all text in the row updated. Photos and formatting in "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17595,
+    "end": 17607,
+    "type": "TemplateElement",
+    "source": " сохранятся.",
+    "translation": " will be preserved."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 17709,
+    "end": 17744,
+    "type": "Literal",
+    "source": " Последнюю строку нельзя удалить.",
+    "translation": " The last row cannot be deleted."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 18190,
+    "end": 18241,
+    "type": "TemplateElement",
+    "source": "Этой строки здесь нет. Нажмите «Перенести строку в ",
+    "translation": "This row is missing here. Click “Copy row to "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 18256,
+    "end": 18278,
+    "type": "TemplateElement",
+    "source": "» в соседнем варианте.",
+    "translation": "” in the adjacent version."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 18282,
+    "end": 18357,
+    "type": "Literal",
+    "source": "Этой строки здесь нет. Перенесите документ целиком или отмените удаление.",
+    "translation": "This row is missing here. Copy the entire document or undo the deletion."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 18710,
+    "end": 18725,
+    "type": "TemplateElement",
+    "source": "Текст строки в ",
+    "translation": "Row text in "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 18740,
+    "end": 18788,
+    "type": "TemplateElement",
+    "source": " обновлён. Чтобы отменить, нажмите ↶ у варианта ",
+    "translation": " updated. To undo, click ↶ next to version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 19201,
+    "end": 19221,
+    "type": "TemplateElement",
+    "source": "Строка перенесена в ",
+    "translation": "Row copied to "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 19236,
+    "end": 19275,
+    "type": "TemplateElement",
+    "source": ". Чтобы отменить, нажмите ↶ у варианта ",
+    "translation": ". To undo, click ↶ next to version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 20071,
+    "end": 20117,
+    "type": "Literal",
+    "source": "Строка удалена. Чтобы вернуть её, нажмите ↶.",
+    "translation": "Row deleted. Click ↶ to restore it."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 20120,
+    "end": 20181,
+    "type": "Literal",
+    "source": "Пустая строка добавлена. Нажмите на ячейку и введите текст.",
+    "translation": "Blank row added. Click a cell and enter text."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 22139,
+    "end": 22159,
+    "type": "Literal",
+    "source": "Тексты совпадают ✓",
+    "translation": "Texts match ✓"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 22171,
+    "end": 22180,
+    "type": "TemplateElement",
+    "source": "Отличий: ",
+    "translation": "Differences: "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 22211,
+    "end": 22240,
+    "type": "Literal",
+    "source": "Отличается структура таблиц",
+    "translation": "Table structures differ"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 22243,
+    "end": 22270,
+    "type": "Literal",
+    "source": "Отличается порядок текста",
+    "translation": "Text order differs"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 22499,
+    "end": 22554,
+    "type": "Literal",
+    "source": "Исправьте здесь или возьмите текст соседнего варианта",
+    "translation": "Edit here or use the text from the adjacent version"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 22557,
+    "end": 22584,
+    "type": "Literal",
+    "source": "Этот фрагмент совпадает ✓",
+    "translation": "This section matches ✓"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 23711,
+    "end": 23732,
+    "type": "Literal",
+    "source": "Фрагмент не найден.",
+    "translation": "Section not found."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 24012,
+    "end": 24067,
+    "type": "Literal",
+    "source": "Исправьте здесь или возьмите текст соседнего варианта",
+    "translation": "Edit here or use the text from the adjacent version"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 24070,
+    "end": 24098,
+    "type": "Literal",
+    "source": "Можно править оба варианта",
+    "translation": "You can edit both versions"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 25538,
+    "end": 25607,
+    "type": "Literal",
+    "source": "Порядок фрагментов изменён. Скачайте эту редакцию как TXT в меню ⋯.",
+    "translation": "Section order changed. Download this version as TXT from the ⋯ menu."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 25796,
+    "end": 25889,
+    "type": "Literal",
+    "source": "Новый фрагмент добавлен. Для него выберите «Скачать как TXT» в меню ⋯ рядом со скачиванием.",
+    "translation": "New section added. Choose “Download as TXT” from the ⋯ menu next to the download button."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 26189,
+    "end": 26260,
+    "type": "Literal",
+    "source": "Переносы строк изменены. Эту редакцию можно скачать как TXT в меню ⋯.",
+    "translation": "Line breaks changed. Download this version as TXT from the ⋯ menu."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 26993,
+    "end": 27002,
+    "type": "TemplateElement",
+    "source": "Страница ",
+    "translation": "Page "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 27015,
+    "end": 27026,
+    "type": "TemplateElement",
+    "source": " документа ",
+    "translation": " of document "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 27960,
+    "end": 27971,
+    "type": "Literal",
+    "source": "Отличие. ",
+    "translation": "Difference. "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 27977,
+    "end": 27985,
+    "type": "TemplateElement",
+    "source": "Править ",
+    "translation": "Edit "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 28061,
+    "end": 28087,
+    "type": "Literal",
+    "source": "Нажмите, чтобы исправить",
+    "translation": "Click to edit"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 28426,
+    "end": 28456,
+    "type": "TemplateElement",
+    "source": "На странице показан исходник. ",
+    "translation": "The page shows the original. "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 28476,
+    "end": 28506,
+    "type": "TemplateElement",
+    "source": " Правка сохранена в редакторе.",
+    "translation": " Your edit is saved in the editor."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 31246,
+    "end": 31260,
+    "type": "Literal",
+    "source": "Пустой абзац",
+    "translation": "Empty paragraph"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 31148,
+    "end": 31156,
+    "type": "TemplateElement",
+    "source": "Править ",
+    "translation": "Edit "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 31913,
+    "end": 31921,
+    "type": "TemplateElement",
+    "source": "Таблица ",
+    "translation": "Table "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 31934,
+    "end": 31944,
+    "type": "TemplateElement",
+    "source": ", вариант ",
+    "translation": ", version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 33179,
+    "end": 33185,
+    "type": "TemplateElement",
+    "source": "Нет в ",
+    "translation": "Missing in "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 33314,
+    "end": 33328,
+    "type": "Literal",
+    "source": "Пустой абзац",
+    "translation": "Empty paragraph"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 33417,
+    "end": 33429,
+    "type": "TemplateElement",
+    "source": "Добавить из ",
+    "translation": "Add from "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 33931,
+    "end": 33961,
+    "type": "TemplateElement",
+    "source": "Не удалось показать страницу. ",
+    "translation": "Couldn't display the page. "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 34014,
+    "end": 34073,
+    "type": "Literal",
+    "source": "Текст доступен в редакторе. Выберите «Следующее отличие».",
+    "translation": "The text is available in the editor. Choose “Next difference.”"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 34860,
+    "end": 34879,
+    "type": "Literal",
+    "source": "Готовлю документ…",
+    "translation": "Preparing document…"
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 35134,
+    "end": 35203,
+    "type": "Literal",
+    "source": "Порядок фрагментов изменён. Скачайте эту редакцию как TXT в меню ⋯.",
+    "translation": "Section order changed. Download this version as TXT from the ⋯ menu."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 36178,
+    "end": 36186,
+    "type": "TemplateElement",
+    "source": "Вариант ",
+    "translation": "Version "
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 36201,
+    "end": 36221,
+    "type": "TemplateElement",
+    "source": " готов к скачиванию.",
+    "translation": " is ready to download."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 36818,
+    "end": 36900,
+    "type": "Literal",
+    "source": " Новая строка: добавьте → заполните → перенесите в соседний вариант. Отмена — ↶.",
+    "translation": " New row: add → fill in → copy to the adjacent version. Undo with ↶."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 36903,
+    "end": 36953,
+    "type": "Literal",
+    "source": " Новая строка: добавьте → заполните. Отмена — ↶.",
+    "translation": " New row: add → fill in. Undo with ↶."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 37064,
+    "end": 37144,
+    "type": "Literal",
+    "source": " Нумерация показана для ориентира; сравнивается и редактируется текст пунктов.",
+    "translation": " Numbering is shown for reference; comparison and editing apply to the item text."
+  },
+  {
+    "file": "visual-review.mjs",
+    "start": 37330,
+    "end": 37396,
+    "type": "Literal",
+    "source": "Не удалось восстановить сохранённую работу: страница не найдена.",
+    "translation": "Couldn't restore saved work: page not found."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 738,
+    "end": 770,
+    "type": "Literal",
+    "source": "Неизвестная сторона документа.",
+    "translation": "Unknown document side."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 912,
+    "end": 948,
+    "type": "Literal",
+    "source": "Нужна завершённая проверка текста.",
+    "translation": "A completed text comparison is required."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 2188,
+    "end": 2345,
+    "type": "Literal",
+    "source": "В документе с таблицами пока можно менять текст в существующих абзацах и ячейках. Добавление, удаление и перенос абзацев, строк и столбцов пока недоступны.",
+    "translation": "In documents with tables, you can currently edit text in existing paragraphs and cells. Adding, deleting, and moving paragraphs, rows, or columns is not yet supported."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 2735,
+    "end": 2788,
+    "type": "Literal",
+    "source": "Редакция слишком велика: максимум 500 000 символов.",
+    "translation": "This version is too large: maximum 500,000 characters."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 3258,
+    "end": 3279,
+    "type": "Literal",
+    "source": "Фрагмент не найден.",
+    "translation": "Section not found."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 4417,
+    "end": 4455,
+    "type": "Literal",
+    "source": "Текст фрагмента должен быть строкой.",
+    "translation": "Section text must be a string."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 4646,
+    "end": 4682,
+    "type": "Literal",
+    "source": "Нужен список фрагментов документа.",
+    "translation": "A list of document sections is required."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 4821,
+    "end": 4855,
+    "type": "Literal",
+    "source": "Некорректный фрагмент документа.",
+    "translation": "Invalid document section."
+  },
+  {
+    "file": "text-editor.js",
+    "start": 5113,
+    "end": 5147,
+    "type": "Literal",
+    "source": "Сохранённая редакция повреждена.",
+    "translation": "The saved version is corrupted."
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 996,
+    "end": 1010,
+    "type": "Literal",
+    "source": "Продолжить →",
+    "translation": "Continue →"
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 1098,
+    "end": 1119,
+    "type": "Literal",
+    "source": "Завершить и удалить",
+    "translation": "Finish and delete"
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 1183,
+    "end": 1205,
+    "type": "Literal",
+    "source": "Повторить сохранение",
+    "translation": "Retry saving"
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 1788,
+    "end": 1813,
+    "type": "Literal",
+    "source": "Работа сохранится здесь",
+    "translation": "Your work will be saved here"
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 1816,
+    "end": 1849,
+    "type": "Literal",
+    "source": "Продолжить работу с документами",
+    "translation": "Continue working on documents"
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 2564,
+    "end": 2670,
+    "type": "Literal",
+    "source": "В другой вкладке работа изменилась. Эти правки не сохранены автоматически — скачайте их перед закрытием.",
+    "translation": "Your work changed in another tab. These edits were not saved automatically—download them before closing."
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 2765,
+    "end": 2856,
+    "type": "Literal",
+    "source": "Не удалось восстановить сохранённую работу. Её можно удалить и добавить документы заново.",
+    "translation": "Couldn't restore saved work. You can delete it and add your documents again."
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 2888,
+    "end": 2990,
+    "type": "Literal",
+    "source": "Не удалось сохранить работу в браузере. Повторите сохранение или скачайте документы перед закрытием.",
+    "translation": "Couldn't save your work in this browser. Try saving again or download your documents before closing."
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 3072,
+    "end": 3101,
+    "type": "Literal",
+    "source": "Сохранено в этом браузере ✓",
+    "translation": "Saved in this browser ✓"
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 3104,
+    "end": 3150,
+    "type": "Literal",
+    "source": "Документы и правки остались в этом браузере.",
+    "translation": "Your documents and edits are still saved in this browser."
+  },
+  {
+    "file": "session-ui.mjs",
+    "start": 3877,
+    "end": 3888,
+    "type": "Literal",
+    "source": "Сохраняю…",
+    "translation": "Saving…"
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 430,
+    "end": 440,
+    "type": "Literal",
+    "source": "Отменено",
+    "translation": "Canceled"
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 727,
+    "end": 758,
+    "type": "Literal",
+    "source": "поддерживается файл до 2 МиБ.",
+    "translation": "files up to 2 MiB are supported."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 867,
+    "end": 895,
+    "type": "Literal",
+    "source": "не удалось прочитать файл.",
+    "translation": "couldn't read the file."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 950,
+    "end": 990,
+    "type": "Literal",
+    "source": "поддерживается непустой файл до 2 МиБ.",
+    "translation": "a nonempty file up to 2 MiB is required."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 1728,
+    "end": 1761,
+    "type": "Literal",
+    "source": "некорректный текст исправления.",
+    "translation": "invalid replacement text."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 1840,
+    "end": 1910,
+    "type": "Literal",
+    "source": "для добавления или переноса фрагментов сохраните текстовую редакцию.",
+    "translation": "to add or move sections, save a text version."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 2159,
+    "end": 2227,
+    "type": "Literal",
+    "source": "повёрнутый текст пока можно сохранить только в текстовой редакции.",
+    "translation": "rotated text can currently only be saved in a text version."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 2569,
+    "end": 2608,
+    "type": "Literal",
+    "source": "фрагмент выходит за границы страницы.",
+    "translation": "the section extends beyond the page boundaries."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 2718,
+    "end": 2793,
+    "type": "Literal",
+    "source": "новый абзац не помещается в прежнюю строку. Сохраните текстовую редакцию.",
+    "translation": "the new paragraph doesn't fit on the original line. Save a text version."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 3012,
+    "end": 3088,
+    "type": "Literal",
+    "source": "новый текст не помещается. Сократите его или сохраните текстовую редакцию.",
+    "translation": "the new text doesn't fit. Shorten it or save a text version."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 4902,
+    "end": 4979,
+    "type": "Literal",
+    "source": "под текстом неоднородный фон. Для этой правки сохраните текстовую редакцию.",
+    "translation": "the background behind the text is not uniform. Save a text version for this edit."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 7130,
+    "end": 7167,
+    "type": "Literal",
+    "source": "поддерживается от 1 до 100 страниц.",
+    "translation": "documents with 1 to 100 pages are supported."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 8784,
+    "end": 8851,
+    "type": "Literal",
+    "source": "для сохранения нужен полный текст документа. Повторите сравнение.",
+    "translation": "saving requires the full document text. Run the comparison again."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 9164,
+    "end": 9231,
+    "type": "Literal",
+    "source": "для сохранения нужен полный текст документа. Повторите сравнение.",
+    "translation": "saving requires the full document text. Run the comparison again."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 9447,
+    "end": 9517,
+    "type": "Literal",
+    "source": "для добавления или переноса фрагментов сохраните текстовую редакцию.",
+    "translation": "to add or move sections, save a text version."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 10150,
+    "end": 10207,
+    "type": "Literal",
+    "source": "для добавления фрагментов сохраните текстовую редакцию.",
+    "translation": "to add sections, save a text version."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 10596,
+    "end": 10628,
+    "type": "Literal",
+    "source": "Не удалось сохранить страницу.",
+    "translation": "Couldn't save the page."
+  },
+  {
+    "file": "pdf-visual.mjs",
+    "start": 10728,
+    "end": 10821,
+    "type": "Literal",
+    "source": "исправленный документ слишком большой. Сохраните текстовую редакцию или разделите документ.",
+    "translation": "the edited document is too large. Save a text version or split the document."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 3787,
+    "end": 3827,
+    "type": "Literal",
+    "source": "DOCX: циклическое наследование стилей.",
+    "translation": "DOCX: circular style inheritance."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 4839,
+    "end": 4865,
+    "type": "Literal",
+    "source": "Ожидается документ DOCX.",
+    "translation": "A DOCX document is required."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 7117,
+    "end": 7155,
+    "type": "Literal",
+    "source": "Текст содержит недопустимые символы.",
+    "translation": "The text contains invalid characters."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 9825,
+    "end": 9854,
+    "type": "Literal",
+    "source": "Некорректная редакция DOCX.",
+    "translation": "Invalid DOCX version."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 10359,
+    "end": 10401,
+    "type": "Literal",
+    "source": "Некорректный или повторный номер абзаца.",
+    "translation": "Invalid or duplicate paragraph number."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 10598,
+    "end": 10653,
+    "type": "Literal",
+    "source": "Редакция DOCX превышает ограничение по объёму текста.",
+    "translation": "The DOCX version exceeds the text size limit."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 11562,
+    "end": 11606,
+    "type": "Literal",
+    "source": "Редакция DOCX содержит более 2000 абзацев.",
+    "translation": "The DOCX version contains more than 2,000 paragraphs."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 12601,
+    "end": 12641,
+    "type": "Literal",
+    "source": "DOCX после изменений превышает 16 МиБ.",
+    "translation": "The edited DOCX exceeds 16 MiB."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 13984,
+    "end": 14040,
+    "type": "Literal",
+    "source": "DOCX после изменений превышает 2 МиБ. Сократите текст.",
+    "translation": "The edited DOCX exceeds 2 MiB. Shorten the text."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 14469,
+    "end": 14498,
+    "type": "Literal",
+    "source": "Некорректная редакция DOCX.",
+    "translation": "Invalid DOCX version."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 14952,
+    "end": 14980,
+    "type": "Literal",
+    "source": "Некорректный номер абзаца.",
+    "translation": "Invalid paragraph number."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 15260,
+    "end": 15302,
+    "type": "Literal",
+    "source": "Некорректный или повторный номер абзаца.",
+    "translation": "Invalid or duplicate paragraph number."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 15520,
+    "end": 15575,
+    "type": "Literal",
+    "source": "Редакция DOCX превышает ограничение по объёму текста.",
+    "translation": "The DOCX version exceeds the text size limit."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 16364,
+    "end": 16408,
+    "type": "Literal",
+    "source": "Редакция DOCX содержит более 2000 абзацев.",
+    "translation": "The DOCX version contains more than 2,000 paragraphs."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 17300,
+    "end": 17328,
+    "type": "Literal",
+    "source": "Некорректный номер абзаца.",
+    "translation": "Invalid paragraph number."
+  },
+  {
+    "file": "docx-visual.mjs",
+    "start": 17589,
+    "end": 17644,
+    "type": "Literal",
+    "source": "Редакция DOCX превышает ограничение по объёму текста.",
+    "translation": "The DOCX version exceeds the text size limit."
+  }
+]

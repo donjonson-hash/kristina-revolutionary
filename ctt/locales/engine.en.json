@@ -1,0 +1,2168 @@
+[
+  {
+    "file": "engine.mjs",
+    "start": 1576,
+    "end": 1579,
+    "type": "Literal",
+    "source": "в",
+    "translation": "в",
+    "reason": "Internal Cyrillic casefold target used to recognize input field aliases; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1588,
+    "end": 1591,
+    "type": "Literal",
+    "source": "д",
+    "translation": "д",
+    "reason": "Internal Cyrillic casefold target used to recognize input field aliases; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1600,
+    "end": 1603,
+    "type": "Literal",
+    "source": "о",
+    "translation": "о",
+    "reason": "Internal Cyrillic casefold target used to recognize input field aliases; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1612,
+    "end": 1615,
+    "type": "Literal",
+    "source": "с",
+    "translation": "с",
+    "reason": "Internal Cyrillic casefold target used to recognize input field aliases; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1624,
+    "end": 1627,
+    "type": "Literal",
+    "source": "т",
+    "translation": "т",
+    "reason": "Internal Cyrillic casefold target used to recognize input field aliases; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 1636,
+    "end": 1639,
+    "type": "Literal",
+    "source": "т",
+    "translation": "т",
+    "reason": "Internal Cyrillic casefold target used to recognize input field aliases; preserve parser semantics."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 4745,
+    "end": 4810,
+    "type": "TemplateElement",
+    "source": ": поддерживаются CSV, TSV и XLSX. Сохраните книгу в формате XLSX.",
+    "translation": ": CSV, TSV, and XLSX are supported. Save the workbook as XLSX."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 5235,
+    "end": 5262,
+    "type": "TemplateElement",
+    "source": ": выберите лист для сверки.",
+    "translation": ": select a sheet to compare."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 9234,
+    "end": 9331,
+    "type": "Literal",
+    "source": "Не удалось прочитать CSV. Проверьте UTF-8, структуру строк и выберите разделитель в настройках.",
+    "translation": "Could not read the CSV. Check the UTF-8 encoding and row structure, and select a delimiter in settings."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 9341,
+    "end": 9468,
+    "type": "Literal",
+    "source": "Не удалось однозначно определить общий разделитель CSV. Выберите разделитель в настройках; оба файла должны использовать его.",
+    "translation": "Could not determine a shared CSV delimiter. Select a delimiter in settings; both files must use it."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 11557,
+    "end": 11660,
+    "type": "Literal",
+    "source": "Выберите столбец, который обозначает одну и ту же позицию в обоих файлах — например, артикул или ID. ",
+    "translation": "Select the column that identifies the same item in both files, such as an SKU or ID. "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 11684,
+    "end": 11730,
+    "type": "Literal",
+    "source": "Найдено несколько возможных идентификаторов.",
+    "translation": "Several possible identifiers were found."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 11733,
+    "end": 11771,
+    "type": "Literal",
+    "source": "Однозначный идентификатор не найден.",
+    "translation": "No unique identifier was found."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 12026,
+    "end": 12126,
+    "type": "Literal",
+    "source": "В столбце идентификатора есть пустые значения. Заполните их или выберите другой ключ в настройках.",
+    "translation": "The identifier column contains empty values. Fill them in or select a different key in settings."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 12214,
+    "end": 12322,
+    "type": "Literal",
+    "source": "В столбце идентификатора есть повторяющиеся значения. Уточните ключ или устраните дубликаты перед сверкой.",
+    "translation": "The identifier column contains duplicate values. Refine the key or remove duplicates before comparing."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 12439,
+    "end": 12579,
+    "type": "Literal",
+    "source": "По найденному идентификатору нет общих позиций. Проверьте ключи в настройках; если списки действительно разные, подтвердите выбор вручную.",
+    "translation": "No matching items were found using this identifier. Check the keys in settings; if the lists are completely different, confirm your selection manually."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 13025,
+    "end": 13201,
+    "type": "Literal",
+    "source": "В количестве или цене есть значения, которые нельзя однозначно прочитать как число. Проверьте формат в настройках: десятичные числа с точкой, без единиц и разделителей тысяч.",
+    "translation": "Some quantity or price values cannot be read unambiguously as numbers. Check the format in settings: use a decimal point, with no units or thousands separators."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 13274,
+    "end": 13386,
+    "type": "Literal",
+    "source": "Некоторые столбцы не удалось сопоставить. Укажите соответствия в настройках или явно исключите их из проверки.",
+    "translation": "Some columns could not be matched. Map them in settings or explicitly exclude them from the comparison."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 16860,
+    "end": 16929,
+    "type": "Literal",
+    "source": "Выберите точное имя столбца-ключа в каждом источнике перед сверкой.",
+    "translation": "Select the exact key column name in each source before comparing."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 16979,
+    "end": 17073,
+    "type": "Literal",
+    "source": "Выберите поля и режимы text/number или явно задайте сверку только состава строк (fields=[]).",
+    "translation": "Select fields and text/number modes, or explicitly compare only which rows are present (fields=[])."
+  },
+  {
+    "file": "engine.mjs",
+    "start": 17329,
+    "end": 17368,
+    "type": "TemplateElement",
+    "source": "Укажите существующий столбец источника ",
+    "translation": "Specify an existing column in source "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 17375,
+    "end": 17383,
+    "type": "TemplateElement",
+    "source": " вместо ",
+    "translation": " instead of "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 17812,
+    "end": 17836,
+    "type": "TemplateElement",
+    "source": "Заполните ключ в записи ",
+    "translation": "Fill in the key in record "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 17849,
+    "end": 17860,
+    "type": "TemplateElement",
+    "source": " источника ",
+    "translation": " of source "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 17977,
+    "end": 18024,
+    "type": "TemplateElement",
+    "source": "Устраните неоднозначность повторяющегося ключа ",
+    "translation": "Resolve the duplicate key "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 18038,
+    "end": 18051,
+    "type": "TemplateElement",
+    "source": " в источнике ",
+    "translation": " in source "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 18448,
+    "end": 18503,
+    "type": "TemplateElement",
+    "source": "Укажите десятичное число цифрами 0–9 с точкой в записи ",
+    "translation": "Enter a decimal number using digits 0–9 and a decimal point in record "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 18516,
+    "end": 18527,
+    "type": "TemplateElement",
+    "source": " источника ",
+    "translation": " of source "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 18534,
+    "end": 18544,
+    "type": "TemplateElement",
+    "source": ", столбец ",
+    "translation": ", column "
+  },
+  {
+    "file": "engine.mjs",
+    "start": 18559,
+    "end": 18600,
+    "type": "TemplateElement",
+    "source": "; единицы измерения подтвердите отдельно.",
+    "translation": "; confirm the units separately."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 492,
+    "end": 522,
+    "type": "Literal",
+    "source": "Укажите два текстовых файла.",
+    "translation": "Provide two text files."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 11004,
+    "end": 11217,
+    "type": "Literal",
+    "source": "Извлечённые фрагменты выровнены по точным совпадениям и порядку. Перенос текста на другую страницу сам по себе не считается изменением текста. Пары различающихся фрагментов не означают смысловую эквивалентность.",
+    "translation": "Extracted blocks are aligned by exact matches and order. Moving text to another page is not, by itself, treated as a text change. Pairs of differing blocks do not imply equivalent meaning."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 11224,
+    "end": 11363,
+    "type": "Literal",
+    "source": "Абзацы выровнены по точным совпадениям и порядку. Пары различающихся абзацев показывают текстовую замену, а не смысловую эквивалентность.",
+    "translation": "Paragraphs are aligned by exact matches and order. Pairs of differing paragraphs show a text replacement, not equivalent meaning."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 11514,
+    "end": 11692,
+    "type": "Literal",
+    "source": "Ячейки сопоставлены по номеру таблицы, строке, столбцу и абзацу внутри ячейки. При изменении структуры таблицы проверьте соответствие ячеек; строки не сопоставляются по смыслу.",
+    "translation": "Cells are matched by table number, row, column, and paragraph within the cell. If the table structure changes, check the cell matches; rows are not matched by meaning."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 11736,
+    "end": 11919,
+    "type": "Literal",
+    "source": "Перемещение означает точное совпадение единственного фрагмента в каждом документе вне основного выравнивания. Исходный порядок восстанавливается по номерам блоков каждого документа.",
+    "translation": "A move means an exact match between a block that occurs only once in each document, outside the main alignment. The original order can be recovered from each document's block numbers."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 11985,
+    "end": 12018,
+    "type": "TemplateElement",
+    "source": "Проверка переносов объединяет до ",
+    "translation": "Line-wrap detection joins up to "
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 12038,
+    "end": 12069,
+    "type": "TemplateElement",
+    "source": " соседних непустых блоков и до ",
+    "translation": " adjacent nonempty blocks and up to "
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 12088,
+    "end": 12304,
+    "type": "TemplateElement",
+    "source": " символов одним пробелом; отдельные абзацы DOCX не объединяются. Совпадение должно быть точным и однозначным. Более длинные и неоднозначные варианты остаются обычными различиями. Исходные блоки сохраняются полностью.",
+    "translation": " characters with a single space; separate DOCX paragraphs are not joined. The match must be exact and unambiguous. Longer or ambiguous cases remain ordinary differences. All original blocks are preserved in full."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 12364,
+    "end": 12543,
+    "type": "Literal",
+    "source": "Превышен бюджет проверки переносов строк: распознавание переносов отключено для этой пары документов. Все исходные фрагменты сохранены в обычном сравнении и точных перемещениях.",
+    "translation": "The line-wrap detection limit was exceeded, so detection is disabled for this document pair. All original blocks are preserved in the standard comparison and exact moves."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 12712,
+    "end": 12716,
+    "type": "TemplateElement",
+    "source": "Для ",
+    "translation": "For "
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 12734,
+    "end": 12819,
+    "type": "TemplateElement",
+    "source": " пар превышен бюджет подсветки слов: выделен абзац целиком. Текст сохранён полностью.",
+    "translation": " pairs, the word-highlighting limit was exceeded, so the entire paragraph is highlighted. All text is preserved."
+  },
+  {
+    "file": "text-engine.mjs",
+    "start": 13518,
+    "end": 13574,
+    "type": "Literal",
+    "source": "Текстовый отчёт превышает 16 МиБ. Разделите документы.",
+    "translation": "The text report exceeds 16 MiB. Split the documents into smaller files."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 1094,
+    "end": 1205,
+    "type": "Literal",
+    "source": "Сравнивается извлечённый текст. Оформление, шрифты, разбиение на страницы и юридический смысл не оцениваются.",
+    "translation": "The extracted text is compared. Formatting, fonts, pagination, and legal meaning are not evaluated."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 1207,
+    "end": 1274,
+    "type": "Literal",
+    "source": "Регистр, пробелы и Unicode сохраняются; CRLF и CR приведены к LF.",
+    "translation": "Case, spaces, and Unicode are preserved; CRLF and CR line endings are converted to LF."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 1372,
+    "end": 1396,
+    "type": "TemplateElement",
+    "source": ": ожидается XML в UTF-8.",
+    "translation": ": UTF-8 XML is required."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 1452,
+    "end": 1474,
+    "type": "TemplateElement",
+    "source": ": XML превышает 8 МиБ.",
+    "translation": ": XML exceeds 8 MiB."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 1536,
+    "end": 1592,
+    "type": "TemplateElement",
+    "source": ": DTD и пользовательские XML-сущности не поддерживаются.",
+    "translation": ": DTDs and custom XML entities are not supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 1723,
+    "end": 1753,
+    "type": "TemplateElement",
+    "source": ": слишком много XML-элементов.",
+    "translation": ": too many XML elements."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 1917,
+    "end": 1936,
+    "type": "TemplateElement",
+    "source": ": некорректный XML.",
+    "translation": ": invalid XML."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 1983,
+    "end": 2018,
+    "type": "TemplateElement",
+    "source": ": отсутствует корневой XML-элемент.",
+    "translation": ": the root XML element is missing."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 2163,
+    "end": 2201,
+    "type": "TemplateElement",
+    "source": ": вложенность XML превышает 64 уровня.",
+    "translation": ": XML nesting exceeds 64 levels."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 2450,
+    "end": 2496,
+    "type": "Literal",
+    "source": "DOCX: отсутствуют обязательные части пакета.",
+    "translation": "DOCX: required package parts are missing."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 2635,
+    "end": 2748,
+    "type": "Literal",
+    "source": "DOCX содержит вложенные, графические или дополнительные данные. Поддерживаются только обычные текстовые абзацы.",
+    "translation": "The DOCX contains embedded, graphical, or additional data. Only standard text paragraphs are supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 2831,
+    "end": 2934,
+    "type": "Literal",
+    "source": "DOCX содержит колонтитулы, сноски или комментарии. Подготовьте копию с их текстом в основных абзацах.",
+    "translation": "The DOCX contains headers, footers, footnotes, endnotes, or comments. Prepare a copy with their text in the main paragraphs."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 3170,
+    "end": 3206,
+    "type": "TemplateElement",
+    "source": "DOCX: неподдерживаемая часть пакета ",
+    "translation": "DOCX: unsupported package part "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 3377,
+    "end": 3423,
+    "type": "Literal",
+    "source": "DOCX: некорректный список типов содержимого.",
+    "translation": "DOCX: invalid content type list."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 3687,
+    "end": 3752,
+    "type": "Literal",
+    "source": "DOCX: поддерживается только обычный документ Word без макросов.",
+    "translation": "DOCX: only standard Word documents without macros are supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 4038,
+    "end": 4072,
+    "type": "Literal",
+    "source": "DOCX: некорректные связи пакета.",
+    "translation": "DOCX: invalid package relationships."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 4234,
+    "end": 4268,
+    "type": "Literal",
+    "source": "DOCX: некорректная связь пакета.",
+    "translation": "DOCX: invalid package relationship."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 4434,
+    "end": 4487,
+    "type": "Literal",
+    "source": "DOCX: повторяющийся или пустой идентификатор связи.",
+    "translation": "DOCX: duplicate or empty relationship ID."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 4658,
+    "end": 4701,
+    "type": "Literal",
+    "source": "DOCX: неподдерживаемый основной документ.",
+    "translation": "DOCX: unsupported main document."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 4906,
+    "end": 5017,
+    "type": "Literal",
+    "source": "DOCX содержит колонтитулы, сноски, комментарии, рисунки или вложенные документы. Эти части не поддерживаются.",
+    "translation": "The DOCX contains headers, footers, footnotes, endnotes, comments, images, or embedded documents. These parts are not supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 5227,
+    "end": 5283,
+    "type": "Literal",
+    "source": "DOCX: неподдерживаемая связь автоматической нумерации.",
+    "translation": "DOCX: unsupported automatic numbering relationship."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 5479,
+    "end": 5533,
+    "type": "Literal",
+    "source": "DOCX: пользовательские XML-данные не поддерживаются.",
+    "translation": "DOCX: custom XML data is not supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 5787,
+    "end": 5839,
+    "type": "Literal",
+    "source": "DOCX: неподдерживаемые пользовательские XML-связи.",
+    "translation": "DOCX: unsupported custom XML relationships."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 6021,
+    "end": 6085,
+    "type": "Literal",
+    "source": "DOCX: поддерживаются только встроенные изображения PNG и JPEG.",
+    "translation": "DOCX: only embedded PNG and JPEG images are supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 6336,
+    "end": 6365,
+    "type": "TemplateElement",
+    "source": "DOCX: неподдерживаемая связь ",
+    "translation": "DOCX: unsupported relationship "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 6463,
+    "end": 6531,
+    "type": "Literal",
+    "source": "DOCX: внешние связи, кроме адресов гиперссылок, не поддерживаются.",
+    "translation": "DOCX: external relationships other than hyperlink URLs are not supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 6567,
+    "end": 6615,
+    "type": "Literal",
+    "source": "DOCX: отсутствует связь с основным документом.",
+    "translation": "DOCX: the relationship to the main document is missing."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 7011,
+    "end": 7038,
+    "type": "TemplateElement",
+    "source": "DOCX: дополнительная часть ",
+    "translation": "DOCX: additional part "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 7045,
+    "end": 7064,
+    "type": "TemplateElement",
+    "source": " не поддерживается.",
+    "translation": " is not supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 7383,
+    "end": 7410,
+    "type": "TemplateElement",
+    "source": "DOCX: дополнительная часть ",
+    "translation": "DOCX: additional part "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 7417,
+    "end": 7436,
+    "type": "TemplateElement",
+    "source": " не поддерживается.",
+    "translation": " is not supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 8330,
+    "end": 8446,
+    "type": "Literal",
+    "source": "DOCX содержит пользовательские XML-данные или непустую библиографию. Подготовьте копию только с обычными абзацами.",
+    "translation": "The DOCX contains custom XML data or a nonempty bibliography. Prepare a copy containing only standard paragraphs."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 8567,
+    "end": 8621,
+    "type": "Literal",
+    "source": "DOCX: пользовательские XML-данные не поддерживаются.",
+    "translation": "DOCX: custom XML data is not supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 8817,
+    "end": 8872,
+    "type": "Literal",
+    "source": "DOCX: неподдерживаемые пользовательские XML-свойства.",
+    "translation": "DOCX: unsupported custom XML properties."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 9117,
+    "end": 9172,
+    "type": "Literal",
+    "source": "DOCX: неподдерживаемые пользовательские XML-свойства.",
+    "translation": "DOCX: unsupported custom XML properties."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 9264,
+    "end": 9317,
+    "type": "Literal",
+    "source": "DOCX: пользовательская XML-схема не поддерживается.",
+    "translation": "DOCX: custom XML schemas are not supported."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 9846,
+    "end": 9907,
+    "type": "Literal",
+    "source": "DOCX: основной XML не является WordprocessingML-документом.",
+    "translation": "DOCX: the main XML is not a WordprocessingML document."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 10038,
+    "end": 10093,
+    "type": "Literal",
+    "source": "DOCX: неподдерживаемая структура основного документа.",
+    "translation": "DOCX: unsupported main document structure."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 10148,
+    "end": 10162,
+    "type": "TemplateElement",
+    "source": "DOCX: элемент ",
+    "translation": "DOCX: element "
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 10179,
+    "end": 10283,
+    "type": "TemplateElement",
+    "source": " не поддерживается. Принимайте исправления и преобразуйте поля и дополнительные объекты в обычный текст.",
+    "translation": " is not supported. Accept tracked changes and convert fields and additional objects to plain text."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 12840,
+    "end": 12894,
+    "type": "Literal",
+    "source": "Укажите имя текстового файла длиной до 255 символов.",
+    "translation": "Provide a text filename of up to 255 characters."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 12991,
+    "end": 13060,
+    "type": "Literal",
+    "source": "Для текстовой сверки загрузите TXT, DOCX или PDF с текстовым слоем.",
+    "translation": "For text comparison, upload TXT, DOCX, or PDF files with a text layer."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 13184,
+    "end": 13243,
+    "type": "Literal",
+    "source": "Текстовый файл превышает 2 МиБ или имеет неверный формат.",
+    "translation": "The text file exceeds 2 MiB or has an invalid format."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 13346,
+    "end": 13375,
+    "type": "Literal",
+    "source": "Некорректные данные base64.",
+    "translation": "Invalid base64 data."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 13469,
+    "end": 13498,
+    "type": "Literal",
+    "source": "Некорректные данные base64.",
+    "translation": "Invalid base64 data."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 13550,
+    "end": 13583,
+    "type": "Literal",
+    "source": "Текстовый файл превышает 2 МиБ.",
+    "translation": "The text file exceeds 2 MiB."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 14179,
+    "end": 14203,
+    "type": "TemplateElement",
+    "source": ": сохраните TXT в UTF-8.",
+    "translation": ": save the TXT file as UTF-8."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 14256,
+    "end": 14285,
+    "type": "TemplateElement",
+    "source": ": NUL-символы не допускаются.",
+    "translation": ": NUL characters are not allowed."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 14395,
+    "end": 14555,
+    "type": "Literal",
+    "source": "Каждая строка TXT — отдельный блок, включая пустые строки. Один завершающий перевод строки обозначает конец последней строки и не создаёт дополнительный блок.",
+    "translation": "Each TXT line is a separate block, including empty lines. One final newline marks the end of the last line and does not create an extra block."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 14696,
+    "end": 14883,
+    "type": "Literal",
+    "source": "Каждый основной абзац DOCX — отдельный блок, включая пустые абзацы. Мягкие переносы и табуляция сохранены; отображаемые номера страниц, стили и параметры форматирования не сравниваются.",
+    "translation": "Each main DOCX paragraph is a separate block, including empty paragraphs. Soft line breaks and tabs are preserved; displayed page numbers, styles, and formatting settings are not compared."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 14901,
+    "end": 15034,
+    "type": "Literal",
+    "source": "Скрытое форматированием содержимое основных абзацев включено в извлечённый текст. Свойства файла и эскиз документа не сравниваются.",
+    "translation": "Content hidden by formatting in the main paragraphs is included in the extracted text. File properties and the document thumbnail are not compared."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 15085,
+    "end": 15206,
+    "type": "Literal",
+    "source": "Текст таблиц читается по строкам и ячейкам. Объединения и оформление сохраняются в DOCX; сравнивается содержимое ячеек.",
+    "translation": "Table text is read by row and cell. Merged cells and formatting are preserved in the DOCX; cell content is compared."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 15255,
+    "end": 15346,
+    "type": "Literal",
+    "source": "Пустой служебный шаблон библиографии не сравнивается; пользовательских записей в нём нет.",
+    "translation": "The empty bibliography template is not compared; it contains no user entries."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 15411,
+    "end": 15525,
+    "type": "Literal",
+    "source": "Номера и маркеры списков сохранены в документе; сравнивается только текст пунктов, без автоматической нумерации.",
+    "translation": "List numbers and bullets are preserved in the document; only the item text is compared, without automatic numbering."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 15562,
+    "end": 15644,
+    "type": "Literal",
+    "source": "Сравнивается видимый текст гиперссылок; адреса не открываются и не сравниваются.",
+    "translation": "Only the visible hyperlink text is compared; URLs are not opened or compared."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 15694,
+    "end": 15757,
+    "type": "Literal",
+    "source": "Документ содержит более 2000 текстовых блоков. Разделите его.",
+    "translation": "The document contains more than 2,000 text blocks. Split it into smaller files."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 15867,
+    "end": 15934,
+    "type": "Literal",
+    "source": "Извлечённый текст превышает 500 000 символов. Разделите документ.",
+    "translation": "The extracted text exceeds 500,000 characters. Split the document into smaller files."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 17288,
+    "end": 17341,
+    "type": "Literal",
+    "source": "DOCX: размер изображения превышает 25 млн пикселей.",
+    "translation": "DOCX: the image exceeds 25 million pixels."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 18173,
+    "end": 18226,
+    "type": "Literal",
+    "source": "DOCX: размер изображения превышает 25 млн пикселей.",
+    "translation": "DOCX: the image exceeds 25 million pixels."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 18334,
+    "end": 18413,
+    "type": "Literal",
+    "source": "DOCX: изображение PNG или JPEG повреждено либо имеет неподдерживаемый формат.",
+    "translation": "DOCX: the PNG or JPEG image is damaged or has an unsupported format."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 18561,
+    "end": 18665,
+    "type": "Literal",
+    "source": "DOCX: этот рисунок не поддерживается. Используйте встроенное изображение PNG или JPEG в строке текста.",
+    "translation": "DOCX: this image is not supported. Use an embedded PNG or JPEG image placed inline with the text."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 21159,
+    "end": 21227,
+    "type": "Literal",
+    "source": "DOCX: слишком много изображений для просмотра. Разделите документ.",
+    "translation": "DOCX: too many images to preview. Split the document into smaller files."
+  },
+  {
+    "file": "text-source.mjs",
+    "start": 21352,
+    "end": 21398,
+    "type": "Literal",
+    "source": "DOCX превышает ограничение по объёму текста.",
+    "translation": "The DOCX exceeds the text size limit."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 940,
+    "end": 996,
+    "type": "Literal",
+    "source": "Некорректный XLSX/ZIP. Сохраните книгу заново в Excel.",
+    "translation": "Invalid XLSX/ZIP. Save the workbook again in Excel."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 2258,
+    "end": 2363,
+    "type": "Literal",
+    "source": "Книги с макросами или внешними связями не поддерживаются. Сохраните отдельную XLSX-копию со значениями.",
+    "translation": "Workbooks with macros or external links are not supported. Save a separate XLSX copy containing values only."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 2417,
+    "end": 2475,
+    "type": "Literal",
+    "source": "XLSX после распаковки превышает 16 MiB. Разделите книгу.",
+    "translation": "The uncompressed XLSX exceeds 16 MiB. Split the workbook into smaller files."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 4044,
+    "end": 4073,
+    "type": "Literal",
+    "source": "Некорректное число в Excel.",
+    "translation": "Invalid number in Excel."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 4751,
+    "end": 4856,
+    "type": "TemplateElement",
+    "source": ": найдена формула. Сохраните копию листа только со значениями и загрузите её. Формулы не пересчитываются.",
+    "translation": ": a formula was found. Save a values-only copy of the sheet and upload it. Formulas are not recalculated."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 4899,
+    "end": 4942,
+    "type": "TemplateElement",
+    "source": ": ошибка Excel. Исправьте её перед сверкой.",
+    "translation": ": Excel error. Fix it before comparing."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 5276,
+    "end": 5329,
+    "type": "TemplateElement",
+    "source": ": дата/время не поддерживается. Преобразуйте в текст.",
+    "translation": ": dates and times are not supported. Convert them to text."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 5640,
+    "end": 5711,
+    "type": "TemplateElement",
+    "source": ": нестандартный формат с ведущими нулями. Сохраните значение как текст.",
+    "translation": ": custom format with leading zeros. Save the value as text."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 5829,
+    "end": 5905,
+    "type": "TemplateElement",
+    "source": ": нестандартный числовой формат идентификатора. Сохраните артикул как текст.",
+    "translation": ": custom number format for an identifier. Save the SKU as text."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 6011,
+    "end": 6111,
+    "type": "TemplateElement",
+    "source": ": длинный или дробный числовой идентификатор. Сохраните артикул как текст; проверьте исходные цифры.",
+    "translation": ": long or fractional numeric identifier. Save the SKU as text and check the original digits."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 6473,
+    "end": 6533,
+    "type": "TemplateElement",
+    "source": ": неподдерживаемый тип ячейки. Сохраните значение как текст.",
+    "translation": ": unsupported cell type. Save the value as text."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 6612,
+    "end": 6656,
+    "type": "TemplateElement",
+    "source": ": недопустимое или слишком длинное значение.",
+    "translation": ": invalid value or value is too long."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 6958,
+    "end": 7010,
+    "type": "TemplateElement",
+    "source": ": не удалось прочитать XLSX. Сохраните книгу заново.",
+    "translation": ": could not read the XLSX. Save the workbook again."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 7069,
+    "end": 7105,
+    "type": "TemplateElement",
+    "source": ": более 100 листов. Разделите книгу.",
+    "translation": ": more than 100 sheets. Split the workbook into smaller files."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 7472,
+    "end": 7538,
+    "type": "Literal",
+    "source": "Книга содержит более 100 000 заполненных ячеек. Разделите книгу.",
+    "translation": "The workbook contains more than 100,000 filled cells. Split it into smaller files."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 7701,
+    "end": 7734,
+    "type": "TemplateElement",
+    "source": ": в книге нет заполненных листов.",
+    "translation": ": the workbook has no filled sheets."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 7921,
+    "end": 7957,
+    "type": "TemplateElement",
+    "source": ": выбранный лист не найден или пуст.",
+    "translation": ": the selected sheet was not found or is empty."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 8302,
+    "end": 8388,
+    "type": "TemplateElement",
+    "source": "»: объединённые ячейки не поддерживаются. Подготовьте лист с одной строкой заголовков.",
+    "translation": "»: merged cells are not supported. Prepare a sheet with a single header row."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 8749,
+    "end": 8796,
+    "type": "TemplateElement",
+    "source": ": недопустимый диапазон или более 200 столбцов.",
+    "translation": ": invalid range or more than 200 columns."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 8924,
+    "end": 8950,
+    "type": "TemplateElement",
+    "source": ": более 5000 строк данных.",
+    "translation": ": more than 5,000 data rows."
+  },
+  {
+    "file": "xlsx-source.mjs",
+    "start": 9270,
+    "end": 9318,
+    "type": "TemplateElement",
+    "source": ": заголовки должны быть непустыми и уникальными.",
+    "translation": ": headers must be nonempty and unique."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 3538,
+    "end": 3681,
+    "type": "Literal",
+    "source": "PDF: сравнивается только извлечённый текстовый слой. Оформление, графика, подписи, метаданные и визуальное совпадение страниц не проверяются.",
+    "translation": "PDF: only the extracted text layer is compared. Formatting, graphics, signatures, metadata, and visual page matches are not checked."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 3685,
+    "end": 3929,
+    "type": "Literal",
+    "source": "PDF: порядок выдачи PDF.js сохранён. Раздельные строки и удалённые колонки дополнительно разделяются по координатам; порядок чтения колонок может отличаться от визуального. «Строка» означает фрагмент извлечённого текста на указанной странице.",
+    "translation": "PDF: the PDF.js output order is preserved. Separate lines and widely spaced columns are further separated by their coordinates; column reading order may differ from the visual layout. \"Line\" means a block of extracted text on the specified page."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 3933,
+    "end": 4171,
+    "type": "Literal",
+    "source": "PDF: регистр и полученные символы сохраняются без дополнительной нормализации. Пробелы восстанавливает PDF.js; границы фрагментов учитывают его переносы и геометрию текста. Точное совпадение исходных пробелов и абзацев не гарантируется.",
+    "translation": "PDF: case and extracted characters are preserved without additional normalization. PDF.js reconstructs spaces; block boundaries use its line breaks and text geometry. Exact preservation of original spacing and paragraphs is not guaranteed."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 4175,
+    "end": 4302,
+    "type": "Literal",
+    "source": "PDF: изображения не сравнивались. Текст внутри изображений не распознаётся, даже если на той же странице есть текстовый слой.",
+    "translation": "PDF: images were not compared. Text inside images is not recognized, even if the same page has a text layer."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 4306,
+    "end": 4489,
+    "type": "Literal",
+    "source": "PDF: любая страница без пригодного текста останавливает всю сверку. Формы, комментарии, вложения, слои и защищённые документы не поддерживаются. Распознавание текста не выполняется.",
+    "translation": "PDF: any page without usable text stops the entire comparison. Forms, comments, attachments, layers, and protected documents are not supported. OCR is not performed."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 4618,
+    "end": 4668,
+    "type": "Literal",
+    "source": "ожидается непустой файл размером не более 2 МиБ.",
+    "translation": "a nonempty file of no more than 2 MiB is required."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 4758,
+    "end": 4791,
+    "type": "Literal",
+    "source": "не найдена сигнатура документа.",
+    "translation": "the document signature was not found."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 4892,
+    "end": 4967,
+    "type": "Literal",
+    "source": "чтение заняло слишком много времени. Разделите документ на меньшие части.",
+    "translation": "reading took too long. Split the document into smaller files."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 5562,
+    "end": 5642,
+    "type": "Literal",
+    "source": "PDF: чтение заняло слишком много времени. Разделите документ на меньшие части.",
+    "translation": "PDF: reading took too long. Split the document into smaller files."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 5861,
+    "end": 5898,
+    "type": "Literal",
+    "source": "поддерживается от 1 до 100 страниц.",
+    "translation": "1 to 100 pages are supported."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 6184,
+    "end": 6274,
+    "type": "Literal",
+    "source": "защищённые и зашифрованные документы не поддерживаются. Сохраните незашифрованную копию.",
+    "translation": "protected and encrypted documents are not supported. Save an unencrypted copy."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 6377,
+    "end": 6457,
+    "type": "Literal",
+    "source": "формы и поля документа не поддерживаются. Подготовьте обычную текстовую копию.",
+    "translation": "document forms and fields are not supported. Prepare a plain text copy."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 6523,
+    "end": 6585,
+    "type": "Literal",
+    "source": "вложения документа не поддерживаются. Проверьте их отдельно.",
+    "translation": "document attachments are not supported. Check them separately."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 6633,
+    "end": 6705,
+    "type": "Literal",
+    "source": "слои документа не поддерживаются. Подготовьте обычную текстовую копию.",
+    "translation": "document layers are not supported. Prepare a plain text copy."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 7039,
+    "end": 7048,
+    "type": "TemplateElement",
+    "source": "Страница ",
+    "translation": "Page "
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 7061,
+    "end": 7153,
+    "type": "TemplateElement",
+    "source": ": комментарии, ссылки и другие аннотации не поддерживаются. Подготовьте копию без аннотаций.",
+    "translation": ": comments, links, and other annotations are not supported. Prepare a copy without annotations."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 7561,
+    "end": 7627,
+    "type": "Literal",
+    "source": "извлечено более 2000 строк. Разделите документ на меньшие части.",
+    "translation": "more than 2,000 lines were extracted. Split the document into smaller files."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 8289,
+    "end": 8346,
+    "type": "Literal",
+    "source": "слишком много текстовых фрагментов. Разделите документ.",
+    "translation": "too many text blocks. Split the document into smaller files."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 8403,
+    "end": 8412,
+    "type": "TemplateElement",
+    "source": "Страница ",
+    "translation": "Page "
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 8425,
+    "end": 8463,
+    "type": "TemplateElement",
+    "source": ": неподдерживаемый текстовый фрагмент.",
+    "translation": ": unsupported text block."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 8775,
+    "end": 8784,
+    "type": "TemplateElement",
+    "source": "Страница ",
+    "translation": "Page "
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 8797,
+    "end": 8894,
+    "type": "TemplateElement",
+    "source": ": текст содержит непригодные символы Unicode. Требуется другая текстовая копия или распознавание.",
+    "translation": ": the text contains unusable Unicode characters. Another text copy or OCR is required."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 8944,
+    "end": 8998,
+    "type": "Literal",
+    "source": "извлечено более 500000 символов. Разделите документ.",
+    "translation": "more than 500,000 characters were extracted. Split the document into smaller files."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 9552,
+    "end": 9600,
+    "type": "Literal",
+    "source": "PDF: чтение остановлено после ошибки проверки.",
+    "translation": "PDF: reading stopped after a validation error."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 9720,
+    "end": 9729,
+    "type": "TemplateElement",
+    "source": "Страница ",
+    "translation": "Page "
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 9742,
+    "end": 9858,
+    "type": "TemplateElement",
+    "source": ": не найден пригодный текстовый слой. Пустые страницы и сканы не поддерживаются; для сканов требуется распознавание.",
+    "translation": ": no usable text layer was found. Empty pages and scans are not supported; scans require OCR."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 10141,
+    "end": 10223,
+    "type": "Literal",
+    "source": "защищённые паролем документы не поддерживаются. Сохраните незашифрованную копию.",
+    "translation": "password-protected documents are not supported. Save an unencrypted copy."
+  },
+  {
+    "file": "pdf-source.mjs",
+    "start": 10235,
+    "end": 10371,
+    "type": "Literal",
+    "source": "не удалось полностью прочитать документ. Файл повреждён или использует неподдерживаемую структуру; подготовьте другую текстовую копию.",
+    "translation": "could not read the entire document. The file is damaged or uses an unsupported structure; prepare another text copy."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 818,
+    "end": 848,
+    "type": "TemplateElement",
+    "source": "неоднозначное свойство списка ",
+    "translation": "ambiguous list property "
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 1043,
+    "end": 1083,
+    "type": "Literal",
+    "source": "некорректный номер или уровень списка.",
+    "translation": "invalid list number or level."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 1299,
+    "end": 1315,
+    "type": "TemplateElement",
+    "source": "свойство списка ",
+    "translation": "list property "
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 1329,
+    "end": 1353,
+    "type": "TemplateElement",
+    "source": " пока не поддерживается.",
+    "translation": " is not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 1387,
+    "end": 1431,
+    "type": "Literal",
+    "source": "неподдерживаемый текст в свойствах списка.",
+    "translation": "unsupported text in list properties."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 1647,
+    "end": 1698,
+    "type": "Literal",
+    "source": "отступы списка в символах пока не поддерживаются.",
+    "translation": "list indentation measured in characters is not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 1911,
+    "end": 1961,
+    "type": "Literal",
+    "source": "отступ списка выходит за поддерживаемые границы.",
+    "translation": "list indentation is outside the supported range."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 2546,
+    "end": 2577,
+    "type": "Literal",
+    "source": "некорректный XML стилей Word.",
+    "translation": "invalid Word styles XML."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 2775,
+    "end": 2813,
+    "type": "Literal",
+    "source": "неоднозначные идентификаторы стилей.",
+    "translation": "ambiguous style IDs."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 2940,
+    "end": 2979,
+    "type": "Literal",
+    "source": "несколько стилей абзаца по умолчанию.",
+    "translation": "multiple default paragraph styles."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 3207,
+    "end": 3262,
+    "type": "Literal",
+    "source": "циклическое или слишком глубокое наследование стилей.",
+    "translation": "style inheritance is circular or too deeply nested."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 3313,
+    "end": 3364,
+    "type": "Literal",
+    "source": "применённый стиль абзаца отсутствует в документе.",
+    "translation": "the applied paragraph style is missing from the document."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 3403,
+    "end": 3449,
+    "type": "Literal",
+    "source": "применённый стиль не является стилем абзаца.",
+    "translation": "the applied style is not a paragraph style."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 3895,
+    "end": 3953,
+    "type": "Literal",
+    "source": "этот символический маркер списка пока не поддерживается.",
+    "translation": "this list bullet symbol is not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 4042,
+    "end": 4100,
+    "type": "Literal",
+    "source": "этот символический маркер списка пока не поддерживается.",
+    "translation": "this list bullet symbol is not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 4201,
+    "end": 4249,
+    "type": "Literal",
+    "source": "уровень замены списка не совпадает с исходным.",
+    "translation": "the list override level does not match the original."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 4574,
+    "end": 4636,
+    "type": "Literal",
+    "source": "этот формат автоматической нумерации пока не поддерживается.",
+    "translation": "this automatic numbering format is not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 4871,
+    "end": 4928,
+    "type": "Literal",
+    "source": "это расположение маркера списка пока не поддерживается.",
+    "translation": "this list marker position is not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 5097,
+    "end": 5150,
+    "type": "Literal",
+    "source": "слишком длинный или неподдерживаемый маркер списка.",
+    "translation": "the list marker is too long or unsupported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 5621,
+    "end": 5669,
+    "type": "Literal",
+    "source": "скрытые маркеры списка пока не поддерживаются.",
+    "translation": "hidden list markers are not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 6241,
+    "end": 6310,
+    "type": "Literal",
+    "source": "вложенные или справа налево свойства списка пока не поддерживаются.",
+    "translation": "nested or right-to-left list properties are not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 7167,
+    "end": 7211,
+    "type": "Literal",
+    "source": "некорректный XML автоматической нумерации.",
+    "translation": "invalid automatic numbering XML."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 7475,
+    "end": 7510,
+    "type": "Literal",
+    "source": "повторяющиеся определения списка.",
+    "translation": "duplicate list definitions."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 7656,
+    "end": 7705,
+    "type": "Literal",
+    "source": "отсутствует определение автоматического списка.",
+    "translation": "the automatic list definition is missing."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 7874,
+    "end": 7918,
+    "type": "Literal",
+    "source": "отсутствует шаблон автоматического списка.",
+    "translation": "the automatic list template is missing."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 8057,
+    "end": 8123,
+    "type": "Literal",
+    "source": "связанный стиль автоматической нумерации пока не поддерживается.",
+    "translation": "linked automatic numbering styles are not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 8274,
+    "end": 8338,
+    "type": "Literal",
+    "source": "расширенные правила перезапуска списка пока не поддерживаются.",
+    "translation": "advanced list restart rules are not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 8485,
+    "end": 8516,
+    "type": "Literal",
+    "source": "повторяющийся уровень списка.",
+    "translation": "duplicate list level."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 8695,
+    "end": 8732,
+    "type": "Literal",
+    "source": "повторяющаяся замена уровня списка.",
+    "translation": "duplicate list level override."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 9111,
+    "end": 9153,
+    "type": "Literal",
+    "source": "отсутствует используемый уровень списка.",
+    "translation": "a list level in use is missing."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 9633,
+    "end": 9677,
+    "type": "Literal",
+    "source": "неоднозначная связь стиля и уровня списка.",
+    "translation": "ambiguous relationship between a style and a list level."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 10224,
+    "end": 10274,
+    "type": "Literal",
+    "source": "уровень списка указан без определения нумерации.",
+    "translation": "a list level is specified without a numbering definition."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 10648,
+    "end": 10695,
+    "type": "Literal",
+    "source": "неоднозначный уровень нумерации в стиле Word.",
+    "translation": "ambiguous numbering level in a Word style."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 11007,
+    "end": 11069,
+    "type": "Literal",
+    "source": "нумерация в stylesWithEffects отличается от основного стиля.",
+    "translation": "numbering in stylesWithEffects differs from the main style."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 11532,
+    "end": 11607,
+    "type": "Literal",
+    "source": "буквенная или римская нумерация должна начинаться с положительного числа.",
+    "translation": "alphabetic or Roman numbering must start with a positive number."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 11680,
+    "end": 11718,
+    "type": "Literal",
+    "source": "слишком длинная буквенная нумерация.",
+    "translation": "alphabetic numbering is too long."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 11908,
+    "end": 11963,
+    "type": "Literal",
+    "source": "римская нумерация больше 3999 пока не поддерживается.",
+    "translation": "Roman numbering above 3999 is not yet supported."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 12199,
+    "end": 12256,
+    "type": "Literal",
+    "source": "маркер списка нельзя использовать как числовой уровень.",
+    "translation": "a list bullet cannot be used as a numeric level."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 12569,
+    "end": 12610,
+    "type": "Literal",
+    "source": "отсутствует правило отображения списка.",
+    "translation": "the list display rule is missing."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 12911,
+    "end": 12942,
+    "type": "Literal",
+    "source": "слишком большой номер списка.",
+    "translation": "the list number is too large."
+  },
+  {
+    "file": "docx-numbering.mjs",
+    "start": 13470,
+    "end": 13510,
+    "type": "Literal",
+    "source": "отсутствует уровень составного номера.",
+    "translation": "a level of the compound number is missing."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 986,
+    "end": 1017,
+    "type": "Literal",
+    "source": "некорректные размеры таблицы.",
+    "translation": "invalid table dimensions."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 1296,
+    "end": 1307,
+    "type": "TemplateElement",
+    "source": "содержимое ",
+    "translation": "content "
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 1324,
+    "end": 1403,
+    "type": "TemplateElement",
+    "source": " не поддерживается. Вложенные таблицы и дополнительные объекты пока недоступны.",
+    "translation": " is not supported. Nested tables and additional objects are not yet available."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 1483,
+    "end": 1529,
+    "type": "Literal",
+    "source": "текст в свойствах таблицы не поддерживается.",
+    "translation": "text in table properties is not supported."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 3235,
+    "end": 3263,
+    "type": "Literal",
+    "source": "циклический стиль таблицы.",
+    "translation": "circular table style inheritance."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 3544,
+    "end": 3599,
+    "type": "Literal",
+    "source": "основной XML не является WordprocessingML-документом.",
+    "translation": "the main XML is not a WordprocessingML document."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 3746,
+    "end": 3780,
+    "type": "Literal",
+    "source": "отсутствует основное содержимое.",
+    "translation": "the main content is missing."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 3949,
+    "end": 4012,
+    "type": "Literal",
+    "source": "документ содержит более 2000 текстовых блоков. Разделите его.",
+    "translation": "the document contains more than 2,000 text blocks. Split it into smaller files."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 4567,
+    "end": 4638,
+    "type": "Literal",
+    "source": "плавающие таблицы и обратный порядок столбцов пока не поддерживаются.",
+    "translation": "floating tables and reversed column order are not yet supported."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 4808,
+    "end": 4870,
+    "type": "Literal",
+    "source": "поддерживаются таблицы с сеткой до 64 столбцов и 1000 строк.",
+    "translation": "tables with a grid of up to 64 columns and 1,000 rows are supported."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 6890,
+    "end": 6947,
+    "type": "Literal",
+    "source": "таблицы с пропущенными ячейками пока не поддерживаются.",
+    "translation": "tables with omitted cells are not yet supported."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 7339,
+    "end": 7413,
+    "type": "Literal",
+    "source": "эта разновидность объединения или поворота ячеек пока не поддерживается.",
+    "translation": "this type of cell merging or rotation is not yet supported."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 7659,
+    "end": 7692,
+    "type": "Literal",
+    "source": "некорректное объединение ячеек.",
+    "translation": "invalid cell merge."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 7828,
+    "end": 7856,
+    "type": "Literal",
+    "source": "ячейка не содержит абзаца.",
+    "translation": "the cell contains no paragraph."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 8011,
+    "end": 8053,
+    "type": "Literal",
+    "source": "нарушено вертикальное объединение ячеек.",
+    "translation": "the vertical cell merge is invalid."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 8485,
+    "end": 8556,
+    "type": "Literal",
+    "source": "скрытое содержимое продолжения объединённой ячейки не поддерживается.",
+    "translation": "hidden content in a continuation of a merged cell is not supported."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 10563,
+    "end": 10608,
+    "type": "Literal",
+    "source": "число ячеек не соответствует сетке таблицы.",
+    "translation": "the cell count does not match the table grid."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 10802,
+    "end": 10963,
+    "type": "Literal",
+    "source": "Добавление, удаление и перенос отдельных абзацев и столбцов таблицы пока недоступны. Чтобы добавить или удалить целую строку, используйте кнопки строк таблицы.",
+    "translation": "Adding, deleting, and moving individual paragraphs and table columns are not yet available. To add or delete an entire row, use the table row buttons."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 12929,
+    "end": 12963,
+    "type": "Literal",
+    "source": "некорректный план строк таблицы.",
+    "translation": "invalid table row plan."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 13395,
+    "end": 13458,
+    "type": "Literal",
+    "source": "документ содержит более 2000 текстовых блоков. Разделите его.",
+    "translation": "the document contains more than 2,000 text blocks. Split it into smaller files."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 15358,
+    "end": 15440,
+    "type": "Literal",
+    "source": "Строки с вертикальным объединением нельзя использовать как образец новой строки.",
+    "translation": "Rows with vertically merged cells cannot be used as templates for new rows."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 15783,
+    "end": 15841,
+    "type": "Literal",
+    "source": "Нельзя вставить строку внутри вертикального объединения.",
+    "translation": "You cannot insert a row inside a vertical merge."
+  },
+  {
+    "file": "docx-structure.mjs",
+    "start": 16387,
+    "end": 16439,
+    "type": "Literal",
+    "source": "Строку с вертикальным объединением нельзя удалить.",
+    "translation": "You cannot delete a row with vertically merged cells."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 495,
+    "end": 529,
+    "type": "Literal",
+    "source": "Сохранённая редакция повреждена.",
+    "translation": "The saved revision is damaged."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 579,
+    "end": 660,
+    "type": "Literal",
+    "source": "Этой строки нет в документе. Отмените удаление или перенесите документ целиком.",
+    "translation": "This row is missing from the document. Undo the deletion or copy the entire document."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 1417,
+    "end": 1463,
+    "type": "Literal",
+    "source": "Нужна завершённая проверка Word с таблицами.",
+    "translation": "A completed Word comparison with tables is required."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 4345,
+    "end": 4398,
+    "type": "Literal",
+    "source": "Редакция слишком велика: максимум 500 000 символов.",
+    "translation": "The revision is too large: the limit is 500,000 characters."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 5560,
+    "end": 5680,
+    "type": "Literal",
+    "source": "Чтобы убрать строку таблицы, нажмите «Удалить строку». Для восстановления чужой структуры перенесите документ целиком.",
+    "translation": "To remove a table row, click \"Delete row\". To restore the other document's structure, copy the entire document."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 5734,
+    "end": 5772,
+    "type": "Literal",
+    "source": "Текст фрагмента должен быть строкой.",
+    "translation": "The block text must be a string."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 5817,
+    "end": 5919,
+    "type": "Literal",
+    "source": "Этот фрагмент содержит несколько абзацев. Измените отдельную ячейку или перенесите документ целиком.",
+    "translation": "This block contains multiple paragraphs. Edit an individual cell or copy the entire document."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 6218,
+    "end": 6246,
+    "type": "Literal",
+    "source": "Строка таблицы не найдена.",
+    "translation": "Table row not found."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 6467,
+    "end": 6495,
+    "type": "Literal",
+    "source": "Строка таблицы не найдена.",
+    "translation": "Table row not found."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 6536,
+    "end": 6616,
+    "type": "Literal",
+    "source": "Строки с вертикально объединёнными ячейками пока нельзя добавлять или удалять.",
+    "translation": "Rows with vertically merged cells cannot yet be added or deleted."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 7041,
+    "end": 7110,
+    "type": "Literal",
+    "source": "Достигнут предел новых строк этой редакции. Начните новую проверку.",
+    "translation": "The new-row limit for this revision has been reached. Start a new comparison."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 7262,
+    "end": 7298,
+    "type": "Literal",
+    "source": "Нужен список фрагментов документа.",
+    "translation": "A list of document blocks is required."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 7513,
+    "end": 7581,
+    "type": "Literal",
+    "source": "У документов разная структура таблиц. Переносите текст по ячейкам.",
+    "translation": "The documents have different table structures. Copy text one cell at a time."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 7774,
+    "end": 7841,
+    "type": "Literal",
+    "source": "Порядок фрагментов не соответствует таблицам исходного документа.",
+    "translation": "The block order does not match the tables in the original document."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 8778,
+    "end": 8839,
+    "type": "Literal",
+    "source": "У документов разная структура. Переносите текст по ячейкам.",
+    "translation": "The documents have different structures. Copy text one cell at a time."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 9104,
+    "end": 9165,
+    "type": "Literal",
+    "source": "У документов разная структура. Переносите текст по ячейкам.",
+    "translation": "The documents have different structures. Copy text one cell at a time."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 9339,
+    "end": 9398,
+    "type": "Literal",
+    "source": "Для переноса строки нужны два документа Word с таблицами.",
+    "translation": "Copying a row requires two Word documents with tables."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 9501,
+    "end": 9569,
+    "type": "Literal",
+    "source": "У документов разная структура таблиц. Переносите текст по ячейкам.",
+    "translation": "The documents have different table structures. Copy text one cell at a time."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 9963,
+    "end": 10013,
+    "type": "Literal",
+    "source": "Выберите ячейку добавленной строки для переноса.",
+    "translation": "Select a cell in the added row to copy."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 10439,
+    "end": 10529,
+    "type": "Literal",
+    "source": "У этой строки другая структура в двух документах. Отмените её изменение перед переносом.",
+    "translation": "This row has different structures in the two documents. Undo its changes before copying."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 10606,
+    "end": 10650,
+    "type": "Literal",
+    "source": "В таблице может быть не больше 1000 строк.",
+    "translation": "A table can contain no more than 1,000 rows."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 10729,
+    "end": 10786,
+    "type": "Literal",
+    "source": "В документе может быть не больше 2000 текстовых блоков.",
+    "translation": "A document can contain no more than 2,000 text blocks."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 11205,
+    "end": 11314,
+    "type": "Literal",
+    "source": "Не удалось найти место для строки: соседние исходные строки удалены. Отмените удаление и повторите перенос.",
+    "translation": "Could not find a position for the row because the neighboring original rows were deleted. Undo the deletion and try copying again."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 11429,
+    "end": 11522,
+    "type": "Literal",
+    "source": "Порядок соседних строк в документах отличается. Отмените изменение порядка перед переносом.",
+    "translation": "The neighboring rows are in a different order in the two documents. Undo the reordering before copying."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 12334,
+    "end": 12393,
+    "type": "Literal",
+    "source": "Для переноса строки нужны два документа Word с таблицами.",
+    "translation": "Copying a row requires two Word documents with tables."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 12496,
+    "end": 12564,
+    "type": "Literal",
+    "source": "У документов разная структура таблиц. Переносите текст по ячейкам.",
+    "translation": "The documents have different table structures. Copy text one cell at a time."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 13005,
+    "end": 13047,
+    "type": "Literal",
+    "source": "Выберите ячейку исходной строки таблицы.",
+    "translation": "Select a cell in the original table row."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 13170,
+    "end": 13251,
+    "type": "Literal",
+    "source": "Выбранный фрагмент относится к нескольким строкам. Переносите текст по ячейкам.",
+    "translation": "The selected block spans multiple rows. Copy text one cell at a time."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 13573,
+    "end": 13655,
+    "type": "Literal",
+    "source": "В этой строке есть вертикально объединённые ячейки. Переносите текст по ячейкам.",
+    "translation": "This row contains vertically merged cells. Copy text one cell at a time."
+  },
+  {
+    "file": "docx-row-editor.mjs",
+    "start": 13894,
+    "end": 13979,
+    "type": "Literal",
+    "source": "Этой строки нет в одном из документов. Отмените удаление, чтобы перенести её текст.",
+    "translation": "This row is missing from one of the documents. Undo the deletion to copy its text."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 760,
+    "end": 807,
+    "type": "Literal",
+    "source": "Не удалось сохранить работу: неверные данные.",
+    "translation": "Could not save your work: invalid data."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 869,
+    "end": 916,
+    "type": "Literal",
+    "source": "Эта работа сохранена другой версией Кристины.",
+    "translation": "This work was saved by a different version of Compare These Texts."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 970,
+    "end": 1017,
+    "type": "Literal",
+    "source": "Не удалось сохранить работу: неверные данные.",
+    "translation": "Could not save your work: invalid data."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 3283,
+    "end": 3323,
+    "type": "Literal",
+    "source": "Работа слишком большая для сохранения.",
+    "translation": "This work is too large to save."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 3610,
+    "end": 3670,
+    "type": "Literal",
+    "source": "Сохранённую работу не удалось прочитать. Её можно удалить.",
+    "translation": "Could not read the saved work. You can delete it."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 3917,
+    "end": 3977,
+    "type": "Literal",
+    "source": "Сохранённую работу не удалось прочитать. Её можно удалить.",
+    "translation": "Could not read the saved work. You can delete it."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 4225,
+    "end": 4284,
+    "type": "Literal",
+    "source": "Браузер не разрешает сохранять работу на этом устройстве.",
+    "translation": "Your browser does not allow saving work on this device."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 4748,
+    "end": 4799,
+    "type": "Literal",
+    "source": "Закройте другие окна Кристины и попробуйте снова.",
+    "translation": "Close other Compare These Texts windows and try again."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 5217,
+    "end": 5267,
+    "type": "Literal",
+    "source": "Сохранение недоступно. Откройте Кристину заново.",
+    "translation": "Saving is unavailable. Reopen Compare These Texts."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 5617,
+    "end": 5647,
+    "type": "Literal",
+    "source": "Не удалось сохранить работу.",
+    "translation": "Could not save your work."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 6252,
+    "end": 6326,
+    "type": "Literal",
+    "source": "Эта работа изменилась в другом окне. Откройте сохранённую версию заново.",
+    "translation": "This work changed in another window. Reopen the saved version."
+  },
+  {
+    "file": "session-store.mjs",
+    "start": 6563,
+    "end": 6637,
+    "type": "Literal",
+    "source": "Эта работа изменилась в другом окне. Откройте сохранённую версию заново.",
+    "translation": "This work changed in another window. Reopen the saved version."
+  },
+  {
+    "file": "worker.mjs",
+    "start": 491,
+    "end": 523,
+    "type": "Literal",
+    "source": "Выберите экспорт XLSX или PDF.",
+    "translation": "Select XLSX or PDF export."
+  },
+  {
+    "file": "worker.mjs",
+    "start": 591,
+    "end": 629,
+    "type": "Literal",
+    "source": "Сначала завершите сверку документов.",
+    "translation": "Complete the document comparison first."
+  },
+  {
+    "file": "worker.mjs",
+    "start": 974,
+    "end": 1044,
+    "type": "Literal",
+    "source": "Отчёт превышает 16 MiB. Разделите исходные файлы и повторите сверку.",
+    "translation": "The report exceeds 16 MiB. Split the source files and compare again."
+  },
+  {
+    "file": "worker.mjs",
+    "start": 1395,
+    "end": 1402,
+    "type": "TemplateElement",
+    "source": "Формат ",
+    "translation": "Format "
+  },
+  {
+    "file": "worker.mjs",
+    "start": 1433,
+    "end": 1514,
+    "type": "TemplateElement",
+    "source": " пока не поддерживается. Для текста выберите TXT, DOCX или PDF с текстовым слоем.",
+    "translation": " is not yet supported. For text, select TXT, DOCX, or PDF files with a text layer."
+  },
+  {
+    "file": "worker.mjs",
+    "start": 1707,
+    "end": 1798,
+    "type": "Literal",
+    "source": "Для текста загрузите два файла TXT, DOCX или PDF. Таблицы CSV/XLSX сравниваются отдельно.",
+    "translation": "For text, upload two TXT, DOCX, or PDF files. CSV/XLSX tables are compared separately."
+  },
+  {
+    "file": "worker.mjs",
+    "start": 2154,
+    "end": 2177,
+    "type": "Literal",
+    "source": "Неизвестная операция.",
+    "translation": "Unknown operation."
+  },
+  {
+    "file": "worker.mjs",
+    "start": 2707,
+    "end": 2730,
+    "type": "Literal",
+    "source": "Неизвестная операция.",
+    "translation": "Unknown operation."
+  },
+  {
+    "file": "text-zip.mjs",
+    "start": 678,
+    "end": 729,
+    "type": "Literal",
+    "source": "Некорректный DOCX/ZIP. Сохраните документ заново.",
+    "translation": "Invalid DOCX/ZIP. Save the document again."
+  },
+  {
+    "file": "text-zip.mjs",
+    "start": 2062,
+    "end": 2123,
+    "type": "Literal",
+    "source": "DOCX после распаковки превышает 16 МиБ. Разделите документ.",
+    "translation": "The uncompressed DOCX exceeds 16 MiB. Split the document into smaller files."
+  }
+]

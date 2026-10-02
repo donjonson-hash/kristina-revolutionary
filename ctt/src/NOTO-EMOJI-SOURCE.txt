@@ -1,0 +1,7 @@
+Noto Emoji TrueType, static weight 400, bundled for offline PDF export.
+Source: https://github.com/google/fonts/tree/main/ofl/notoemoji
+Original: NotoEmoji[wght].ttf, retrieved 2026-10-02
+Original SHA256: de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551
+Derived with fontTools.varLib.instancer.instantiateVariableFont(font, {"wght": 400}).
+Bundled TTF SHA256: d7dc093084fc7673a47e678ea0ea19fcd976a0895963eaabfb2feea7893f8939
+License: SIL Open Font License 1.1; see NOTO-EMOJI-LICENSE.txt.

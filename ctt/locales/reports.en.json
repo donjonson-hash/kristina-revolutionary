@@ -1,0 +1,1598 @@
+[
+  {
+    "file": "report.mjs",
+    "start": 5984,
+    "end": 5999,
+    "type": "Literal",
+    "source": "не рассчитано",
+    "translation": "not calculated"
+  },
+  {
+    "file": "report.mjs",
+    "start": 6262,
+    "end": 6334,
+    "type": "TemplateElement",
+    "source": "<section class=\"commercial\"><h2>Количество, цена и сумма</h2><p><strong>",
+    "translation": "<section class=\"commercial\"><h2>Quantity, price, and amount</h2><p><strong>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 6359,
+    "end": 6382,
+    "type": "TemplateElement",
+    "source": "</strong> · рассчитано ",
+    "translation": "</strong> · calculated for "
+  },
+  {
+    "file": "report.mjs",
+    "start": 6410,
+    "end": 6414,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "report.mjs",
+    "start": 6439,
+    "end": 6452,
+    "type": "TemplateElement",
+    "source": " позиций.</p>",
+    "translation": " items.</p>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 6528,
+    "end": 6542,
+    "type": "Literal",
+    "source": "не проверено",
+    "translation": "not checked"
+  },
+  {
+    "file": "report.mjs",
+    "start": 6595,
+    "end": 6609,
+    "type": "Literal",
+    "source": "не проверено",
+    "translation": "not checked"
+  },
+  {
+    "file": "report.mjs",
+    "start": 6466,
+    "end": 6491,
+    "type": "TemplateElement",
+    "source": "<p>Изменение количества: ",
+    "translation": "<p>Quantity changes: "
+  },
+  {
+    "file": "report.mjs",
+    "start": 6543,
+    "end": 6561,
+    "type": "TemplateElement",
+    "source": "; изменение цены: ",
+    "translation": "; price changes: "
+  },
+  {
+    "file": "report.mjs",
+    "start": 6610,
+    "end": 6624,
+    "type": "TemplateElement",
+    "source": "; только в A: ",
+    "translation": "; only in A: "
+  },
+  {
+    "file": "report.mjs",
+    "start": 6651,
+    "end": 6665,
+    "type": "TemplateElement",
+    "source": "; только в B: ",
+    "translation": "; only in B: "
+  },
+  {
+    "file": "report.mjs",
+    "start": 6981,
+    "end": 7028,
+    "type": "Literal",
+    "source": " По рассчитанной части, не итог всех позиций.",
+    "translation": " Based on the calculated items, not the total for all items."
+  },
+  {
+    "file": "report.mjs",
+    "start": 6890,
+    "end": 6917,
+    "type": "TemplateElement",
+    "source": "; изменение B − A: <strong>",
+    "translation": "; change B − A: <strong>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 7244,
+    "end": 7480,
+    "type": "Literal",
+    "source": "<details><summary>Расчёт по позициям и исходные строки</summary><div class=\"commercial-table\"><table><thead><tr><th>Ключ / наличие</th><th>Сумма A</th><th>Сумма B</th><th>B − A</th><th>Валюта</th><th>Источники</th></tr></thead><tbody>",
+    "translation": "<details><summary>Item calculations and source rows</summary><div class=\"commercial-table\"><table><thead><tr><th>Key / presence</th><th>Amount A</th><th>Amount B</th><th>B − A</th><th>Currency</th><th>Sources</th></tr></thead><tbody>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 7653,
+    "end": 7666,
+    "type": "TemplateElement",
+    "source": ": нет позиции",
+    "translation": ": item missing"
+  },
+  {
+    "file": "report.mjs",
+    "start": 7815,
+    "end": 7822,
+    "type": "TemplateElement",
+    "source": "строка ",
+    "translation": "row "
+  },
+  {
+    "file": "report.mjs",
+    "start": 8131,
+    "end": 8367,
+    "type": "Literal",
+    "source": "</tbody></table></div><p>Для позиции без пары отсутствующая сторона даёт нулевой вклад в сумму списка; это не утверждение о количестве товара или поставке. Исходные значения количества и цены приведены ниже в документах.</p></details>",
+    "translation": "</tbody></table></div><p>For an unpaired item, the missing side contributes zero to the list total; this does not indicate the quantity of goods or whether they were delivered. Original quantity and price values appear in the documents below.</p></details>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 8418,
+    "end": 8477,
+    "type": "Literal",
+    "source": "<details open><summary>Не включены в расчёт</summary><ul>",
+    "translation": "<details open><summary>Excluded from calculation</summary><ul>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 8827,
+    "end": 8845,
+    "type": "Literal",
+    "source": "Сверка завершена",
+    "translation": "Comparison complete"
+  },
+  {
+    "file": "report.mjs",
+    "start": 8848,
+    "end": 8890,
+    "type": "Literal",
+    "source": "Нужно уточнение — сравнение не выполнено",
+    "translation": "Clarification needed — comparison not performed"
+  },
+  {
+    "file": "report.mjs",
+    "start": 9265,
+    "end": 9291,
+    "type": "TemplateElement",
+    "source": " — Кристина</title><style>",
+    "translation": " — Compare These Texts</title><style>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 9338,
+    "end": 9399,
+    "type": "TemplateElement",
+    "source": "</h1><p>Изменения выделены цветом: слева — A, справа — B.</p>",
+    "translation": "</h1><p>Changes are highlighted: A on the left, B on the right.</p>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 9537,
+    "end": 9561,
+    "type": "Literal",
+    "source": "<h2>Уточнения</h2><ul>",
+    "translation": "<h2>Clarifications</h2><ul>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 9924,
+    "end": 10012,
+    "type": "Literal",
+    "source": "</div><p>Сравниваются выбранные поля. Номер строки указан рядом с каждой позицией.</p>",
+    "translation": "</div><p>Selected fields are compared. The row number appears next to each item.</p>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 10139,
+    "end": 10259,
+    "type": "Literal",
+    "source": "<p><strong>Нет сопоставленных позиций.</strong> Проверьте ключи: отсутствие пар не означает совпадение документов.</p>",
+    "translation": "<p><strong>No matching items.</strong> Check the keys: a lack of matched pairs does not mean the documents are identical.</p>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 10714,
+    "end": 10780,
+    "type": "Literal",
+    "source": "<p class=\"empty\">Запись с этим ключом отсутствует.</p></article>",
+    "translation": "<p class=\"empty\">No record with this key.</p></article>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 10844,
+    "end": 10852,
+    "type": "Literal",
+    "source": "Лист «",
+    "translation": "Sheet «"
+  },
+  {
+    "file": "report.mjs",
+    "start": 10875,
+    "end": 10888,
+    "type": "Literal",
+    "source": "» · строка ",
+    "translation": "» · row "
+  },
+  {
+    "file": "report.mjs",
+    "start": 10891,
+    "end": 10909,
+    "type": "Literal",
+    "source": "Исходная запись ",
+    "translation": "Source record "
+  },
+  {
+    "file": "report.mjs",
+    "start": 11705,
+    "end": 11714,
+    "type": "TemplateElement",
+    "source": "Только в ",
+    "translation": "Only in "
+  },
+  {
+    "file": "report.mjs",
+    "start": 11722,
+    "end": 11742,
+    "type": "TemplateElement",
+    "source": " — парной записи нет",
+    "translation": " — no paired record"
+  },
+  {
+    "file": "report.mjs",
+    "start": 11778,
+    "end": 11800,
+    "type": "TemplateElement",
+    "source": "Отличается · значение ",
+    "translation": "Different · value "
+  },
+  {
+    "file": "report.mjs",
+    "start": 11871,
+    "end": 11891,
+    "type": "Literal",
+    "source": "Ключ сопоставления",
+    "translation": "Matching key"
+  },
+  {
+    "file": "report.mjs",
+    "start": 11946,
+    "end": 11963,
+    "type": "Literal",
+    "source": "Не сравнивалось",
+    "translation": "Not compared"
+  },
+  {
+    "file": "report.mjs",
+    "start": 12027,
+    "end": 12048,
+    "type": "Literal",
+    "source": "Совпадает как число",
+    "translation": "Matches numerically"
+  },
+  {
+    "file": "report.mjs",
+    "start": 12051,
+    "end": 12083,
+    "type": "Literal",
+    "source": "Совпадает по правилу сравнения",
+    "translation": "Matches under the comparison rule"
+  },
+  {
+    "file": "report.mjs",
+    "start": 12118,
+    "end": 12138,
+    "type": "Literal",
+    "source": "Пустое значение · ",
+    "translation": "Empty value · "
+  },
+  {
+    "file": "report.mjs",
+    "start": 12741,
+    "end": 12761,
+    "type": "Literal",
+    "source": "<h2>Документы</h2>",
+    "translation": "<h2>Documents</h2>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 12796,
+    "end": 12839,
+    "type": "Literal",
+    "source": "<p>В обоих файлах нет записей данных.</p>",
+    "translation": "<p>Neither file contains data records.</p>"
+  },
+  {
+    "file": "report.mjs",
+    "start": 12934,
+    "end": 12964,
+    "type": "TemplateElement",
+    "source": "\"><h3>Ключ: <span class=\"key\">",
+    "translation": "\"><h3>Key: <span class=\"key\">"
+  },
+  {
+    "file": "report.mjs",
+    "start": 13485,
+    "end": 13509,
+    "type": "TemplateElement",
+    "source": ": проверен только лист «",
+    "translation": ": checked only sheet «"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 2770,
+    "end": 3118,
+    "type": "TemplateElement",
+    "source": "<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\"><title>Сверка текста — Кристина</title><style>",
+    "translation": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'none'; connect-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\"><title>Text comparison — Compare These Texts</title><style>"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 3126,
+    "end": 3318,
+    "type": "TemplateElement",
+    "source": "</style></head><body><main><h1>Сравнение документов</h1><p>Изменения выделены цветом: слева — A, справа — B.</p><p class=\"note\">Сравнивается текст; оформление и изображения не проверяются.</p>",
+    "translation": "</style></head><body><main><h1>Document comparison</h1><p>Changes are highlighted: A on the left, B on the right.</p><p class=\"note\">Text is compared; formatting and images are not checked.</p>"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 3968,
+    "end": 4036,
+    "type": "Literal",
+    "source": "<p>В извлечённом тексте обоих файлов нет блоков для сравнения.</p>",
+    "translation": "<p>The text extracted from both files contains no blocks to compare.</p>"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 4295,
+    "end": 4363,
+    "type": "Literal",
+    "source": "<p class=\"note\">Текстового блока с этой стороны нет.</p></section>",
+    "translation": "<p class=\"note\">No text block on this side.</p></section>"
+  },
+  {
+    "file": "text-report.mjs",
+    "start": 5149,
+    "end": 5193,
+    "type": "Literal",
+    "source": "<p class=\"note\">Пустой текстовый блок.</p>",
+    "translation": "<p class=\"note\">Empty text block.</p>"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 346,
+    "end": 426,
+    "type": "Literal",
+    "source": "PDF слишком большой. Разделите документы или сохраните полный отчёт HTML/JSON.",
+    "translation": "The PDF is too large. Split the documents or save the full HTML/JSON report."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 833,
+    "end": 848,
+    "type": "Literal",
+    "source": "не рассчитано",
+    "translation": "not calculated"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 929,
+    "end": 937,
+    "type": "Literal",
+    "source": "лист «",
+    "translation": "sheet «"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 997,
+    "end": 1008,
+    "type": "Literal",
+    "source": ", ячейки ",
+    "translation": ", cells "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 963,
+    "end": 970,
+    "type": "TemplateElement",
+    "source": "строка ",
+    "translation": "row "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 1056,
+    "end": 1069,
+    "type": "Literal",
+    "source": "позиции нет",
+    "translation": "item missing"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 1634,
+    "end": 1661,
+    "type": "Literal",
+    "source": "Кристина · отчёт о сверке",
+    "translation": "Compare These Texts · comparison report"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 1716,
+    "end": 1778,
+    "type": "Literal",
+    "source": "Сравнивается текст; оформление и изображения не проверяются.",
+    "translation": "Text is compared; formatting and images are not checked."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 1781,
+    "end": 1811,
+    "type": "Literal",
+    "source": "Сравниваются выбранные поля.",
+    "translation": "Selected fields are compared."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 1836,
+    "end": 1848,
+    "type": "TemplateElement",
+    "source": "Изменились: ",
+    "translation": "Changed: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 1873,
+    "end": 1887,
+    "type": "TemplateElement",
+    "source": "; только в A: ",
+    "translation": "; only in A: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 1914,
+    "end": 1928,
+    "type": "TemplateElement",
+    "source": "; только в B: ",
+    "translation": "; only in B: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 1956,
+    "end": 1967,
+    "type": "TemplateElement",
+    "source": "; совпали: ",
+    "translation": "; matched: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2089,
+    "end": 2133,
+    "type": "TemplateElement",
+    "source": "Отдельно: перемещено без изменения текста — ",
+    "translation": "Separately: moved without text changes — "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2161,
+    "end": 2200,
+    "type": "TemplateElement",
+    "source": "; групп с изменением переносов строк — ",
+    "translation": "; groups with changed line breaks — "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2244,
+    "end": 2271,
+    "type": "Literal",
+    "source": "Показаны только различия.",
+    "translation": "Only differences are shown."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2295,
+    "end": 2350,
+    "type": "Literal",
+    "source": "Красная подсветка — значение A; зелёная — значение B.",
+    "translation": "Red highlights show values from A; green highlights show values from B."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2559,
+    "end": 2583,
+    "type": "TemplateElement",
+    "source": ": проверен только лист «",
+    "translation": ": checked only sheet «"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2711,
+    "end": 2737,
+    "type": "Literal",
+    "source": "Количество, цена и сумма",
+    "translation": "Quantity, price, and amount"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2927,
+    "end": 2931,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 2956,
+    "end": 2977,
+    "type": "TemplateElement",
+    "source": " позиций. Исключено: ",
+    "translation": " items. Excluded: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 3105,
+    "end": 3119,
+    "type": "Literal",
+    "source": "не проверено",
+    "translation": "not checked"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 3172,
+    "end": 3186,
+    "type": "Literal",
+    "source": "не проверено",
+    "translation": "not checked"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 3046,
+    "end": 3068,
+    "type": "TemplateElement",
+    "source": "Изменение количества: ",
+    "translation": "Quantity changes: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 3120,
+    "end": 3138,
+    "type": "TemplateElement",
+    "source": "; изменение цены: ",
+    "translation": "; price changes: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 3409,
+    "end": 3437,
+    "type": "Literal",
+    "source": " Это не итог всех позиций.",
+    "translation": " This is not the total for all items."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 3553,
+    "end": 3576,
+    "type": "Literal",
+    "source": "Обнаруженные различия",
+    "translation": "Differences found"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 4181,
+    "end": 4206,
+    "type": "Literal",
+    "source": "Различий не обнаружено.",
+    "translation": "No differences found."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 4630,
+    "end": 4697,
+    "type": "Literal",
+    "source": "PDF: текст перемещённого фрагмента различается. Повторите сверку.",
+    "translation": "PDF: the text of a moved block differs. Run the comparison again."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 5105,
+    "end": 5133,
+    "type": "TemplateElement",
+    "source": ": сопоставленного блока нет.",
+    "translation": ": no matching block."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 5623,
+    "end": 5692,
+    "type": "Literal",
+    "source": "PDF: подсветка не соответствует исходному тексту. Повторите сверку.",
+    "translation": "PDF: highlights do not match the source text. Run the comparison again."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 5780,
+    "end": 5805,
+    "type": "Literal",
+    "source": "(Пустой текстовый блок)",
+    "translation": "(Empty text block)"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 6136,
+    "end": 6155,
+    "type": "Literal",
+    "source": "(пустое значение)",
+    "translation": "(empty value)"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 6241,
+    "end": 6260,
+    "type": "Literal",
+    "source": "(пустое значение)",
+    "translation": "(empty value)"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 6470,
+    "end": 6490,
+    "type": "TemplateElement",
+    "source": ". Парной записи нет.",
+    "translation": ". No paired record."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 6696,
+    "end": 6715,
+    "type": "Literal",
+    "source": "(пустое значение)",
+    "translation": "(empty value)"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 6857,
+    "end": 6877,
+    "type": "Literal",
+    "source": "Расчёт по позициям",
+    "translation": "Item calculations"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 7254,
+    "end": 7268,
+    "type": "TemplateElement",
+    "source": " — исключено: ",
+    "translation": " — excluded: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 7556,
+    "end": 7624,
+    "type": "Literal",
+    "source": "PDF доступен после завершённой сверки. Сначала уточните параметры.",
+    "translation": "PDF is available after a completed comparison. Clarify the settings first."
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 7940,
+    "end": 7967,
+    "type": "Literal",
+    "source": "Кристина — отчёт о сверке",
+    "translation": "Compare These Texts — comparison report"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 9376,
+    "end": 9406,
+    "type": "Literal",
+    "source": "КРИСТИНА / СВЕРКА ДОКУМЕНТОВ",
+    "translation": "CTT / DOCUMENT COMPARISON"
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 9723,
+    "end": 9738,
+    "type": "Literal",
+    "source": "Продолжение: ",
+    "translation": "Continued: "
+  },
+  {
+    "file": "pdf-report.mjs",
+    "start": 13916,
+    "end": 13927,
+    "type": "TemplateElement",
+    "source": "Кристина · ",
+    "translation": "CTT · "
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 574,
+    "end": 674,
+    "type": "Literal",
+    "source": "XLSX-отчёт слишком большой (лимит 16 MiB, 250 000 ячеек, 50 000 строк). Разделите исходные списки.",
+    "translation": "The XLSX report is too large (limit: 16 MiB, 250,000 cells, 50,000 rows). Split the source lists."
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1013,
+    "end": 1026,
+    "type": "Literal",
+    "source": "Нет позиции",
+    "translation": "Item missing"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1066,
+    "end": 1073,
+    "type": "TemplateElement",
+    "source": "запись ",
+    "translation": "record "
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1486,
+    "end": 1515,
+    "type": "Literal",
+    "source": "Кристина — результат сверки",
+    "translation": "Compare These Texts — comparison results"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1517,
+    "end": 1527,
+    "type": "Literal",
+    "source": "Значение",
+    "translation": "Value"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1539,
+    "end": 1556,
+    "type": "Literal",
+    "source": "Изменение B − A",
+    "translation": "Change B − A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1558,
+    "end": 1570,
+    "type": "Literal",
+    "source": "Источник A",
+    "translation": "Source A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1572,
+    "end": 1584,
+    "type": "Literal",
+    "source": "Источник B",
+    "translation": "Source B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1596,
+    "end": 1614,
+    "type": "Literal",
+    "source": "Область проверки",
+    "translation": "Comparison scope"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1616,
+    "end": 1690,
+    "type": "Literal",
+    "source": "Сравниваются выбранные поля. Исходные значения — на листах «Данные A/B».",
+    "translation": "Selected fields are compared. Original values are on the Data A and Data B sheets."
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1770,
+    "end": 1775,
+    "type": "TemplateElement",
+    "source": "Файл ",
+    "translation": "File "
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1858,
+    "end": 1863,
+    "type": "TemplateElement",
+    "source": "Лист ",
+    "translation": "Sheet "
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 1902,
+    "end": 1931,
+    "type": "Literal",
+    "source": "Другие листы не проверялись",
+    "translation": "Other sheets were not checked"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2060,
+    "end": 2078,
+    "type": "Literal",
+    "source": "Записей данных A",
+    "translation": "Data records A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2116,
+    "end": 2134,
+    "type": "Literal",
+    "source": "Записей данных B",
+    "translation": "Data records B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2214,
+    "end": 2231,
+    "type": "Literal",
+    "source": "Денежный расчёт",
+    "translation": "Amount calculation"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2233,
+    "end": 2248,
+    "type": "Literal",
+    "source": "Не выполнялся",
+    "translation": "Not performed"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2270,
+    "end": 2287,
+    "type": "Literal",
+    "source": "Денежный расчёт",
+    "translation": "Amount calculation"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2319,
+    "end": 2339,
+    "type": "Literal",
+    "source": "Рассчитано позиций",
+    "translation": "Items calculated"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2372,
+    "end": 2387,
+    "type": "Literal",
+    "source": "Всего позиций",
+    "translation": "Total items"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2417,
+    "end": 2436,
+    "type": "Literal",
+    "source": "Исключено позиций",
+    "translation": "Items excluded"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2469,
+    "end": 2491,
+    "type": "Literal",
+    "source": "Изменение количества",
+    "translation": "Quantity changes"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2522,
+    "end": 2536,
+    "type": "Literal",
+    "source": "Не проверено",
+    "translation": "Not checked"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2548,
+    "end": 2564,
+    "type": "Literal",
+    "source": "Изменение цены",
+    "translation": "Price changes"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2592,
+    "end": 2606,
+    "type": "Literal",
+    "source": "Не проверено",
+    "translation": "Not checked"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2618,
+    "end": 2645,
+    "type": "Literal",
+    "source": "Область денежного расчёта",
+    "translation": "Amount calculation scope"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2666,
+    "end": 2689,
+    "type": "Literal",
+    "source": "Отсутствующая позиция",
+    "translation": "Missing item"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2691,
+    "end": 2785,
+    "type": "Literal",
+    "source": "Ноль в сумме означает отсутствие вклада в список, а не нулевое количество или факт поставки.",
+    "translation": "A zero amount means no contribution to the list total, not a zero quantity or confirmation of delivery."
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2797,
+    "end": 2805,
+    "type": "Literal",
+    "source": "Валюты",
+    "translation": "Currencies"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2807,
+    "end": 2864,
+    "type": "Literal",
+    "source": "Итоги разных валют не складываются и не конвертируются.",
+    "translation": "Totals in different currencies are not added together or converted."
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2910,
+    "end": 2921,
+    "type": "Literal",
+    "source": "Пояснение",
+    "translation": "Explanation"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 2972,
+    "end": 3003,
+    "type": "Literal",
+    "source": "Итог по рассчитанным позициям",
+    "translation": "Total for calculated items"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3100,
+    "end": 3109,
+    "type": "TemplateElement",
+    "source": "Позиция: ",
+    "translation": "Item: "
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3340,
+    "end": 3351,
+    "type": "TemplateElement",
+    "source": "Исключена: ",
+    "translation": "Excluded: "
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3421,
+    "end": 3432,
+    "type": "Literal",
+    "source": "Результат",
+    "translation": "Result"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3434,
+    "end": 3440,
+    "type": "Literal",
+    "source": "Ключ",
+    "translation": "Key"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3442,
+    "end": 3453,
+    "type": "Literal",
+    "source": "Столбец A",
+    "translation": "Column A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3455,
+    "end": 3466,
+    "type": "Literal",
+    "source": "Столбец B",
+    "translation": "Column B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3468,
+    "end": 3480,
+    "type": "Literal",
+    "source": "Значение A",
+    "translation": "Value A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3482,
+    "end": 3494,
+    "type": "Literal",
+    "source": "Значение B",
+    "translation": "Value B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3496,
+    "end": 3506,
+    "type": "Literal",
+    "source": "Запись A",
+    "translation": "Record A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3508,
+    "end": 3516,
+    "type": "Literal",
+    "source": "Лист A",
+    "translation": "Sheet A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3518,
+    "end": 3528,
+    "type": "Literal",
+    "source": "Ячейка A",
+    "translation": "Cell A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3530,
+    "end": 3540,
+    "type": "Literal",
+    "source": "Запись B",
+    "translation": "Record B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3542,
+    "end": 3550,
+    "type": "Literal",
+    "source": "Лист B",
+    "translation": "Sheet B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 3552,
+    "end": 3562,
+    "type": "Literal",
+    "source": "Ячейка B",
+    "translation": "Cell B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 4079,
+    "end": 4100,
+    "type": "Literal",
+    "source": "См. лист «Данные A»",
+    "translation": "See the Data A sheet"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 4103,
+    "end": 4116,
+    "type": "Literal",
+    "source": "Нет позиции",
+    "translation": "Item missing"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 4137,
+    "end": 4158,
+    "type": "Literal",
+    "source": "См. лист «Данные B»",
+    "translation": "See the Data B sheet"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 4161,
+    "end": 4174,
+    "type": "Literal",
+    "source": "Нет позиции",
+    "translation": "Item missing"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 4430,
+    "end": 4447,
+    "type": "Literal",
+    "source": "Исходная запись",
+    "translation": "Source record"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 4449,
+    "end": 4464,
+    "type": "Literal",
+    "source": "Исходный лист",
+    "translation": "Source sheet"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 4466,
+    "end": 4504,
+    "type": "Literal",
+    "source": "Исходные ячейки (в порядке столбцов)",
+    "translation": "Source cells (in column order)"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 4915,
+    "end": 4997,
+    "type": "Literal",
+    "source": "XLSX-отчёт доступен после завершения сверки. Сначала уточните правила сравнения.",
+    "translation": "The XLSX report is available after the comparison is complete. Clarify the comparison rules first."
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 5046,
+    "end": 5144,
+    "type": "Literal",
+    "source": "XLSX-отчёт доступен только для сверки таблиц. Для текстовых документов используйте PDF или HTML.",
+    "translation": "XLSX reports are only available for table comparisons. Use PDF or HTML for text documents."
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 5786,
+    "end": 5794,
+    "type": "Literal",
+    "source": "Сводка",
+    "translation": "Summary"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 5866,
+    "end": 5876,
+    "type": "Literal",
+    "source": "Различия",
+    "translation": "Differences"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 5970,
+    "end": 5980,
+    "type": "Literal",
+    "source": "Данные A",
+    "translation": "Data A"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 6086,
+    "end": 6096,
+    "type": "Literal",
+    "source": "Данные B",
+    "translation": "Data B"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 6678,
+    "end": 6690,
+    "type": "TemplateElement",
+    "source": "XLSX: лист «",
+    "translation": "XLSX: sheet «"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 6697,
+    "end": 6809,
+    "type": "TemplateElement",
+    "source": "» содержит значение длиннее 32 767 символов. Используйте HTML/JSON или разделите данные; значения не обрезались.",
+    "translation": "» contains a value longer than 32,767 characters. Use HTML/JSON or split the data; values have not been truncated."
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 6918,
+    "end": 6930,
+    "type": "TemplateElement",
+    "source": "XLSX: лист «",
+    "translation": "XLSX: sheet «"
+  },
+  {
+    "file": "xlsx-report.mjs",
+    "start": 6937,
+    "end": 7026,
+    "type": "TemplateElement",
+    "source": "» содержит символ, недопустимый в XML. Используйте JSON; исходное значение не изменялось.",
+    "translation": "» contains a character that is invalid in XML. Use JSON; the original value has not been changed."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 847,
+    "end": 857,
+    "type": "Literal",
+    "source": "цена_руб",
+    "translation": "цена_руб",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2659,
+    "end": 2663,
+    "type": "Literal",
+    "source": "шт",
+    "translation": "шт",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2665,
+    "end": 2670,
+    "type": "Literal",
+    "source": "шт.",
+    "translation": "шт.",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2672,
+    "end": 2679,
+    "type": "Literal",
+    "source": "штука",
+    "translation": "штука",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2681,
+    "end": 2687,
+    "type": "Literal",
+    "source": "штук",
+    "translation": "штук",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2689,
+    "end": 2696,
+    "type": "Literal",
+    "source": "штуки",
+    "translation": "штуки",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2915,
+    "end": 2920,
+    "type": "Literal",
+    "source": "руб",
+    "translation": "руб",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2922,
+    "end": 2928,
+    "type": "Literal",
+    "source": "руб.",
+    "translation": "руб.",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2978,
+    "end": 2990,
+    "type": "Literal",
+    "source": "доллар сша",
+    "translation": "доллар сша",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 2992,
+    "end": 3005,
+    "type": "Literal",
+    "source": "доллары сша",
+    "translation": "доллары сша",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 3050,
+    "end": 3056,
+    "type": "Literal",
+    "source": "евро",
+    "translation": "евро",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4372,
+    "end": 4384,
+    "type": "Literal",
+    "source": "количество",
+    "translation": "quantity"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4397,
+    "end": 4403,
+    "type": "Literal",
+    "source": "цена",
+    "translation": "price"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4449,
+    "end": 4481,
+    "type": "TemplateElement",
+    "source": "Не выбраны однозначные столбцы «",
+    "translation": "No unambiguous columns selected for «"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4489,
+    "end": 4509,
+    "type": "TemplateElement",
+    "source": "» в числовом режиме.",
+    "translation": "» in numeric mode."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4557,
+    "end": 4566,
+    "type": "Literal",
+    "source": "единицы",
+    "translation": "units"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4582,
+    "end": 4590,
+    "type": "Literal",
+    "source": "валюты",
+    "translation": "currencies"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4601,
+    "end": 4606,
+    "type": "Literal",
+    "source": "НДС",
+    "translation": "VAT"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4623,
+    "end": 4638,
+    "type": "Literal",
+    "source": "включение НДС",
+    "translation": "VAT inclusion"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4657,
+    "end": 4668,
+    "type": "Literal",
+    "source": "база цены",
+    "translation": "price basis"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4770,
+    "end": 4793,
+    "type": "TemplateElement",
+    "source": "Неоднозначные столбцы: ",
+    "translation": "Ambiguous columns: "
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 4967,
+    "end": 5023,
+    "type": "Literal",
+    "source": "Ключ строки совпадает со столбцом количества или цены.",
+    "translation": "The row key is also the quantity or price column."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 7232,
+    "end": 7301,
+    "type": "Literal",
+    "source": "Нет общих ключей: подтвердите, что файлы относятся к одному списку.",
+    "translation": "No shared keys: confirm that the files refer to the same list."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 8145,
+    "end": 8159,
+    "type": "TemplateElement",
+    "source": ", количество: ",
+    "translation": ", quantity: "
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 8236,
+    "end": 8244,
+    "type": "TemplateElement",
+    "source": ", цена: ",
+    "translation": ", price: "
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 8375,
+    "end": 8426,
+    "type": "TemplateElement",
+    "source": ": укажите единицу измерения в столбце unit/единица.",
+    "translation": ": specify a unit of measure in the unit column."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 8666,
+    "end": 8705,
+    "type": "TemplateElement",
+    "source": ": валюта отсутствует или не распознана.",
+    "translation": ": currency is missing or not recognized."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 8788,
+    "end": 8834,
+    "type": "TemplateElement",
+    "source": ": валюта противоречит заголовку цены в рублях.",
+    "translation": ": the currency conflicts with the price column header indicating rubles."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 8953,
+    "end": 9029,
+    "type": "TemplateElement",
+    "source": ": укажите валюту в столбце currency/валюта или заголовке price_rub/цена_руб.",
+    "translation": ": specify a currency in the currency column or use the price_rub header."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 9172,
+    "end": 9184,
+    "type": "Literal",
+    "source": "за единицу",
+    "translation": "за единицу",
+    "reason": "Preserved input alias used for source header or value matching."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 9225,
+    "end": 9285,
+    "type": "TemplateElement",
+    "source": ": база цены требует пересчёта. Укажите цену за одну единицу.",
+    "translation": ": the price basis requires conversion. Specify the price per single unit."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 9447,
+    "end": 9500,
+    "type": "Literal",
+    "source": "Единицы A и B различаются; пересчёт не выполняется.",
+    "translation": "Units differ between A and B; no conversion is performed."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 9585,
+    "end": 9640,
+    "type": "Literal",
+    "source": "Валюты A и B различаются; конвертация не выполняется.",
+    "translation": "Currencies differ between A and B; no conversion is performed."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 9686,
+    "end": 9691,
+    "type": "Literal",
+    "source": "НДС",
+    "translation": "VAT"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 9708,
+    "end": 9723,
+    "type": "Literal",
+    "source": "Включение НДС",
+    "translation": "VAT inclusion"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 9742,
+    "end": 9753,
+    "type": "Literal",
+    "source": "База цены",
+    "translation": "Price basis"
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 10009,
+    "end": 10068,
+    "type": "TemplateElement",
+    "source": ": условия A и B различаются или не указаны с одной стороны.",
+    "translation": ": terms differ between A and B or are missing on one side."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 11512,
+    "end": 11625,
+    "type": "Literal",
+    "source": "Для позиции без пары ноль означает отсутствие вклада в сумму списка, а не нулевое количество или факт поставки.",
+    "translation": "For an unpaired item, zero means no contribution to the list total, not a zero quantity or confirmation of delivery."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 11685,
+    "end": 11712,
+    "type": "TemplateElement",
+    "source": "Расчёт частичный: включено ",
+    "translation": "Partial calculation: includes "
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 11734,
+    "end": 11738,
+    "type": "TemplateElement",
+    "source": " из ",
+    "translation": " of "
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 11755,
+    "end": 11802,
+    "type": "TemplateElement",
+    "source": " позиций. Исключённые строки не входят в суммы.",
+    "translation": " items. Excluded rows are not included in the totals."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 11883,
+    "end": 11951,
+    "type": "Literal",
+    "source": "Денежное влияние не рассчитано. Уточните причины исключения строк.",
+    "translation": "The change in amount was not calculated. Review the reasons for excluded rows."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 11954,
+    "end": 11987,
+    "type": "Literal",
+    "source": "В файлах нет строк для расчёта.",
+    "translation": "The files contain no rows to calculate."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 12048,
+    "end": 12070,
+    "type": "TemplateElement",
+    "source": "Расчёт охватывает все ",
+    "translation": "The calculation covers all "
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 12087,
+    "end": 12096,
+    "type": "TemplateElement",
+    "source": " позиций.",
+    "translation": " items."
+  },
+  {
+    "file": "commercial-summary.mjs",
+    "start": 12153,
+    "end": 12210,
+    "type": "Literal",
+    "source": "Итоги разных валют показаны отдельно и не складываются.",
+    "translation": "Totals in different currencies are shown separately and are not added together."
+  }
+]

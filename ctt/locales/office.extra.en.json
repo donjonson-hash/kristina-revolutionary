@@ -1,0 +1,138 @@
+[
+  {
+    "file": "office.js",
+    "start": 524,
+    "end": 560,
+    "type": "Literal",
+    "source": "Есть изменения в проверенных полях",
+    "translation": "Checked fields have changes"
+  },
+  {
+    "file": "office.js",
+    "start": 573,
+    "end": 590,
+    "type": "Literal",
+    "source": "Есть только в A",
+    "translation": "Only in A"
+  },
+  {
+    "file": "office.js",
+    "start": 604,
+    "end": 621,
+    "type": "Literal",
+    "source": "Есть только в B",
+    "translation": "Only in B"
+  },
+  {
+    "file": "office.js",
+    "start": 632,
+    "end": 658,
+    "type": "Literal",
+    "source": "Проверенные поля совпали",
+    "translation": "Checked fields match"
+  },
+  {
+    "file": "office.js",
+    "start": 1749,
+    "end": 1757,
+    "type": "TemplateElement",
+    "source": "Открыть ",
+    "translation": "Open "
+  },
+  {
+    "file": "office.js",
+    "start": 5099,
+    "end": 5132,
+    "type": "Literal",
+    "source": "Перемещено без изменения текста",
+    "translation": "Moved without text changes"
+  },
+  {
+    "file": "office.js",
+    "start": 5142,
+    "end": 5167,
+    "type": "Literal",
+    "source": "Изменены переносы строк",
+    "translation": "Line breaks changed"
+  },
+  {
+    "file": "office.js",
+    "start": 5178,
+    "end": 5195,
+    "type": "Literal",
+    "source": "Текст изменился",
+    "translation": "Text changed"
+  },
+  {
+    "file": "office.js",
+    "start": 5208,
+    "end": 5231,
+    "type": "Literal",
+    "source": "Текст есть только в A",
+    "translation": "Text only in A"
+  },
+  {
+    "file": "office.js",
+    "start": 5245,
+    "end": 5268,
+    "type": "Literal",
+    "source": "Текст есть только в B",
+    "translation": "Text only in B"
+  },
+  {
+    "file": "office.js",
+    "start": 5279,
+    "end": 5293,
+    "type": "Literal",
+    "source": "Текст совпал",
+    "translation": "Text matches"
+  },
+  {
+    "file": "office.js",
+    "start": 20458,
+    "end": 20488,
+    "type": "Literal",
+    "source": "Ключи найдены в обоих файлах",
+    "translation": "Keys found in both files"
+  },
+  {
+    "file": "office.js",
+    "start": 21339,
+    "end": 21366,
+    "type": "Literal",
+    "source": "Открыть совпавшие позиции",
+    "translation": "Open matching items"
+  },
+  {
+    "file": "office.js",
+    "start": 22001,
+    "end": 22007,
+    "type": "Literal",
+    "source": "Цена",
+    "translation": "Price"
+  },
+  {
+    "file": "office.js",
+    "start": 22019,
+    "end": 22031,
+    "type": "Literal",
+    "source": "Количество",
+    "translation": "Quantity"
+  },
+  {
+    "file": "office.js",
+    "start": 22039,
+    "end": 22058,
+    "type": "Literal",
+    "source": "Единица измерения",
+    "translation": "Unit"
+  },
+  {
+    "file": "office.js",
+    "start": 32485,
+    "end": 32513,
+    "type": "Literal",
+    "source": "Открыть изменённые позиции",
+    "translation": "Open changed items"
+  }
+]

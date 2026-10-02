@@ -1,0 +1,196 @@
+{
+  "notes": [
+    "Apply all replacements literally, preferably before/after catalog translations because these target unchanged regexes only.",
+    "Keep direct lookup, trimming, exact equality, normalization aliases, and routing order unchanged.",
+    "No Site files were edited.",
+    "Additional formatting recommendation: commercialMoney should use comma thousands and decimal point for US English, with exact string arithmetic preserved."
+  ],
+  "replacements": [
+    {
+      "old": "/^(?:покажи|найди|открой|расскажи про|что с)\\s+(?:(?:позици[яю]|блок|ключ)\\s+)?(text-\\d+)[?!.]*$/iu",
+      "new": "/^(?:покажи|найди|открой|расскажи про|что с|show|find|open|tell me about|what about)\\s+(?:(?:позици[яю]|блок|ключ|item|block|key)\\s+)?(text-\\d+)[?!.]*$/iu",
+      "count": 1,
+      "reason": "Recognize English text-block commands without changing the captured key or exact-key comparison."
+    },
+    {
+      "old": "/письм|черновик/",
+      "new": "/письм|черновик|\\b(?:letter|email|draft)\\b/",
+      "count": 4,
+      "reason": "Recognize English draft nouns."
+    },
+    {
+      "old": "/(?:^|\\s)(?:не|без)(?=\\s)|отмен/",
+      "new": "/(?:^|\\s)(?:не|без)(?=\\s)|отмен|\\b(?:no|not|never|without|cancel|stop)\\b|\\bdon[’\\x27]t\\b/",
+      "count": 2,
+      "reason": "Recognize draft negation before creating a draft."
+    },
+    {
+      "old": "/подготов|состав|напиш|сдела|черновик/",
+      "new": "/подготов|состав|напиш|сдела|черновик|\\b(?:prepare|compose|write|create|make|draft)\\b/",
+      "count": 2,
+      "reason": "Recognize Draft an email and Draft a letter."
+    },
+    {
+      "old": "/(?:абзац|строк[ауи]?|блок|позици[яю])\\s*№?\\s*(\\d+)/iu",
+      "new": "/(?:абзац|строк[ауи]?|блок|позици[яю]|\\b(?:paragraph|line|row|block|position))\\s*[№#]?\\s*(\\d+)/iu",
+      "count": 1,
+      "reason": "Recognize numbered paragraphs and blocks."
+    },
+    {
+      "old": "/(?:в|из|стороне|файле|документе)\\s+([abаб])(?=$|[\\s?.!,])/iu",
+      "new": "/(?:в|из|стороне|файле|документе|\\b(?:in|from|on|side|file|document))\\s+([abаб])(?=$|[\\s?.!,])/iu",
+      "count": 2,
+      "reason": "Recognize English A/B side references for paragraphs and pages."
+    },
+    {
+      "old": "/(?:страниц[аыуе]|стр\\.)\\s*№?\\s*(\\d+)/iu",
+      "new": "/(?:страниц[аыуе]|стр\\.|\\bpage)\\s*[№#]?\\s*(\\d+)/iu",
+      "count": 1,
+      "reason": "Recognize English page requests."
+    },
+    {
+      "old": "/^(?:найди|покажи|где|что с)\\s+(?:(?:фразу|фраза|текст)\\s+)?(.+?)\\??$/iu",
+      "new": "/^(?:найди|покажи|где|что с|find|show|where is|what about)\\s+(?:(?:фразу|фраза|текст|phrase|text)\\s+)?(.+?)\\??$/iu",
+      "count": 1,
+      "reason": "Recognize Find \"phrase\" and English phrase lookup."
+    },
+    {
+      "old": "/юрид|законн|правомер|орфограф|пунктуац|граммат|достовер|факт|смысл|правильн|вычит|риск|обязательств|винов|причин/",
+      "new": "/юрид|законн|правомер|орфограф|пунктуац|граммат|достовер|факт|смысл|правильн|вычит|риск|обязательств|винов|причин|\\b(?:legal|lawful|legality|spelling|punctuation|grammar|accuracy|facts?|meaning|correct|proofread|risks?|obligations?|blame|causes?)\\b/",
+      "count": 1,
+      "reason": "Preserve content-assessment limits for English requests."
+    },
+    {
+      "old": "/почему.*(?:равн|совпал|одинаков)|как.*(?:сравнив|сопостав)|правил|что проверял/",
+      "new": "/почему.*(?:равн|совпал|одинаков)|как.*(?:сравнив|сопостав)|правил|что проверял|\\bwhy\\b.*\\b(?:equal|match|same)\\b|\\bhow\\b.*\\b(?:compared?|matched?|comparison)\\b|\\brules?\\b|\\bwhat\\b.*\\bchecked\\b/",
+      "count": 1,
+      "reason": "Recognize English text comparison-rule questions."
+    },
+    {
+      "old": "/перемещ|перестав|порядок/",
+      "new": "/перемещ|перестав|порядок|\\b(?:moved?|reordered?|order)\\b/",
+      "count": 1,
+      "reason": "Recognize moved-text questions."
+    },
+    {
+      "old": "/перенос|разбиени[ея] строк/",
+      "new": "/перенос|разбиени[ея] строк|\\b(?:line breaks?|reflow|wrapping)\\b/",
+      "count": 1,
+      "reason": "Recognize line-break questions."
+    },
+    {
+      "old": "/добав|только\\s+(?:в\\s+)?[bб](?=$|[\\s?!.])/",
+      "new": "/добав|только\\s+(?:в\\s+)?[bб](?=$|[\\s?!.])|\\b(?:added|additions?)\\b|\\bonly\\s+(?:in\\s+)?b\\b/",
+      "count": 1,
+      "reason": "Recognize What was added? and Only in B."
+    },
+    {
+      "old": "/удал|только\\s+(?:в\\s+)?[aа](?=$|[\\s?!.])/",
+      "new": "/удал|только\\s+(?:в\\s+)?[aа](?=$|[\\s?!.])|\\b(?:deleted|removed|deletions?)\\b|\\bonly\\s+(?:in\\s+)?a\\b/",
+      "count": 1,
+      "reason": "Recognize What was deleted? and Only in A."
+    },
+    {
+      "old": "/отсутств|без пары/",
+      "new": "/отсутств|без пары|\\b(?:missing|unmatched)\\b|\\bwithout a match\\b/",
+      "count": 1,
+      "reason": "Recognize What is missing? for text reports."
+    },
+    {
+      "old": "/^(?:что изменилось|что поменялось|какие (?:есть )?(?:различия|изменения|расхождения)|итог|результат|сводка|что получилось|объясни (?:результат|сверку))[?.! ]*$/",
+      "new": "/^(?:что изменилось|что поменялось|какие (?:есть )?(?:различия|изменения|расхождения)|итог|результат|сводка|что получилось|объясни (?:результат|сверку)|what (?:has )?changed|what (?:are the )?(?:differences|changes)|summary|results?|summarize(?: the results)?|explain (?:the )?(?:results?|comparison))[?.! ]*$/",
+      "count": 2,
+      "reason": "Recognize What changed? and Explain the results in both report types."
+    },
+    {
+      "old": "/^(?:покажи|найди|открой|расскажи про|что с|почему совпал[аи]?|почему изменил[ао]сь)\\s+(?:(?:позици(?:ю|я|ей)|артикул|ключ)\\s+)?(.+?)\\??$/iu",
+      "new": "/^(?:покажи|найди|открой|расскажи про|что с|почему совпал[аи]?|почему изменил[ао]сь|show|find|open|tell me about|what about|why did)\\s+(?:(?:позици(?:ю|я|ей)|артикул|ключ|item|sku|key)\\s+)?(.+?)\\??$/iu",
+      "count": 1,
+      "reason": "Recognize English exact-key lookup; keep original direct lookup before intent parsing."
+    },
+    {
+      "old": "/^(?:как изменилась сумма|что с суммой|влияние на сумму|покажи влияние на сумму|на сколько(?: (?:стало|стали|в b|в б|второй файл))? (?:дороже|дешевле)|на сколько изменилась сумма)[?!. ]*$/",
+      "new": "/^(?:как изменилась сумма|что с суммой|влияние на сумму|покажи влияние на сумму|на сколько(?: (?:стало|стали|в b|в б|второй файл))? (?:дороже|дешевле)|на сколько изменилась сумма|how did (?:the )?total change|what (?:is|was) (?:the )?(?:financial impact|total change)|show (?:the )?financial impact|how much (?:more|less) expensive(?: is b)?)[?!. ]*$/",
+      "count": 1,
+      "reason": "Recognize How did the total change? and financial-impact questions."
+    },
+    {
+      "old": "/почему.*(?:равн|совпал|одинаков|эквивалент)|как.*(?:сравнив|сопостав)|правил|что проверял/",
+      "new": "/почему.*(?:равн|совпал|одинаков|эквивалент)|как.*(?:сравнив|сопостав)|правил|что проверял|\\bwhy\\b.*\\b(?:equal|match|same|equivalent)\\b|\\bhow\\b.*\\b(?:compared?|matched?|comparison)\\b|\\brules?\\b|\\bwhat\\b.*\\bchecked\\b/",
+      "count": 1,
+      "reason": "Recognize Why do they match? and tabular comparison-rule questions."
+    },
+    {
+      "old": "/^(?:что с|проверял(?:ось|ась|ся|и) ли|сравнивал(?:ось|ась|ся|и) ли)\\s+(?:полем |поле |столбцом |столбец )?(.+?)[?!.]*$/iu",
+      "new": "/^(?:что с|проверял(?:ось|ась|ся|и) ли|сравнивал(?:ось|ась|ся|и) ли|what about|was|did you (?:check|compare))\\s+(?:полем |поле |столбцом |столбец |(?:the )?(?:field|column) )?(.+?)(?: (?:checked|compared))?[?!.]*$/iu",
+      "count": 1,
+      "reason": "Recognize questions about specific columns while preserving the header capture."
+    },
+    {
+      "old": "/цен|стоимост|\\bprice\\b/",
+      "new": "/цен|стоимост|\\b(?:prices?|costs?)\\b/",
+      "count": 1,
+      "reason": "Recognize plural prices."
+    },
+    {
+      "old": "/количеств|\\bqty\\b|\\bquantity\\b/",
+      "new": "/количеств|\\b(?:qty|quantity|quantities)\\b/",
+      "count": 1,
+      "reason": "Recognize quantities."
+    },
+    {
+      "old": "/единиц|\\bunit\\b/",
+      "new": "/единиц|\\bunits?\\b/",
+      "count": 1,
+      "reason": "Recognize units."
+    },
+    {
+      "old": "/^(?:покажи |проверь )?(?:цен[аыуе]|количество|единиц[аыуе](?: измерения)?)[?!. ]*$/.test(q)",
+      "new": "/^(?:покажи |проверь )?(?:цен[аыуе]|количество|единиц[аыуе](?: измерения)?)[?!. ]*$/.test(q) || /^(?:(?:what|how) (?:about|are) (?:the )?|(?:where|what|which|are there|show|check)\\b.*\\b(?:chang(?:e|ed|es)|differences?|match(?:es)?|differ(?:ent)?)|(?:show |check )?(?:prices?|costs?|quantity|quantities|qty|units?)[?!. ]*$)/.test(q)",
+      "count": 1,
+      "reason": "Add English field intent, including Where did the price change? and What about prices?."
+    },
+    {
+      "old": "/прогноз|завтра|погод|анекдот|будет|ожида|через|совет/",
+      "new": "/прогноз|завтра|погод|анекдот|будет|ожида|через|совет|\\b(?:forecast|tomorrow|weather|joke|future|expect|advice|predict)\\b/",
+      "count": 1,
+      "reason": "Maintain out-of-scope English request filter."
+    },
+    {
+      "old": "/почему|причин|винов|потер|убыт|правильн|справедлив/",
+      "new": "/почему|причин|винов|потер|убыт|правильн|справедлив|\\b(?:why|causes?|reasons?|blame|loss(?:es)?|correct|fair)\\b/",
+      "count": 2,
+      "reason": "Avoid inventing English explanations of causes, blame, or correctness."
+    },
+    {
+      "old": "/^что не подтвердил поставщик[?!. ]*$/",
+      "new": "/^(?:что не подтвердил поставщик|what did (?:the )?supplier not confirm)[?!. ]*$/",
+      "count": 1,
+      "reason": "Support the supplier-confirmation question."
+    },
+    {
+      "old": "/только\\s+(?:в\\s+)?[aа](?=$|[\\s?!.])|нет\\s+(?:в\\s+)?[bб](?=$|[\\s?!.])/iu",
+      "new": "/только\\s+(?:в\\s+)?[aа](?=$|[\\s?!.])|нет\\s+(?:в\\s+)?[bб](?=$|[\\s?!.])|\\bonly\\s+(?:in\\s+)?a\\b|\\b(?:missing|not)\\s+(?:in|from)\\s+b\\b/iu",
+      "count": 1,
+      "reason": "Recognize English side-specific membership questions."
+    },
+    {
+      "old": "/только\\s+(?:в\\s+)?[bб](?=$|[\\s?!.])|нет\\s+(?:в\\s+)?[aа](?=$|[\\s?!.])/iu",
+      "new": "/только\\s+(?:в\\s+)?[bб](?=$|[\\s?!.])|нет\\s+(?:в\\s+)?[aа](?=$|[\\s?!.])|\\bonly\\s+(?:in\\s+)?b\\b|\\b(?:missing|not)\\s+(?:in|from)\\s+a\\b/iu",
+      "count": 1,
+      "reason": "Recognize English side-specific membership questions."
+    },
+    {
+      "old": "/отсутств|добавлен|удален|без пары|не хватает|не найден/",
+      "new": "/отсутств|добавлен|удален|без пары|не хватает|не найден|\\b(?:missing|added|deleted|removed|unmatched)\\b|\\b(?:without a match|not found)\\b/",
+      "count": 1,
+      "reason": "Recognize What is missing? and other general membership requests."
+    },
+    {
+      "old": "/^(?:покажи|найди|открой)\\s+(?:позици(?:ю|я)|артикул|ключ)\\s+/iu",
+      "new": "/^(?:покажи|найди|открой|show|find|open)\\s+(?:позици(?:ю|я)|артикул|ключ|item|sku|key)\\s+/iu",
+      "count": 1,
+      "reason": "Give exact-key failure feedback for English commands."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "compare-these-texts",
+  "private": true,
+  "scripts": {
+    "test": "node --experimental-vm-modules --test tests/english.test.mjs tests/session-ui.test.mjs tests/review-queue.test.mjs tests/sheet-document.test.mjs tests/pdf-edit.test.mjs tests/docx-pdf.test.mjs tests/sheet-pdf.test.mjs tests/single-editor.test.mjs tests/single-session.test.mjs tests/find-replace.test.mjs tests/sheet-find-replace.test.mjs tests/sheet-formulas.test.mjs",
+    "check": "python3 scripts/check_static.py",
+    "package:extension": "python3 scripts/package_extension.py",
+    "build": "python3 scripts/build.py"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "1.0.10",
+    "acorn": "8.18.0",
+    "jsdom": "30.1.1"
+  },
+  "version": "0.33.6",
+  "engines": {
+    "node": "^24.15.0 || >=26.0.0"
+  }
+}

@@ -1,0 +1,40 @@
+name: CTT
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['ctt/**', '.github/workflows/ctt-ci.yml']
+  push:
+    branches: [main]
+    paths: ['ctt/**', '.github/workflows/ctt-ci.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ctt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ctt/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm test
+      - run: npm run check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compare-these-texts-${{ github.sha }}
+          path: ctt/dist/
+          if-no-files-found: error
