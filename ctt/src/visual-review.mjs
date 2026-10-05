@@ -1,3 +1,4 @@
+import {validateStyleKept} from './repetition-scan.mjs';
 import {mountStyleReview} from './style-review.mjs';
 import {mountWordingOptions, mountWordingReview} from './wording-options.mjs';
 import {mountFindReplace} from './find-replace.mjs';
@@ -59,10 +60,11 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   let restoring = true;
   function stateChanged() { if (alive() && !restoring) onStateChange(); }
   function readScroll(side) { return {top: ui[side].scroll.scrollTop, left: ui[side].scroll.scrollLeft}; }
-  function snapshot() { return {version: 1, review: reviewQueue.snapshot(reviewStarted), drafts: Object.fromEntries(sides.map(side => [side, drafts[side].snapshot()])), selected, ...(single && report.sources.left.format === 'pdf' ? {pdfTextView:textViews.left} : {}), pages: {...pages}, zoom: zoom.value, scroll: Object.fromEntries(sides.map(side => [side, readScroll(side)]))}; }
+  function snapshot() { return {version: 1, review: reviewQueue.snapshot(reviewStarted), drafts: Object.fromEntries(sides.map(side => [side, drafts[side].snapshot()])), selected, ...(single&&styleReview?{styleKept:styleReview.snapshot()}:{}), ...(single && report.sources.left.format === 'pdf' ? {pdfTextView:textViews.left} : {}), pages: {...pages}, zoom: zoom.value, scroll: Object.fromEntries(sides.map(side => [side, readScroll(side)]))}; }
   function validateState(state) {
     const invalid = () => { throw new Error("Couldn't restore saved work: the data is corrupted."); };
     if (!state || state.version !== 1 || !['0', '794', '1191'].includes(state.zoom) || state.selected !== null && typeof state.selected !== 'string') invalid();
+    validateStyleKept(state.styleKept);
     if (state.pdfTextView !== undefined && typeof state.pdfTextView !== 'boolean') invalid();
     for (const side of sides) {
       const position = state.scroll?.[side], page = state.pages?.[side];
@@ -854,6 +856,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     highlight:(matches,side,active)=>{const keys=new Set(matches.map(m=>m.key));for(const s of sides)for(const node of ui[s].scroll.querySelectorAll('[data-group]')){node.classList.toggle('has-search-match',s===side&&keys.has(node.dataset.group));node.classList.toggle('is-search-current',s===side&&matches.length>0&&node.dataset.group===active?.key);}}
   });
   if(wording){const host=el('div');findHost.before(host);styleReview=mountStyleReview(host,{
+    kept:restoredState?.styleKept,onChange:stateChanged,
     entries:()=>drafts.left.entries(),revision:()=>drafts.left.revision,
     choose:async(hit,revision)=>{await select(hit.key);if(!alive()||selected!==hit.key||drafts.left.revision!==revision||input.left.value!==hit.text)throw Error('Text changed. Choose an updated passage.');input.left.focus({preventScroll:true});input.left.setSelectionRange(hit.start,hit.end);input.left.scrollIntoView?.({block:'center'});}
   });}

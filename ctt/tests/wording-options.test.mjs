@@ -1,4 +1,5 @@
-import {scanStyle,mountStyleReview} from '../dist/style-review.mjs';
+import {scanRepetitions,observationKey,validateStyleKept} from '../dist/repetition-scan.mjs';
+import {scanContrasts as scanStyle,mountStyleReview} from '../dist/style-review.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -80,13 +81,50 @@ test('style observations keep text intact, jump to passages, refresh after editi
  panel.querySelector('[data-style-keep]').click();assert.equal(panel.querySelector('ol').hidden,true);assert.equal(view.drafts.left.text(),original);
  panel.querySelector('[data-style-keep]').click();panel.querySelectorAll('[data-style-edit]')[1].click();await until(()=>root.querySelector('[data-edit-side="left"]').selectionEnd===29);
  const field=root.querySelector('[data-edit-side="left"]');assert.equal(field.value.slice(field.selectionStart,field.selectionEnd),'Не в результате, а в процессе');
- field.value='Смысл в процессе.';field.dispatchEvent(new window.Event('input'));await until(()=>/No repeated constructions/.test(panel.textContent));
+ field.value='Смысл в процессе.';field.dispatchEvent(new window.Event('input'));await until(()=>/No repeated wording/.test(panel.textContent));
  assert.equal(view.drafts.right.text(),original);root.querySelector('[aria-label="Undo edit"]').click();await until(()=>panel.querySelectorAll('[data-style-edit]').length===2);assert.equal(view.drafts.left.text(),original);
 });
 test('style review blocks stale passages and makes every occurrence reachable',async t=>{
  setup(t);let rev=0,calls=0;const host=document.querySelector('main'),entries=()=>[{key:'a',text:'Not here but there. '.repeat(25)}];
  const view=mountStyleReview(host,{entries,revision:()=>rev,choose:()=>{calls++;}});t.after(()=>view.dispose());
- assert.equal(host.querySelectorAll('[data-style-edit]').length,20);host.querySelector('[data-style-more]').click();assert.equal(host.querySelectorAll('[data-style-edit]').length,25);
+ const contrast=host.querySelector('[data-style-kind=contrast]');assert.equal(contrast.querySelectorAll('[data-style-edit]').length,20);contrast.querySelector('[data-style-more]').click();assert.equal(contrast.querySelectorAll('[data-style-edit]').length,25);
  const stale=host.querySelector('[data-style-edit]');rev++;stale.click();assert.equal(calls,0);assert.match(host.textContent,/Text changed/);
  view.dispose();stale.click();assert.equal(calls,0);
+});
+
+test('repetition checks match exact nearby wording, suppress nested spans and ignore punctuation and identifiers',()=>{
+ const scan=text=>scanRepetitions([{key:'a',text}]).groups;
+ const groups=scan('We found a cold stone. She touched a cold stone.');assert.equal(groups.length,1);assert.equal(groups[0].label,'a cold stone');assert.deepEqual(groups[0].hits.map(h=>h.text.slice(h.start,h.end)),['a cold stone','a cold stone']);
+ assert.equal(scan('Он сел на холодный камень. Она увидела холодный камень.')[0].label,'холодный камень');
+ assert.equal(scan('«Cold stone» lay here. A COLD STONE stood there.')[0].hits.length,2);
+ assert.equal(scan('A cold stone beside a cold stone.').length,0);
+ assert.equal(scan('Cold stone lies here. Rain fell. We went home. The cold stone remained.').length,0);
+ assert.equal(scan('Cold, stone. Cold stone.').length,0);
+ assert.equal(scan('He was in the room. She was in the garden.').length,0);
+ assert.equal(scan('item_12 API_v2. item_12 API_v2.').length,0);
+ assert.equal(scan('https://example.com/path 12kg. https://example.com/path 12kg.').length,0);
+ assert.equal(scan('He sat. He stood.').length,0);
+ assert.equal(scan('He sat. He stood. He left.')[0].kind,'opening');
+ assert.equal(scan('Он сел. Он встал. Он ушёл.')[0].label,'он');
+ assert.equal(scan('The waves rose. The waves fell.')[0].kind,'opening');
+ const limited=scanRepetitions([{key:'a',text:'word '.repeat(20002)}]);assert.equal(limited.partial,true);
+});
+test('saved style choices survive reopening and unrelated edits, then reset on relevant edits',async t=>{
+ setup(t);const root=document.querySelector('main'),original='We found a cold stone. She touched a cold stone.\nBirds flew.',src=source('style.txt',original);let updates=0,view=await mountSingleEditor(root,{source:src,onStateChange:()=>updates++});
+ try{
+  const keep=root.querySelector('[data-style-kind=phrase] [data-style-keep]');keep.click();assert.equal(updates>0,true);
+  const saved=view.snapshot();assert.equal(saved.styleKept.length,1);view.dispose();view=await mountSingleEditor(root,{source:src,restoredState:saved});
+  assert.equal(root.querySelector('[data-style-keep]').getAttribute('aria-pressed'),'true');
+  await view.select('text:2');let field=root.querySelector('[data-edit-side=left]');field.value='Birds sang.';field.dispatchEvent(new window.Event('input'));assert.deepEqual(view.snapshot().styleKept,saved.styleKept);
+  await view.select('text:1');field=root.querySelector('[data-edit-side=left]');field.value='We found a cold stone. She lifted a cold stone.';field.dispatchEvent(new window.Event('input'));assert.deepEqual(view.snapshot().styleKept,[]);assert.equal(root.querySelector('[data-style-keep]').getAttribute('aria-pressed'),'false');
+  root.querySelectorAll('[data-style-edit]')[1].click();await until(()=>field.selectionStart===34);assert.equal(field.value.slice(field.selectionStart,field.selectionEnd),'a cold stone');
+  assert.equal(view.drafts.right.text(),original);
+ }finally{view.dispose();}
+ assert.deepEqual(validateStyleKept(undefined),[]);assert.throws(()=>validateStyleKept(['bad']));assert.throws(()=>validateStyleKept({}));
+});
+test('observation identity follows sentence context rather than offsets and invalidates a new occurrence',()=>{
+ const scan=text=>scanRepetitions([{key:'a',text}]).groups.find(g=>g.label==='a cold stone');
+ const base='We found a cold stone. She touched a cold stone.';
+ assert.equal(observationKey(scan(base)),observationKey(scan('Birds flew. '+base)));
+ assert.notEqual(observationKey(scan(base)),observationKey(scan(base+' They kept a cold stone.')));
 });
