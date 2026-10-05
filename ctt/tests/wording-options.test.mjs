@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {Script} from 'node:vm';
 import {JSDOM} from 'jsdom';
 import {setTimeout as delay} from 'node:timers/promises';
-import {wordingOptions} from '../dist/wording-options.mjs';
+import {wordingOptions,scanWording} from '../dist/wording-options.mjs';
 import {mountSingleEditor} from '../dist/single-editor.mjs';
 import {validateSinglePayload} from '../dist/single-session.mjs';
 import {readTextSource} from '../dist/text-source.mjs';
@@ -46,6 +46,20 @@ test('stale wording is blocked after selection changes, typing and paragraph swi
 test('Edit & export opens pasted Unicode text through the real entry flow',async t=>{
  const {dom,downloads}=setup(t,await readFile(new URL('../dist/index.html',import.meta.url),'utf8'));Object.defineProperty(document,'currentScript',{value:{src:'https://ctt.example/single-entry.js'},configurable:true});
  const script=new Script(await readFile(new URL('../dist/single-entry.js',import.meta.url),'utf8'),{importModuleDynamically:specifier=>specifier.endsWith('single-session.mjs')?import('../dist/single-session.mjs'):import('../dist/single-editor.mjs')});script.runInContext(dom.getInternalVMContext());
- document.querySelector('[data-work-mode="single"]').click();document.getElementById('single-paste-text').value='We utilize 25 units.\nПривет 👋';document.getElementById('single-paste-open').click();await until(()=>document.querySelector('[data-save-side="left"]'));assert.equal(document.getElementById('single-current').textContent,'pasted-text.txt');
+ document.querySelector('[data-work-mode="single"]').click();document.getElementById('single-paste').open=true;document.getElementById('single-paste-text').value='We utilize 25 units.\nПривет 👋';document.getElementById('single-paste-open').click();await until(()=>document.querySelector('[data-save-side="left"]'));assert.equal(document.getElementById('single-current').textContent,'pasted-text.txt');assert.equal(document.getElementById('single-paste').open,false);assert.match(document.querySelector('[data-wording-review]').textContent,/1 matching expression/);assert.equal(document.activeElement,document.querySelector('[data-wording-review] h3'));
  document.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);assert.equal(await downloads[0].text(),'We utilize 25 units.\nПривет 👋\n');window.dispatchEvent(new window.Event('pagehide'));
+});
+
+test('automatic wording review finds complete phrases and jumps to the exact repeated occurrence',async t=>{
+ setup(t);const root=document.querySelector('main'),view=await mountSingleEditor(root,{source:source('text.txt','We utilize 25 units; utilize again.\nIn order to help.')});t.after(()=>view.dispose());
+ const matches=scanWording([{key:'a',text:'We utilize 25 units; utilize again.'},{key:'b',text:'In order to help.'}]);assert.equal(matches.length,3);assert.deepEqual(matches.map(h=>h.text.slice(h.start,h.end)),['utilize','utilize','In order to']);
+ const panel=root.querySelector('[data-wording-review]');assert.match(panel.textContent,/3 matching expressions/);panel.querySelectorAll('[data-wording-review-hit]')[1].click();await until(()=>!root.querySelector('.wording-panel').hidden);
+ const field=root.querySelector('[data-edit-side="left"]');assert.equal(field.selectionStart,21);root.querySelector('[data-wording-apply]').click();assert.equal(view.drafts.left.text(),'We utilize 25 units; use again.\nIn order to help.');await until(()=>/2 matching expressions/.test(panel.textContent));
+ root.querySelector('[aria-label="Undo edit"]').click();await until(()=>/3 matching expressions/.test(panel.textContent));
+ assert.equal(scanWording([{key:'a',text:'éutilize utilize_name'}]).length,0);assert.equal(scanWording([{key:'a',text:'utilize '.repeat(100)}]).length,50);
+ assert.equal(scanWording([{key:'a',text:'First line.'},{key:'a',text:'utilize'}])[0].start,12);
+});
+test('automatic review explicitly reports no matches for prose outside the local phrasebook',async t=>{
+ setup(t);const root=document.querySelector('main'),view=await mountSingleEditor(root,{source:source('story.txt','He came to the sea to find the answer. The waves rolled onto the shore methodically. The blows were precise but unhurried.')});t.after(()=>view.dispose());
+ const panel=root.querySelector('[data-wording-review]');assert.match(panel.textContent,/No built-in alternatives found/);assert.match(panel.textContent,/context analysis are not available/);assert.equal(panel.querySelectorAll('[data-wording-review-hit]').length,0);
 });
