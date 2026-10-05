@@ -1,7 +1,7 @@
 // Optional, local observations about repeated syntax; never an authorship score.
 const rules = [
-  {id:'ru-contrast', label:'не …, а …', pattern:/(?<![\p{L}\p{N}\p{M}_])не(?![\p{L}\p{N}\p{M}_])[^\S\r\n\u2028\u2029]+[^.!?;\r\n\u2028\u2029,]{1,120},[^\S\r\n\u2028\u2029]*а(?![\p{L}\p{N}\p{M}_])[^\S\r\n\u2028\u2029]+[^.!?;\r\n\u2028\u2029,]{1,120}/giu},
-  {id:'en-contrast', label:'not … but …', pattern:/(?<![\p{L}\p{N}\p{M}_'-])not(?![\p{L}\p{N}\p{M}_'-])[^\S\r\n\u2028\u2029]+(?!only\b)[^.!?;\r\n\u2028\u2029,]{1,120}?,?[^\S\r\n\u2028\u2029]+but(?![\p{L}\p{N}\p{M}_'-])[^\S\r\n\u2028\u2029]+[^.!?;\r\n\u2028\u2029,]{1,120}/giu}
+  {id:'ru-contrast', label:'не …, а …', pattern:/(?<![\p{L}\p{N}\p{M}_])не(?![\p{L}\p{N}\p{M}_])[^\S\r\n\u2028\u2029]+[^.!?;\r\n\u2028\u2029,]{1,120},[^\S\r\n\u2028\u2029]*а(?![\p{L}\p{N}\p{M}_])[^\S\r\n\u2028\u2029]+(?=[^\s.!?;,])/giu},
+  {id:'en-contrast', label:'not … but …', pattern:/(?<![\p{L}\p{N}\p{M}_'-])not(?![\p{L}\p{N}\p{M}_'-])(?![^\S\r\n\u2028\u2029]+only\b)[^\S\r\n\u2028\u2029]+[^.!?;\r\n\u2028\u2029,]{1,120}?,?[^\S\r\n\u2028\u2029]+but(?![\p{L}\p{N}\p{M}_'-])[^\S\r\n\u2028\u2029]+(?=[^\s.!?;,])/giu}
 ];
 export function scanStyle(entries) {
   const grouped = new Map();
@@ -11,7 +11,10 @@ export function scanStyle(entries) {
     for (const [key,text] of grouped) {
       rule.pattern.lastIndex=0;
       for (const match of text.matchAll(rule.pattern)) {
-        const start=match.index, end=start+match[0].trimEnd().length;
+        const start=match.index, after=start+match[0].length;
+        const tail=text.slice(after,after+120).match(/^[^.!?;\r\n\u2028\u2029,]*/u)[0];
+        const next=tail.search(/(?<![\p{L}\p{N}\p{M}_'-])(?:не|not)(?![\p{L}\p{N}\p{M}_'-])/iu);
+        const end=after+(next<0?tail:tail.slice(0,next)).trimEnd().length;
         hits.push({key,text,start,end});
       }
     }

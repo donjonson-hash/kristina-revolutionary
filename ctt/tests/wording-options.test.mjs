@@ -70,7 +70,8 @@ test('style rules group repeated constructions with Unicode boundaries and parag
  assert.equal(scanStyle([{key:'a',text:ru},{key:'b',text:en}]).length,0);
  const groups=scanStyle([{key:'a',text:ru},{key:'a',text:ru},{key:'b',text:en+' '+en}]);
  assert.deepEqual(groups.map(g=>g.hits.length),[2,2]);assert.equal(groups[0].hits[1].start,ru.length+1);
- for(const text of ['Небо потемнело, а ветер стих.','Он не ответил. А потом ушёл.','Не сейчас\n, а потом.','Nothing happened, but he waited.','not only words but also actions.','Not ready. But waiting.','Not now; but later.','Not now\nbut later.'])assert.deepEqual(scanStyle([{key:'a',text:text+' '+text}]),[],text);
+ for(const text of ['Небо потемнело, а ветер стих.','Он не ответил. А потом ушёл.','Не сейчас\n, а потом.','Nothing happened, but he waited.','not only words but also actions.','Not  only words but also actions.','Not ready. But waiting.','Not now; but later.','Not now\nbut later.'])assert.deepEqual(scanStyle([{key:'a',text:text+' '+text}]),[],text);
+ assert.equal(scanStyle([{key:'a',text:'Не в результате, а в процессе и не в конце, а в пути.'}])[0].hits.length,2);
  assert.equal(scanStyle([{key:'a',text:'Not now but later. Not here but there.'}])[0].hits.length,2);
 });
 test('style observations keep text intact, jump to passages, refresh after editing and undo',async t=>{
