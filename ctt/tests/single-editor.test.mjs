@@ -61,6 +61,9 @@ test('real mode switch opens one CSV, retains work on mode changes and keeps it 
  document.querySelector('[data-side="left"][data-cell="B2"]').click();document.querySelector('[data-edit-side="left"]').value='35';document.querySelector('[data-work-mode="compare"]').click();document.querySelector('[data-work-mode="single"]').click();assert.equal(document.querySelector('[data-edit-side="left"]').value,'35');
  document.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);assert.equal(await downloads[0].text(),'001;10\n002;35');window.confirm=()=>true;
  await load('bad.docx','not a zip');await until(()=>/zip|archive|Word|DOCX/i.test(document.getElementById('single-notice').textContent));assert.ok(document.querySelector('#single-editor-host [data-cell="B2"]'));assert.equal(document.getElementById('single-current').textContent,'one.csv');
+ const notice=document.getElementById('single-notice');assert.ok(notice.classList.contains('error'));assert.equal(notice.getAttribute('role'),'alert');
+ await load('bad.pdf','not a PDF');await until(()=>/signature/i.test(notice.textContent));assert.ok(notice.classList.contains('error'));assert.equal(notice.getAttribute('role'),'alert');
+ await load('replacement.csv','003;30');await until(()=>!document.getElementById('single-options').hidden);assert.equal(notice.classList.contains('error'),false);assert.equal(notice.getAttribute('role'),'status');assert.ok(notice.hidden);
  const cached=new window.Event('pagehide');Object.defineProperty(cached,'persisted',{value:true});window.dispatchEvent(cached);assert.ok(document.querySelector('#single-editor-host [data-cell="B2"]'));const ids=[...document.querySelectorAll('[id]')].map(n=>n.id);assert.equal(ids.length,new Set(ids).size);window.dispatchEvent(new window.Event('pagehide'));
 });
 

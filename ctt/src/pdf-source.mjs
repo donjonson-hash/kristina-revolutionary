@@ -5,6 +5,36 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_PAGES = 100, MAX_BLOCKS = 2000, MAX_CHARS = 500000, MAX_ITEMS = 100000;
 const MAX_MS = 15000;
 const fail = message => { throw new Error(`PDF: ${message}`); };
+const LINK_NOTE = "PDF: link destinations are not compared or opened. Edited PDF downloads do not retain clickable links; the unchanged original keeps its links.";
+// PDF.js normalizes link actions and can omit chained actions from its public
+// annotation data. Check the original dictionaries before accepting any link.
+async function linkValidator(raw) {
+  const {PDFDocument, PDFName} = await import('./pdf-vendor.mjs');
+  const source = await PDFDocument.load(raw, {updateMetadata: false, throwOnInvalidObject: true});
+  const lookup = (dict, key) => source.context.lookup(dict.get(PDFName.of(key)));
+  const has = (dict, key) => dict.has(PDFName.of(key));
+  const allowed = new Set(['Type', 'Subtype', 'Rect', 'Border', 'BS', 'C', 'H', 'QuadPoints', 'F', 'P', 'NM', 'M', 'StructParent', 'Contents', 'A']);
+  return (pageNumber, expectedCount) => {
+    const page = source.getPages()[pageNumber - 1]?.node;
+    const annots = page && lookup(page, 'Annots');
+    if (!annots || typeof annots.size !== 'function' || annots.size() !== expectedCount || expectedCount > 2000) return false;
+    for (let index = 0; index < annots.size(); index++) {
+      const annotation = source.context.lookup(annots.get(index));
+      if (!annotation || typeof annotation.keys !== 'function' || String(lookup(annotation, 'Subtype')) !== '/Link') return false;
+      if (annotation.keys().some(key => !allowed.has(key.decodeText()))) return false;
+      const action = lookup(annotation, 'A');
+      if (!action || typeof action.keys !== 'function' || String(lookup(action, 'S')) !== '/URI') return false;
+      if (action.keys().some(key => !['Type', 'S', 'URI'].includes(key.decodeText()))) return false;
+      if (has(action, 'Type') && String(lookup(action, 'Type')) !== '/Action') return false;
+      const uri = lookup(action, 'URI');
+      if (!uri || typeof uri.decodeText !== 'function' || uri instanceof PDFName) return false;
+      const value = uri.decodeText();
+      if (!/^https?:\/\//i.test(value) || /[\u0000-\u0020\u007f]/u.test(value)) return false;
+      try { if (!['http:', 'https:'].includes(new URL(value).protocol)) return false; } catch { return false; }
+    }
+    return true;
+  };
+}
 class NoCanvas {
   create() { fail("rendering pages while reading text is not supported."); }
   destroy() {}
@@ -93,12 +123,20 @@ export async function readPdfBytes(raw) {
       if (attachments && Object.keys(attachments).length) fail("document attachments are not supported. Check them separately.");
       if (layers && [...layers].length) fail("document layers are not supported. Prepare a plain text copy.");
       const blocks = [];
-      let chars = 0, items = 0;
+      let chars = 0, items = 0, link_count = 0, validateLinks;
       for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
         checkTime();
         const page = await doc.getPage(pageNumber);
         const viewport = page.getViewport({scale: 1});
-        if ((await page.getAnnotations({intent: 'any'})).length) fail(`Page ${pageNumber}: comments, links, and other annotations are not supported. Prepare a copy without annotations.`);
+        const annotations = await page.getAnnotations({intent: 'any'});
+        if (annotations.length) {
+          const unsupported = () => fail(`Page ${pageNumber}: only ordinary HTTP(S) links are supported. Comments, forms, and other annotations or actions are not supported. Prepare a copy without them.`);
+          if (annotations.some(annotation => annotation.annotationType !== 2)) unsupported();
+          validateLinks ||= await linkValidator(raw);
+          checkTime();
+          if (!validateLinks(pageNumber, annotations.length)) unsupported();
+          link_count += annotations.length;
+        }
         const reader = page.streamTextContent({disableNormalization: true, includeMarkedContent: false}).getReader();
         let text = '', line = 0, pageHasText = false, streamDone = false, previous, rects = [];
         const styles = Object.create(null);
@@ -146,7 +184,7 @@ export async function readPdfBytes(raw) {
         }
         if (!pageHasText) fail(`Page ${pageNumber}: no usable text layer was found. Empty pages and scans are not supported; scans require OCR.`);
       }
-      return {blocks, notes: [...NOTES], page_count: doc.numPages};
+      return {blocks, notes: [...NOTES, ...(link_count ? [LINK_NOTE] : [])], page_count: doc.numPages, ...(link_count ? {link_count} : {})};
     })(), timeout]);
   } catch (error) {
     const message = String(error?.message || '');
