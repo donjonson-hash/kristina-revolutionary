@@ -10,9 +10,9 @@ export function sourceBytes(source){
  const bytes=Uint8Array.from(atob(source.data),c=>c.charCodeAt(0));if(bytes.length>2097152)fail('Choose a file up to 2 MB.');return bytes;
 }
 export async function inspectSingleSource(source){
- const raw=sourceBytes(source),format=/\.(docx|pdf|xlsx|csv|tsv)$/i.exec(source.name)?.[1].toLowerCase();
- if(!format)fail('Choose a Word (.docx), text-based PDF, Excel (.xlsx), or CSV file.');
- if(format==='docx'||format==='pdf')return {format};
+ const raw=sourceBytes(source),format=/\.(docx|pdf|txt|xlsx|csv|tsv)$/i.exec(source.name)?.[1].toLowerCase();
+ if(!format)fail('Choose a Word (.docx), text-based PDF, Excel (.xlsx), CSV, or UTF-8 TXT file.');
+ if(format==='docx'||format==='pdf'||format==='txt')return {format};
  if(format==='xlsx'){
   await validateZip(raw);const book=read(raw,{type:'array',bookSheets:true});if(book.SheetNames.length>100)fail('This workbook has more than 100 sheets. Choose a smaller workbook.');
   return {format,sheets:book.SheetNames};
@@ -39,7 +39,7 @@ export async function singleSheetMetadata(source,{sheet,delimiter=','}={}){
 }
 export async function mountSingleEditor(root,{source,sheet,delimiter=',',signal,onRevision=()=>{},onStateChange=()=>{},restoredState}){
  const info=await inspectSingleSource(source);let report,mount;
- if(info.format==='docx'||info.format==='pdf'){
+ if(info.format==='docx'||info.format==='pdf'||info.format==='txt'){
   const {readTextSource}=await import('./text-source.mjs'),{meta,blocks}=await readTextSource(source);
   report={kind:'text',status:'complete',sources:{left:meta,right:meta},matched:blocks.map(b=>({key:'text:'+b.record,left:b,right:structuredClone(b)}))};
   ({mountVisualReview:mount}=await import('./visual-review.mjs'));
