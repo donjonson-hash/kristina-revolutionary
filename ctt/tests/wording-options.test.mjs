@@ -1,3 +1,4 @@
+import {scanStyle,mountStyleReview} from '../dist/style-review.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -46,7 +47,7 @@ test('stale wording is blocked after selection changes, typing and paragraph swi
 test('Edit & export opens pasted Unicode text through the real entry flow',async t=>{
  const {dom,downloads}=setup(t,await readFile(new URL('../dist/index.html',import.meta.url),'utf8'));Object.defineProperty(document,'currentScript',{value:{src:'https://ctt.example/single-entry.js'},configurable:true});
  const script=new Script(await readFile(new URL('../dist/single-entry.js',import.meta.url),'utf8'),{importModuleDynamically:specifier=>specifier.endsWith('single-session.mjs')?import('../dist/single-session.mjs'):import('../dist/single-editor.mjs')});script.runInContext(dom.getInternalVMContext());
- document.querySelector('[data-work-mode="single"]').click();document.getElementById('single-paste').open=true;document.getElementById('single-paste-text').value='We utilize 25 units.\nПривет 👋';document.getElementById('single-paste-open').click();await until(()=>document.querySelector('[data-save-side="left"]'));assert.equal(document.getElementById('single-current').textContent,'pasted-text.txt');assert.equal(document.getElementById('single-paste').open,false);assert.match(document.querySelector('[data-wording-review]').textContent,/1 matching expression/);assert.equal(document.activeElement,document.querySelector('[data-wording-review] h3'));
+ document.querySelector('[data-work-mode="single"]').click();document.getElementById('single-paste').open=true;document.getElementById('single-paste-text').value='We utilize 25 units.\nПривет 👋';document.getElementById('single-paste-open').click();await until(()=>document.querySelector('[data-save-side="left"]'));assert.equal(document.getElementById('single-current').textContent,'pasted-text.txt');assert.equal(document.getElementById('single-paste').open,false);assert.match(document.querySelector('[data-wording-review]').textContent,/1 matching expression/);assert.equal(document.activeElement,document.querySelector('[data-style-review] h3'));
  document.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);assert.equal(await downloads[0].text(),'We utilize 25 units.\nПривет 👋\n');window.dispatchEvent(new window.Event('pagehide'));
 });
 
@@ -62,4 +63,30 @@ test('automatic wording review finds complete phrases and jumps to the exact rep
 test('automatic review explicitly reports no matches for prose outside the local phrasebook',async t=>{
  setup(t);const root=document.querySelector('main'),view=await mountSingleEditor(root,{source:source('story.txt','He came to the sea to find the answer. The waves rolled onto the shore methodically. The blows were precise but unhurried.')});t.after(()=>view.dispose());
  const panel=root.querySelector('[data-wording-review]');assert.match(panel.textContent,/No built-in alternatives found/);assert.match(panel.textContent,/context analysis are not available/);assert.equal(panel.querySelectorAll('[data-wording-review-hit]').length,0);
+});
+
+test('style rules group repeated constructions with Unicode boundaries and paragraph-safe offsets',()=>{
+ const ru='Не в конце пути, а в каждом шаге.',en='Not at the end, but in every step.';
+ assert.equal(scanStyle([{key:'a',text:ru},{key:'b',text:en}]).length,0);
+ const groups=scanStyle([{key:'a',text:ru},{key:'a',text:ru},{key:'b',text:en+' '+en}]);
+ assert.deepEqual(groups.map(g=>g.hits.length),[2,2]);assert.equal(groups[0].hits[1].start,ru.length+1);
+ for(const text of ['Небо потемнело, а ветер стих.','Он не ответил. А потом ушёл.','Не сейчас\n, а потом.','Nothing happened, but he waited.','not only words but also actions.','Not  only words but also actions.','Not ready. But waiting.','Not now; but later.','Not now\nbut later.'])assert.deepEqual(scanStyle([{key:'a',text:text+' '+text}]),[],text);
+ assert.equal(scanStyle([{key:'a',text:'Не в результате, а в процессе и не в конце, а в пути.'}])[0].hits.length,2);
+ assert.equal(scanStyle([{key:'a',text:'Not now but later. Not here but there.'}])[0].hits.length,2);
+});
+test('style observations keep text intact, jump to passages, refresh after editing and undo',async t=>{
+ setup(t);const original='Не в конце пути, а в каждом шаге.\nНе в результате, а в процессе.',root=document.querySelector('main'),view=await mountSingleEditor(root,{source:source('style.txt',original)});t.after(()=>view.dispose());
+ const panel=root.querySelector('[data-style-review]');assert.match(panel.textContent,/2 occurrences/);
+ panel.querySelector('[data-style-keep]').click();assert.equal(panel.querySelector('ol').hidden,true);assert.equal(view.drafts.left.text(),original);
+ panel.querySelector('[data-style-keep]').click();panel.querySelectorAll('[data-style-edit]')[1].click();await until(()=>root.querySelector('[data-edit-side="left"]').selectionEnd===29);
+ const field=root.querySelector('[data-edit-side="left"]');assert.equal(field.value.slice(field.selectionStart,field.selectionEnd),'Не в результате, а в процессе');
+ field.value='Смысл в процессе.';field.dispatchEvent(new window.Event('input'));await until(()=>/No repeated constructions/.test(panel.textContent));
+ assert.equal(view.drafts.right.text(),original);root.querySelector('[aria-label="Undo edit"]').click();await until(()=>panel.querySelectorAll('[data-style-edit]').length===2);assert.equal(view.drafts.left.text(),original);
+});
+test('style review blocks stale passages and makes every occurrence reachable',async t=>{
+ setup(t);let rev=0,calls=0;const host=document.querySelector('main'),entries=()=>[{key:'a',text:'Not here but there. '.repeat(25)}];
+ const view=mountStyleReview(host,{entries,revision:()=>rev,choose:()=>{calls++;}});t.after(()=>view.dispose());
+ assert.equal(host.querySelectorAll('[data-style-edit]').length,20);host.querySelector('[data-style-more]').click();assert.equal(host.querySelectorAll('[data-style-edit]').length,25);
+ const stale=host.querySelector('[data-style-edit]');rev++;stale.click();assert.equal(calls,0);assert.match(host.textContent,/Text changed/);
+ view.dispose();stale.click();assert.equal(calls,0);
 });
