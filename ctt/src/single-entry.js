@@ -7,7 +7,7 @@
   document.body.classList.toggle('single-mode',next==='single');$('single-workspace').hidden=next!=='single';$('compare-workspace').hidden=next!=='compare';
   for(const button of document.querySelectorAll('[data-work-mode]'))button.setAttribute('aria-pressed',String(button.dataset.workMode===next));if(next==='single')view?.restoreViewport?.();
  }
- function controls(){ $('single-open').disabled=$('single-file').disabled=busy||operating;$('single-editor-host').inert=busy||operating; }
+ function controls(){ $('single-open').disabled=$('single-file').disabled=busy||operating;if($('single-paste-open'))$('single-paste-open').disabled=busy||operating;$('single-editor-host').inert=busy||operating; }
  function setBusy(value){busy=value;session?.setBusy(value);controls();}
  function closeDocument(){
   generation++;controller?.abort();view?.dispose();controller=null;view=null;candidate=null;
@@ -47,10 +47,11 @@
    $('single-sheet-label').hidden=info.format!=='xlsx';$('single-delimiter-label').hidden=!['csv','tsv'].includes(info.format);
    $('single-sheet').replaceChildren();for(const name of info.sheets||[]){const option=document.createElement('option');option.value=option.textContent=name;$('single-sheet').append(option);}
    $('single-delimiter').value=info.delimiter||',';note('');setBusy(false);
-   if(info.format==='docx'||info.format==='pdf'){await open();}else{$('single-options').hidden=false;$('single-pending').textContent=source.name;}
+   if(info.format==='docx'||info.format==='pdf'||info.format==='txt'){await open();}else{$('single-options').hidden=false;$('single-pending').textContent=source.name;}
   }catch(error){if(ticket===generation)note(error.message,true);}
   finally{if(ticket===generation)setBusy(false);}
  }
+ $('single-paste-open')?.addEventListener('click',()=>{const text=$('single-paste-text').value;if(!text.trim()){note('Paste some text first.',true);return;}const bytes=new TextEncoder().encode(text);void load({name:'pasted-text.txt',size:bytes.length,arrayBuffer:async()=>bytes.buffer});});
  $('single-file').addEventListener('change',event=>{void load(event.target.files[0]);event.target.value='';});
  const drop=$('single-drop');drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('is-dragging');});drop.addEventListener('dragleave',()=>drop.classList.remove('is-dragging'));
  drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('is-dragging');void load(e.dataTransfer.files[0]);});$('single-open').addEventListener('click',()=>void open());

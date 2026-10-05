@@ -1,3 +1,4 @@
+import {mountWordingOptions} from './wording-options.mjs';
 import {mountFindReplace} from './find-replace.mjs';
 import {createFinalCheck} from './final-check.mjs';
 import {createReviewQueue} from './review-queue.mjs';
@@ -49,7 +50,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   const viewers = {}, models = {}, pages = {left: 1, right: 1}, generations = {left: 0, right: 0}, ui = {};
   const row = (group, side) => group?.[side] || (group?.category === `only_${side}` ? group.row : null);
   const sourceBlocks = side => originalGroups.flatMap(group => { const block = row(group, side); return block ? (block.source_blocks || [block]).map(part=>({...part,key:group.key})) : []; }).sort((a, b) => a.record - b.record);
-  let finder = null;
+  let finder = null, wording = null;
   let disposed = false, selected = null, selectionGeneration = 0, blockDialog = null, documentPdfDialog = null;
   const typingTimers = {}; let diffKeys = new Set();
   const alive = () => !disposed && !signal?.aborted;
@@ -228,6 +229,10 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       clearTimeout(typingTimers[side]); typingTimers[side] = setTimeout(() => { if (alive()) renderSide(side); }, 350);
     });
     field.addEventListener('blur', () => drafts[side].endEdit());
+    if(single&&side==='left'&&['txt','docx'].includes(report.sources[side].format))wording=mountWordingOptions(fieldLabel,{
+      field,context:()=>({key:selected,revision:drafts[side].revision}),
+      apply:text=>{if(!alive()||!selected||field.disabled)throw Error('Select text to edit first.');drafts[side].endEdit();drafts[side].edit(selected,text);drafts[side].endEdit();field.value=text;changed();stateChanged();void renderSide(side);}
+    });
   }
   function changePdfView(side, asText) {
     if (!alive()) return;
@@ -413,6 +418,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     for (const side of sides) {const block=selected&&row(byKey.get(selected),side);ui[side].replaceBlock.hidden=report.sources[side].format!=='pdf'||!block||(block.source_blocks||[block]).length!==1||value(side,selected)===null;}
     if (selected) inspectorTitle.textContent = different(byKey.get(selected)) ? "Edit here or use the text from the adjacent version" : "This section matches ✓";
     updateRowTools();
+    wording?.refresh();
     updateReviewProgress();
     if(single){progress.textContent=drafts.left.changed ? "Edited document" : "Your document";inspectorTitle.textContent="Edit selected text";for(const side of sides){ui[side].transfer.hidden=ui[side].replaceRow.hidden=true;if(!ui[side].rowTools.hidden)ui[side].rowHint.textContent=ui[side].rowTools.classList.contains("is-locked") ? "A cell spans multiple rows. You can edit the text; select another row to add a row." : ui[side].remove.disabled ? "Edit the cells or add a blank row. The last row cannot be deleted." : "Edit the cells, add a blank row, or delete this row. Undo restores your last change.";}}
     onRevision(drafts.left.changed || drafts.right.changed);
@@ -846,7 +852,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     },
     highlight:(matches,side,active)=>{const keys=new Set(matches.map(m=>m.key));for(const s of sides)for(const node of ui[s].scroll.querySelectorAll('[data-group]')){node.classList.toggle('has-search-match',s===side&&keys.has(node.dataset.group));node.classList.toggle('is-search-current',s===side&&matches.length>0&&node.dataset.group===active?.key);}}
   });
-  const dispose = () => { if (disposed) return; disposed = true; finder?.dispose(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
+  const dispose = () => { if (disposed) return; disposed = true; wording?.dispose(); finder?.dispose(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
   signal?.addEventListener('abort', dispose, {once: true});
   if (alive()) {
     if (!single && Object.values(models).some(model => model.hasTables)) saveNote.textContent += sides.every(side => drafts[side].copyRowFrom) ? " New row: add → fill in → copy to the adjacent version. Undo with ↶." : " New row: add → fill in. Undo with ↶.";
