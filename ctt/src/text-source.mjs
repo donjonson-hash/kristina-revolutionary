@@ -175,8 +175,8 @@ export async function readTextSource(item) {
   const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', raw))].map(n => n.toString(16).padStart(2, '0')).join('');
   if (format === 'pdf') {
     const {readPdfBytes} = await import('./pdf-source.mjs');
-    const {blocks, notes, page_count} = await readPdfBytes(raw);
-    return {meta: {name: item.name, sha256, format, block_count: blocks.length, page_count, coverage: 'text_layer_only', notes}, blocks};
+    const {blocks, notes, page_count, link_count} = await readPdfBytes(raw);
+    return {meta: {name: item.name, sha256, format, block_count: blocks.length, page_count, coverage: 'text_layer_only', notes, ...(link_count ? {link_count} : {})}, blocks};
   }
   let texts, locations, notes = [...standardNotes];
   if (format === 'txt') {

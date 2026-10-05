@@ -2,7 +2,7 @@
 (() => {
  const $=id=>document.getElementById(id),moduleURL=new URL('single-editor.mjs',document.currentScript.src),sessionURL=new URL('single-session.mjs',document.currentScript.src);
  let controller=null,view=null,generation=0,candidate=null,busy=false,operating=false,session=null;
- const note=text=>{$('single-notice').textContent=text;$('single-notice').hidden=!text;};
+ const note=(text,error=false)=>{const notice=$('single-notice');notice.classList.toggle('error',error);notice.setAttribute('role',error?'alert':'status');notice.setAttribute('aria-live',error?'assertive':'polite');notice.textContent=text;notice.hidden=!text;};
  function chooseMode(next){
   document.body.classList.toggle('single-mode',next==='single');$('single-workspace').hidden=next!=='single';$('compare-workspace').hidden=next!=='compare';
   for(const button of document.querySelectorAll('[data-work-mode]'))button.setAttribute('aria-pressed',String(button.dataset.workMode===next));if(next==='single')view?.restoreViewport?.();
@@ -16,7 +16,7 @@
  const ready=import(sessionURL.href).then(({mountSingleSession})=>mountSingleSession($('single-session'),{
   onResume:async payload=>{await install(payload,true);chooseMode('single');},onFinish:closeDocument,
   onOperating:value=>{operating=value;if(value)generation++;controls();}
- })).then(ui=>{session=ui;session.setBusy(busy);return ui;}).catch(()=>{note('Automatic saving is unavailable. Download your edits before closing this tab.');return null;});
+ })).then(ui=>{session=ui;session.setBusy(busy);return ui;}).catch(()=>{note('Automatic saving is unavailable. Download your edits before closing this tab.',true);return null;});
  document.querySelectorAll('[data-work-mode]').forEach(button=>button.addEventListener('click',()=>chooseMode(button.dataset.workMode)));
  async function install(payload,resuming=false){
   const ticket=++generation,abort=new AbortController(),stage=document.createElement('div');let next;setBusy(true);note(resuming?'Restoring your document…':'Opening your document…');
@@ -30,7 +30,7 @@
    // Bind to the opened file, never the candidate for a later replacement.
    const {source,sheet,delimiter}=payload;
    session?.activate(()=>({version:1,kind:'single-editor',source,sheet:sheet||null,delimiter,review:next.snapshot()}));
-  }catch(error){abort.abort();next?.dispose();if(ticket===generation)note(error.message);if(resuming)throw error;}
+  }catch(error){abort.abort();next?.dispose();if(ticket===generation)note(error.message,true);if(resuming)throw error;}
   finally{if(ticket===generation)setBusy(false);}
  }
  async function open(){
@@ -48,7 +48,7 @@
    $('single-sheet').replaceChildren();for(const name of info.sheets||[]){const option=document.createElement('option');option.value=option.textContent=name;$('single-sheet').append(option);}
    $('single-delimiter').value=info.delimiter||',';note('');setBusy(false);
    if(info.format==='docx'||info.format==='pdf'){await open();}else{$('single-options').hidden=false;$('single-pending').textContent=source.name;}
-  }catch(error){if(ticket===generation)note(error.message);}
+  }catch(error){if(ticket===generation)note(error.message,true);}
   finally{if(ticket===generation)setBusy(false);}
  }
  $('single-file').addEventListener('change',event=>{void load(event.target.files[0]);event.target.value='';});

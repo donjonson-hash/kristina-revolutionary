@@ -172,6 +172,11 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       pdfRecovery.append(pdfAdjust, pdfUndo, keepEditing, textOnly);
       save.setAttribute('aria-describedby',pdfState.id);
       panel.append(controls, pdfHint, pdfState, pdfRecovery);
+      if (report.sources[side].link_count > 0) {
+        const linkHint = el('p', 'Link destinations are not compared. Edited PDF downloads do not retain clickable links; the unchanged original keeps its links.', 'pdf-export-hint');
+        linkHint.dataset.pdfLinkNote = side;
+        panel.append(linkHint);
+      }
     }
     const pageNav = el('div', undefined, 'visual-page-nav'), pageLabel = el('span'); pageNav.hidden = report.sources[side].format !== 'pdf';
     const navigate = offset => { if (!alive() || !activeViewer(side)) return; const page = Math.max(1, Math.min(activeViewer(side).pageCount, pages[side] + offset)); if (page === pages[side]) return; pages[side] = page; void renderSide(side); stateChanged(); };
