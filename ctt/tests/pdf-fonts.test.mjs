@@ -31,7 +31,7 @@ function canvasEnvironment(t) {
 
 async function fixture(names) {
  const doc=await PDFDocument.create(),page=doc.addPage([500,700]);
- for(let i=0;i<names.length;i++)page.drawText(`Original label ${i}.`,{x:40,y:640-i*35,size:14,font:await doc.embedFont(names[i])});
+ for(let i=0;i<names.length;i++)page.drawText(`  Original label ${i}.  `,{x:40,y:640-i*35,size:14,font:await doc.embedFont(names[i])});
  return source(await doc.save());
 }
 
@@ -58,13 +58,15 @@ test('original standard font, weight and baseline survive inline, block and refl
   await viewer.renderPage(1,canvas,{edits:[{block:blocks[1],text:'Revised label 1'}],blocks});
   assert.ok(seen.some(font=>/bold/.test(font)&&/Times/.test(font)),seen.join(','));
  } finally {await viewer.dispose();}
+ const probe=await openPdfVisual(input);
+ try{for(let i=0;i<blocks.length;i++){try{await probe.renderPage(1,document.createElement('canvas'),{scale:2,edits:[{block:blocks[i],text:`Revised label ${i}`}],blocks});}catch(error){throw Error(names[i]+': '+error.message);}}}finally{await probe.dispose();}
  const edits=blocks.map((block,i)=>({block,text:`Revised label ${i}`}));
  const revised=await renderPdfRevision(input,edits,{blocks}),read=await readTextSource(source(revised)),reopened=await openPdfVisual(source(revised));
  try {for(let i=0;i<names.length;i++){assert.equal((await reopened.editFont(read.blocks[i],`Another label ${i}`)).name,names[i]);assert.ok(Math.abs(read.blocks[i].visual.rects[0].baselineY-blocks[i].visual.rects[0].baselineY)<.02,'Baseline unchanged');}}finally{await reopened.dispose();}
  assert.doesNotMatch(read.blocks.map(b=>b.text).join(' '),/Original/);
  const blockOutput=await renderPdfRevision(input,[{block:blocks[1],text:'Bold line\nSecond line',box:{width:200,height:32,fontSize:12}}],{blocks});
  const blockRead=await readTextSource(source(blockOutput)),blockView=await openPdfVisual(source(blockOutput));
- try {assert.equal((await blockView.editFont(blockRead.blocks.find(b=>b.text==='Original label 0.'),'Another label')).name,'Times-Roman','Untouched text retains its font when the exported PDF is edited again');for(const b of blockRead.blocks.filter(b=>/Bold line|Second line/.test(b.text)))assert.equal((await blockView.editFont(b,'More text')).name,'Times-Bold');}finally{await blockView.dispose();}
+ try {assert.equal((await blockView.editFont(blockRead.blocks.find(b=>b.text.trim()==='Original label 0.'),'Another label')).name,'Times-Roman','Untouched text retains its font when the exported PDF is edited again');for(const b of blockRead.blocks.filter(b=>/Bold line|Second line/.test(b.text)))assert.equal((await blockView.editFont(b,'More text')).name,'Times-Bold');}finally{await blockView.dispose();}
  const entries=blocks.map((block,i)=>({key:block.key,record:block.record,text:i===1?'Bold heading expands across several lines with its original typeface and weight':block.text}));
  const flowed=await renderPreservedPdf(input,entries,{blocks}),flowRead=await readTextSource(source(flowed)),flowView=await openPdfVisual(source(flowed));
  try {const heading=flowRead.blocks.find(b=>b.text.startsWith('Bold heading'));assert.ok(heading);assert.equal((await flowView.editFont(heading,'More text')).name,'Times-Bold');}finally{await flowView.dispose();}
