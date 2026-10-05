@@ -2,7 +2,6 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {writeFileSync} from 'node:fs';
-import {execFileSync} from 'node:child_process';
 import {PDFDocument, fontkit} from '../dist/pdf-vendor.mjs';
 import {readTextSource} from '../dist/text-source.mjs';
 import {openPdfVisual, renderPdfRevision, measurePdfBlockFont} from '../dist/pdf-visual.mjs';
@@ -15,10 +14,11 @@ function canvasEnvironment(t) {
  // PDF.js uses the PDF family names for unembedded standard fonts. Skia does
  // not follow fontconfig aliases consistently, so register the local metrics-
  // compatible families explicitly instead of using its unrelated default.
- for(const [alias,family] of [['Times','Times New Roman'],['Helvetica','Arial'],['Courier','Courier New']]) {
-  for(const style of ['Regular','Bold','Italic','Bold Italic']) {
-   const path=execFileSync('fc-match',['-f','%{file}',`${family}:style=${style}`],{encoding:'utf8'}).trim();
-   assert.ok(native.GlobalFonts.registerFromPath(path,alias),`Register ${alias} ${style}`);
+ const fontDirectory=process.env.CTT_STANDARD_FONT_DIR || '/usr/share/fonts/opentype/urw-base35';
+ for(const [alias,family] of [['Times','NimbusRoman'],['Helvetica','NimbusSans'],['Courier','NimbusMonoPS']]) {
+  for(const style of ['Regular','Bold','Italic','BoldItalic']) {
+   assert.ok(native.GlobalFonts.registerFromPath(`${fontDirectory}/${family}-${style}.otf`,alias),
+    `Install fonts-urw-base35 (or set CTT_STANDARD_FONT_DIR): ${alias} ${style}`);
   }
  }
  const dom=new JSDOM('<main></main>',{pretendToBeVisual:true});
