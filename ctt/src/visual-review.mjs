@@ -623,7 +623,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
         }
         try {
           checkedEdits = pdfEdits(side);
-          const {validatePdfEdits} = await import('./pdf-visual.mjs'); await validatePdfEdits(checkedEdits,{blocks:sourceBlocks(side)});
+          const {validatePdfEdits} = await import('./pdf-visual.mjs'); await validatePdfEdits(checkedEdits,{blocks:sourceBlocks(side),viewer:viewers[side]});
           if (checkedEdits.length && !viewers[side]) throw new Error('The original PDF pages could not be rendered.');
           // Background checks apply to every edited page, even in text view.
           for (const page of new Set(checkedEdits.map(edit=>edit.block.visual.page))) {
