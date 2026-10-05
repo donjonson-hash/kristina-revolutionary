@@ -59,5 +59,27 @@ export function mountWordingOptions(host,{field,context,apply}){
  close.addEventListener('click',()=>{panel.hidden=true;saved=null;toggle.setAttribute('aria-expanded','false');field.focus({preventScroll:true});});
  const events=['input','select','keyup','mouseup'];for(const event of events)field.addEventListener(event,refresh);
  panel.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close.click();}});
- return {refresh,dispose(){disposed=true;for(const event of events)field.removeEventListener(event,refresh);panel.remove();toggle.remove();}};
+ return {refresh,open:()=>toggle.click(),dispose(){disposed=true;for(const event of events)field.removeEventListener(event,refresh);panel.remove();toggle.remove();}};
+}
+
+// Group offsets match the text shown in the selected-text editor, including
+// multiple source blocks belonging to one comparison group.
+export function scanWording(entries,limit=50){
+ const grouped=new Map();for(const entry of entries){const previous=grouped.get(entry.key);grouped.set(entry.key,previous===undefined?entry.text:previous+'\n'+entry.text);}
+ const pattern=new RegExp(Object.keys(phrases).sort((a,b)=>b.length-a.length).join('|'),'giu'),hits=[];
+ for(const [key,text] of grouped){pattern.lastIndex=0;let match;while((match=pattern.exec(text))){const start=match.index,end=start+match[0].length,options=wordingOptions(text,start,end);if(!options.length)continue;hits.push({key,text,start,end,options});if(hits.length>=limit)return hits;}}
+ return hits;
+}
+export function mountWordingReview(host,{entries,revision,choose}){
+ const panel=el('section');panel.className='wording-review';panel.dataset.wordingReview='';panel.setAttribute('aria-label','Available wording options');
+ const title=el('h3','Available wording options');title.tabIndex=-1;const status=el('p');status.setAttribute('role','status');const list=el('ol');const hint=el('p','Local English phrasebook only. These are optional alternatives, not corrections. Whole-sentence rewriting and context analysis are not available.');hint.className='hint';panel.append(title,status,list,hint);host.append(panel);
+ let seen=-1,disposed=false,timer=null;
+ function render(){if(disposed)return;const current=revision();if(current===seen)return;seen=current;const hits=scanWording(entries(),51);list.replaceChildren();
+  status.textContent=!hits.length?'No built-in alternatives found in this text. You can edit it manually; the local phrasebook cannot suggest changes for every text.':hits.length>50?'Showing the first 50 matching expressions. Choose one to review its alternatives.':`${hits.length} matching ${hits.length===1?'expression':'expressions'}. Choose one to review its alternatives.`;
+  for(const hit of hits.slice(0,50)){const row=el('li'),preview=el('p');preview.append(document.createTextNode((hit.start>45?'…':'')+hit.text.slice(Math.max(0,hit.start-45),hit.start)),el('mark',hit.text.slice(hit.start,hit.end)),document.createTextNode(hit.text.slice(hit.end,hit.end+60)+(hit.end+60<hit.text.length?'…':'')));
+   const button=el('button',`Review “${hit.text.slice(hit.start,hit.end)}”`);button.type='button';button.className='button secondary';button.dataset.wordingReviewHit='';button.addEventListener('click',async()=>{if(disposed)return;if(revision()!==current){render();status.textContent='Text changed. Choose an updated suggestion.';return;}button.disabled=true;try{await choose(hit,current);}catch(error){if(!disposed)status.textContent=error.message;}finally{if(!disposed&&button.isConnected)button.disabled=false;}});row.append(preview,button);list.append(row);
+  }
+ }
+ function refresh(){clearTimeout(timer);if(seen<0)render();else if(seen!==revision())timer=setTimeout(render,150);}
+ refresh();return {refresh,dispose(){disposed=true;clearTimeout(timer);panel.remove();}};
 }
