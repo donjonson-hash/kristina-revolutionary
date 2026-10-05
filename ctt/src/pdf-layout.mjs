@@ -31,7 +31,7 @@ function collectChanges(entries,blocks){
  const order=[...groups.keys()],positions=[...current.keys()].filter(k=>groups.has(k)).map(k=>order.indexOf(k));
  if(positions.some((v,i)=>i&&v<positions[i-1]))fail('Moving sections with their original page artwork is not supported yet.');
  const changes=[];
- for(const [key,parts]of groups){const text=current.has(key)?current.get(key).join('\n'):'';if(text===parts.map(p=>p.text).join('\n'))continue;for(let i=0;i<parts.length;i++)changes.push({key,block:parts[i],text:i===0?text:''});}
+ for(const [key,parts]of groups){const text=current.has(key)?current.get(key).join('\n'):'';if(text===parts.map(p=>p.text).join('\n'))continue;for(let i=0;i<parts.length;i++)changes.push({key,block:parts[i],styleBlocks:parts,text:i===0?text:''});}
  for(const [key,texts]of current){if(groups.has(key))continue;const keys=[...current.keys()],i=keys.indexOf(key),next=keys.slice(i+1).find(k=>groups.has(k)),previous=keys.slice(0,i).reverse().find(k=>groups.has(k));const anchor=next?groups.get(next)[0]:previous?groups.get(previous).at(-1):blocks[0];if(!anchor)fail('An original text position is required.');const box=bounds(anchor);changes.push({key,text:texts.join('\n'),added:true,box:{...box,y:next?Math.max(0,box.y-2):box.y+box.height+2,height:0},block:anchor});}
  return changes;
 }
@@ -58,6 +58,10 @@ export async function renderPreservedPdf(source,entries,{blocks,signal,onLayout}
     if(images.some(i=>(top<i.y+i.height+2&&bottom>i.y-2&&box.x<i.x+i.width+2&&box.x+box.width>i.x-2)||(top>i.y-2&&top<i.y+i.height+2)||(bottom>i.y-2&&bottom<i.y+i.height+2)))fail('This edit shares a band with an image.');
     if(originals.some(b=>b.record!==change.block.record&&!removed.has(b.record)&&b.visual.rects.some(r=>r.x<(sample.patch.x+sample.patch.width)/scale&&r.x+r.width>sample.patch.x/scale&&r.y<bottom&&r.y+r.height>top)))fail('Text areas overlap here.');
     const selected=await viewer.editFont(change.block,change.text,output);
+    if(change.text&&change.styleBlocks?.length>1){
+     const styles=await Promise.all(change.styleBlocks.map(b=>viewer.editFont(b,b.text,output)));
+     if(styles.some(style=>style&&style.name!==selected.name))fail('This section combines different fonts. Its styling cannot be preserved when the lines are combined.');
+    }
     const lines=change.text?lineOffsets(change.text,await wrap(change.text,selected.font,box.size,box.width,signal)):[];
     patches.push({...plan,...sample,font:selected?.font,key:change.key,top,bottom,lines,lineHeight:box.size*1.4,added:change.added});
    }

@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {writeFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
 import {PDFDocument, fontkit} from '../dist/pdf-vendor.mjs';
 import {readTextSource} from '../dist/text-source.mjs';
 import {openPdfVisual, renderPdfRevision, measurePdfBlockFont} from '../dist/pdf-visual.mjs';
@@ -11,6 +12,15 @@ const require=createRequire(import.meta.url),{JSDOM}=require('jsdom'),native=req
 const source=data=>({name:'font-test.pdf',data:Buffer.from(data).toString('base64')});
 
 function canvasEnvironment(t) {
+ // PDF.js uses the PDF family names for unembedded standard fonts. Skia does
+ // not follow fontconfig aliases consistently, so register the local metrics-
+ // compatible families explicitly instead of using its unrelated default.
+ for(const [alias,family] of [['Times','Times New Roman'],['Helvetica','Arial'],['Courier','Courier New']]) {
+  for(const style of ['Regular','Bold','Italic','Bold Italic']) {
+   const path=execFileSync('fc-match',['-f','%{file}',`${family}:style=${style}`],{encoding:'utf8'}).trim();
+   assert.ok(native.GlobalFonts.registerFromPath(path,alias),`Register ${alias} ${style}`);
+  }
+ }
  const dom=new JSDOM('<main></main>',{pretendToBeVisual:true});
  globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.DOMMatrix=native.DOMMatrix;globalThis.Path2D=native.Path2D;globalThis.ImageData=native.ImageData;
  globalThis.FontFace=class{constructor(name,bytes){this.name=name;this.bytes=bytes;}async load(){native.GlobalFonts.register(Buffer.from(this.bytes),this.name);return this;}};document.fonts={add(){}};
@@ -21,7 +31,7 @@ function canvasEnvironment(t) {
 
 async function fixture(names) {
  const doc=await PDFDocument.create(),page=doc.addPage([500,700]);
- for(let i=0;i<names.length;i++)page.drawText(`Original label ${i}`,{x:40,y:640-i*35,size:14,font:await doc.embedFont(names[i])});
+ for(let i=0;i<names.length;i++)page.drawText(`Original label ${i}.`,{x:40,y:640-i*35,size:14,font:await doc.embedFont(names[i])});
  return source(await doc.save());
 }
 
@@ -54,7 +64,7 @@ test('original standard font, weight and baseline survive inline, block and refl
  assert.doesNotMatch(read.blocks.map(b=>b.text).join(' '),/Original/);
  const blockOutput=await renderPdfRevision(input,[{block:blocks[1],text:'Bold line\nSecond line',box:{width:200,height:32,fontSize:12}}],{blocks});
  const blockRead=await readTextSource(source(blockOutput)),blockView=await openPdfVisual(source(blockOutput));
- try {assert.equal((await blockView.editFont(blockRead.blocks.find(b=>b.text==='Original label 0'),'Another label')).name,'Times-Roman','Untouched text retains its font when the exported PDF is edited again');for(const b of blockRead.blocks.filter(b=>/Bold line|Second line/.test(b.text)))assert.equal((await blockView.editFont(b,'More text')).name,'Times-Bold');}finally{await blockView.dispose();}
+ try {assert.equal((await blockView.editFont(blockRead.blocks.find(b=>b.text==='Original label 0.'),'Another label')).name,'Times-Roman','Untouched text retains its font when the exported PDF is edited again');for(const b of blockRead.blocks.filter(b=>/Bold line|Second line/.test(b.text)))assert.equal((await blockView.editFont(b,'More text')).name,'Times-Bold');}finally{await blockView.dispose();}
  const entries=blocks.map((block,i)=>({key:block.key,record:block.record,text:i===1?'Bold heading expands across several lines with its original typeface and weight':block.text}));
  const flowed=await renderPreservedPdf(input,entries,{blocks}),flowRead=await readTextSource(source(flowed)),flowView=await openPdfVisual(source(flowed));
  try {const heading=flowRead.blocks.find(b=>b.text.startsWith('Bold heading'));assert.ok(heading);assert.equal((await flowView.editFont(heading,'More text')).name,'Times-Bold');}finally{await flowView.dispose();}
@@ -68,4 +78,6 @@ test('mixed and unsupported custom fonts never silently become another font',asy
  const custom=await doc.embedFont(Buffer.from(boldFont,'base64'),{subset:true});page.drawText('Custom heading',{x:40,y:400,size:14,font:custom});
  const input=source(await doc.save()),{blocks}=await readTextSource(input),viewer=await openPdfVisual(input);
  try {assert.equal(blocks.length,2);await assert.rejects(()=>viewer.editFont(blocks[0],'New wording'),/different fonts/);await assert.rejects(()=>viewer.editFont(blocks[1],'New heading'),/not supported for editing/);}finally{await viewer.dispose();}
+ const grouped=await fixture(['Times-Roman','Times-Bold']),groupedRead=await readTextSource(grouped),groupedBlocks=groupedRead.blocks.map(b=>({...b,key:'group'}));
+ await assert.rejects(()=>renderPreservedPdf(grouped,[{key:'group',record:1,text:'A combined replacement'}],{blocks:groupedBlocks}),/combines different fonts/);
 });
