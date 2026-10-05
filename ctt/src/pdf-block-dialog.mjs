@@ -1,4 +1,4 @@
-import {openPdfVisual, renderPdfRevision, measurePdfFont, defaultPdfBlockBox, fitPdfBlockFont} from './pdf-visual.mjs';
+import {openPdfVisual, renderPdfRevision, measurePdfBlockFont, defaultPdfBlockBox, fitPdfBlockFont} from './pdf-visual.mjs';
 
 const node = (tag, text, className) => {const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
 /** A staged edit: only Apply writes to the document and its undo history. */
@@ -39,7 +39,7 @@ export function openBlockDialog({host, source, block, blocks, entry, edits, curr
       if(!current())throw new Error('The document changed. Cancel and open this block again.');
       if(![box.width,box.height].every(Number.isFinite)||box.width<minWidth||box.width>maxWidth||box.height<minHeight||box.height>maxHeight)throw new Error('Keep the block around the original text and within the page.');
       if(auto.checked){
-        const font=await measurePdfFont();if(closed||ticket!==generation)return;
+        const font=await measurePdfBlockFont(source,block,text);if(closed||ticket!==generation)return;
         box.fontSize=fitPdfBlockFont(text,box,originalSize,font);size.value=String(box.fontSize);
       }
       const data=await renderPdfRevision(source,edits(text,box),{blocks,signal:pending.signal});

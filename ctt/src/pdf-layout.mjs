@@ -1,5 +1,5 @@
 /** Preserve untouched page pixels and graphics while expanding edited text bands. */
-import {openPdfVisual, samplePdfPatch, measurePdfFont} from './pdf-visual.mjs';
+import {openPdfVisual, samplePdfPatch, drawPdfOriginalText} from './pdf-visual.mjs';
 import {PDFDocument, fontkit, rgb} from './pdf-vendor.mjs';
 import fontBase64 from './pdf-font.mjs';
 const fail=message=>{throw Error('PDF layout: '+message+' You can still download a text-only PDF.');};
@@ -31,7 +31,7 @@ function collectChanges(entries,blocks){
  const order=[...groups.keys()],positions=[...current.keys()].filter(k=>groups.has(k)).map(k=>order.indexOf(k));
  if(positions.some((v,i)=>i&&v<positions[i-1]))fail('Moving sections with their original page artwork is not supported yet.');
  const changes=[];
- for(const [key,parts]of groups){const text=current.has(key)?current.get(key).join('\n'):'';if(text===parts.map(p=>p.text).join('\n'))continue;for(let i=0;i<parts.length;i++)changes.push({key,block:parts[i],text:i===0?text:''});}
+ for(const [key,parts]of groups){const text=current.has(key)?current.get(key).join('\n'):'';if(text===parts.map(p=>p.text).join('\n'))continue;for(let i=0;i<parts.length;i++)changes.push({key,block:parts[i],styleBlocks:parts,text:i===0?text:''});}
  for(const [key,texts]of current){if(groups.has(key))continue;const keys=[...current.keys()],i=keys.indexOf(key),next=keys.slice(i+1).find(k=>groups.has(k)),previous=keys.slice(0,i).reverse().find(k=>groups.has(k));const anchor=next?groups.get(next)[0]:previous?groups.get(previous).at(-1):blocks[0];if(!anchor)fail('An original text position is required.');const box=bounds(anchor);changes.push({key,text:texts.join('\n'),added:true,box:{...box,y:next?Math.max(0,box.y-2):box.y+box.height+2,height:0},block:anchor});}
  return changes;
 }
@@ -43,7 +43,7 @@ export async function renderPreservedPdf(source,entries,{blocks,signal,onLayout}
  try {blocks=await viewer.refineBlocks(blocks);} catch(error){await viewer.dispose();throw error;}
  let changes;try{changes=collectChanges(entries,blocks);}catch(error){await viewer.dispose();throw error;}
  const layout=[],removed=new Set(changes.filter(c=>!c.added).map(c=>c.block.record));
- const output=await PDFDocument.create();output.registerFontkit(fontkit);const font=await output.embedFont(Uint8Array.from(atob(fontBase64),c=>c.charCodeAt(0)),{subset:true,features:{liga:false}}),measure=await measurePdfFont();
+ const output=await PDFDocument.create();output.registerFontkit(fontkit);const font=await output.embedFont(Uint8Array.from(atob(fontBase64),c=>c.charCodeAt(0)),{subset:true,features:{liga:false}});
  let bytes=0;
  try{for(let n=1;n<=viewer.pageCount;n++){
   abort(signal);const canvas=document.createElement('canvas'),scale=2;
@@ -57,8 +57,13 @@ export async function renderPreservedPdf(source,entries,{blocks,signal,onLayout}
     const top=sample.patch.y/scale,bottom=(sample.patch.y+sample.patch.height)/scale;
     if(images.some(i=>(top<i.y+i.height+2&&bottom>i.y-2&&box.x<i.x+i.width+2&&box.x+box.width>i.x-2)||(top>i.y-2&&top<i.y+i.height+2)||(bottom>i.y-2&&bottom<i.y+i.height+2)))fail('This edit shares a band with an image.');
     if(originals.some(b=>b.record!==change.block.record&&!removed.has(b.record)&&b.visual.rects.some(r=>r.x<(sample.patch.x+sample.patch.width)/scale&&r.x+r.width>sample.patch.x/scale&&r.y<bottom&&r.y+r.height>top)))fail('Text areas overlap here.');
-    const lines=change.text?lineOffsets(change.text,await wrap(change.text,measure,box.size,box.width,signal)):[];
-    patches.push({...plan,...sample,key:change.key,top,bottom,lines,lineHeight:box.size*1.4,added:change.added});
+    const selected=await viewer.editFont(change.block,change.text,output);
+    if(change.text&&change.styleBlocks?.length>1){
+     const styles=await Promise.all(change.styleBlocks.map(b=>viewer.editFont(b,b.text,output)));
+     if(styles.some(style=>style&&style.name!==selected.name))fail('This section combines different fonts. Its styling cannot be preserved when the lines are combined.');
+    }
+    const lines=change.text?lineOffsets(change.text,await wrap(change.text,selected.font,box.size,box.width,signal)):[];
+    patches.push({...plan,...sample,font:selected?.font,key:change.key,top,bottom,lines,lineHeight:box.size*1.4,added:change.added});
    }
    // Validate everything before erasing original words from the raster.
    for(const p of patches)if(!p.added){ctx.fillStyle=`rgb(${p.background.join(',')})`;ctx.fillRect(p.patch.x,p.patch.y,p.patch.width,p.patch.height);}
@@ -73,16 +78,16 @@ export async function renderPreservedPdf(source,entries,{blocks,signal,onLayout}
    if(sourceY<sourceEnd)nodes.push({start:sourceY,original:sourceEnd-sourceY,height:sourceEnd-sourceY,patches:[]});
    let page=output.addPage([width,height]),cursor=0;
    const newPage=()=>{abort(signal);if(output.getPageCount()>=500)fail('The edited document has too many pages.');page=output.addPage([width,height]);cursor=0;};
-   for(const node of nodes){let offset=0;const lines=node.patches.flatMap(p=>p.lines.map((line,i)=>({key:p.key,text:line.text,textStart:line.start,textEnd:line.end,x:p.x,top:p.flowTop-node.start+2+i*p.lineHeight,size:p.size,height:p.lineHeight,color:p.foreground,background:p.background,width:p.width})));
+   for(const node of nodes){let offset=0;const lines=node.patches.flatMap(p=>p.lines.map((line,i)=>({key:p.key,text:line.text,textStart:line.start,textEnd:line.end,x:p.x,top:p.flowTop-node.start+2+i*p.lineHeight,size:p.size,font:p.font,height:p.lineHeight,color:p.foreground,background:p.background,width:p.width})));
     const protectedRanges=[...originals.filter(b=>!removed.has(b.record)).flatMap(b=>b.visual.rects.map(r=>[r.y-node.start-1,r.y+r.height-node.start+1])),...images.map(i=>[i.y-node.start-2,i.y+i.height-node.start+2]),...lines.map(l=>[l.top,l.top+l.height])];
     while(offset<node.height-.01){abort(signal);let length=Math.min(height-cursor,node.height-offset);
      if(length<node.height-offset-.01){let cut=offset+length;while(cut>offset+1){const hit=protectedRanges.find(([a,b])=>cut>a+.01&&cut<b-.01);if(hit){cut=hit[0];continue;}if(cut<node.original&&!blankRow(node.start+cut)){cut-=.5;continue;}break;}if(cut<=offset+1){if(cursor>0){newPage();continue;}fail('A page element cannot be split safely.');}length=cut-offset;}
      if(length<.5){newPage();continue;}
      const oldLength=Math.max(0,Math.min(length,node.original-offset));
      if(oldLength>0){const crop=document.createElement('canvas');try{crop.width=canvas.width;crop.height=Math.max(1,Math.round(oldLength*scale));crop.getContext('2d').drawImage(canvas,0,Math.round((node.start+offset)*scale),canvas.width,crop.height,0,0,crop.width,crop.height);const blob=await new Promise((resolve,reject)=>crop.toBlob(b=>b?resolve(b):reject(Error('Could not save page artwork.')),'image/png'));bytes+=blob.size;if(bytes>32*1024*1024)fail('The edited PDF is too large.');const image=await output.embedPng(await blob.arrayBuffer());page.drawImage(image,{x:0,y:height-cursor-oldLength,width,height:oldLength});}finally{crop.width=crop.height=0;}}
-     for(const line of lines.filter(l=>l.top>=offset-.01&&l.top<offset+length-.01)){const top=cursor+line.top-offset;layout.push({key:line.key,textStart:line.textStart,textEnd:line.textEnd,page:output.getPageCount(),x:line.x/width,y:top/height,width:line.width/width,height:line.height/height});if(line.top+line.height>node.original)page.drawRectangle({x:line.x,y:height-top-line.height,width:line.width,height:line.height,color:rgb(...line.background.map(v=>v/255))});if(line.text)page.drawText(line.text,{x:line.x,y:height-top-line.size,size:line.size,font,color:rgb(...line.color.map(v=>v/255))});}
+     for(const line of lines.filter(l=>l.top>=offset-.01&&l.top<offset+length-.01)){const top=cursor+line.top-offset;layout.push({key:line.key,textStart:line.textStart,textEnd:line.textEnd,page:output.getPageCount(),x:line.x/width,y:top/height,width:line.width/width,height:line.height/height});if(line.top+line.height>node.original)page.drawRectangle({x:line.x,y:height-top-line.height,width:line.width,height:line.height,color:rgb(...line.background.map(v=>v/255))});if(line.text)page.drawText(line.text,{x:line.x,y:height-top-line.size,size:line.size,font:line.font,color:rgb(...line.color.map(v=>v/255))});}
      for(const b of originals.filter(b=>!removed.has(b.record)))for(const r of b.visual.rects){const relative=r.y-node.start;if(relative>=offset-.01&&relative<offset+oldLength-.01)layout.push({key:b.key,record:b.record,page:output.getPageCount(),x:r.x/width,y:(cursor+relative-offset)/height,width:r.width/width,height:r.height/height});}
-     for(const b of originals.filter(b=>!removed.has(b.record))){const r=b.visual.rects[0],relative=r.y-node.start;if(relative>=offset-.01&&relative<offset+oldLength-.01)page.drawText(b.text,{x:r.x,y:height-cursor-(relative-offset)-r.height*.8,size:r.fontSize,font,opacity:0,rotate:{type:'degrees',angle:-r.angle}});}
+     for(const b of originals.filter(b=>!removed.has(b.record))){const r=b.visual.rects[0],relative=r.y-node.start;if(relative>=offset-.01&&relative<offset+oldLength-.01)await drawPdfOriginalText(page,b,viewer,output,font,{height,offsetY:cursor-node.start-offset});}
      offset+=length;cursor+=length;if(offset<node.height-.01)newPage();await new Promise(r=>setTimeout(r,0));
     }
    }

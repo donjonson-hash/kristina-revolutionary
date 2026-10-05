@@ -85,6 +85,7 @@ function visualRect(item, style, viewport) {
   const end = viewport.convertToViewportPoint(g.x + g.ux, g.y + g.uy), start = viewport.convertToViewportPoint(g.x, g.y);
   const emEnd = viewport.convertToViewportPoint(g.x + t[2], g.y + t[3]);
   return {x, y, width: Math.max(...points.map(point => point[0])) - x, height: Math.max(...points.map(point => point[1])) - y,
+    baselineX: start[0], baselineY: start[1],
     fontSize: Math.hypot(emEnd[0] - start[0], emEnd[1] - start[1]), angle: Math.atan2(end[1] - start[1], end[0] - start[0]) * 180 / Math.PI};
 }
 const NOTES = [
@@ -138,7 +139,7 @@ export async function readPdfBytes(raw) {
           link_count += annotations.length;
         }
         const reader = page.streamTextContent({disableNormalization: true, includeMarkedContent: false}).getReader();
-        let text = '', line = 0, pageHasText = false, streamDone = false, previous, rects = [];
+        let text = '', line = 0, textItemIndex = 0, pageHasText = false, streamDone = false, previous, rects = [];
         const styles = Object.create(null);
         const flush = () => {
           previous = undefined;
@@ -146,7 +147,7 @@ export async function readPdfBytes(raw) {
           if (blocks.length >= MAX_BLOCKS) fail("more than 2,000 lines were extracted. Split the document into smaller files.");
           line++;
           blocks.push({record: blocks.length + 1, text, location: `Page ${pageNumber} · line ${line}`, page: pageNumber, line,
-            visual: {page: pageNumber, width: viewport.width, height: viewport.height, rects}});
+            visual: {page: pageNumber, width: viewport.width, height: viewport.height, rects, fontItems: rects.map(r => r.textItemIndex), textRuns: rects.map(r => ({...r}))}});
           if (text.trim()) pageHasText = true;
           text = '';
           rects = [];
@@ -170,9 +171,11 @@ export async function readPdfBytes(raw) {
                 if (previous !== undefined && separate(previous, current)) flush();
                 previous = current;
               }
+              const textStart = text.length;
               text += item.str;
               const rect = visualRect(item, styles[item.fontName], viewport);
-              if (rect) rects.push(rect);
+              if (rect) rects.push({...rect, textItemIndex, textStart, textEnd: text.length});
+              textItemIndex++;
               if (item.hasEOL) flush();
             }
           }

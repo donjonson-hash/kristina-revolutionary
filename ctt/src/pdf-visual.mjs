@@ -3,6 +3,7 @@ import {getDocument} from './pdf-reader-vendor.mjs';
 import {PDFDocument, fontkit, rgb} from './pdf-vendor.mjs';
 import fontBase64 from './pdf-font.mjs';
 import {refineRasterBounds} from './pdf-raster-bounds.mjs';
+import {createPdfEditFonts} from './pdf-edit-fonts.mjs';
 
 const MAX_BYTES = 2 * 1024 * 1024, MAX_PIXELS = 16_000_000;
 const fail = message => { throw new Error(`PDF: ${message}`); };
@@ -83,9 +84,17 @@ async function measureFont() {
     return document.embedFont(Uint8Array.from(atob(fontBase64), char => char.charCodeAt(0)), {subset: true, features: {liga: false}});
   })();
 }
-export async function validatePdfEdits(edits, {blocks = []} = {}) {
-  const font = await measureFont();
-  for (const page of new Set(edits.map(e=>e.block?.visual?.page))) planPdfEdits(edits, page, font, blocks);
+export async function validatePdfEdits(edits, {blocks = [], viewer} = {}) {
+  for (const edit of edits) {
+    const selected = viewer && edit.text !== edit.block?.text ? await viewer.editFont(edit.block, edit.text) : null;
+    planPdfEdits([edit], edit.block?.visual?.page, selected?.font || await measureFont(), blocks);
+  }
+}
+/** Use the same source font when fitting the block dialog. */
+export async function measurePdfBlockFont(source, block, text) {
+  const viewer = await openPdfVisual(source);
+  try { return (await viewer.editFont(block, text))?.font || await measureFont(); }
+  finally { await viewer.dispose(); }
 }
 async function screenFont() {
   if (!screenFontPromise) screenFontPromise = (async () => {
@@ -129,15 +138,16 @@ async function paintPlans(canvas, plans, scale, {text = true, blocks = [], image
     for(let y=0;y<area.height;y++)for(let x=0;x<area.width;x++){const px=plan.x+x/scale,py=plan.y+y/scale;if(px<=source.x+source.width+1&&py<=source.y+source.height+1)continue;const at=(y*area.width+x)*4;if(sample.background.some((v,i)=>Math.abs(area.data[at+i]-v)>35))fail('The extra space contains artwork or another background. Resize the block.');}
     return {...plan,...{patch:sample.patch,background:sample.background,foreground:sample.foreground}};
   });
-  if (text && sampled.some(plan => plan.text)) await screenFont();
+  if (text && sampled.some(plan => plan.text && (!plan.editFont || plan.editFont.name === 'DejaVuSans'))) await screenFont();
   for (const plan of sampled) {
     context.fillStyle = `rgb(${plan.background.join(',')})`;
     context.fillRect(plan.patch.x, plan.patch.y, plan.patch.width, plan.patch.height);
     if (text && plan.text) {
       context.fillStyle = `rgb(${plan.foreground.join(',')})`;
-      context.font = `${plan.size * scale}px KristinaPdfRevision`;
+      const selected = plan.editFont;
+      context.font = `${selected?.style || 'normal'} ${selected?.weight || 'normal'} ${plan.size * scale}px ${selected?.family || 'KristinaPdfRevision'}`;
       context.fontKerning = 'none'; context.textBaseline = 'alphabetic';
-      if(plan.lines)plan.lines.forEach((line,i)=>context.fillText(line,plan.x*scale,(plan.y+plan.size+i*plan.lineHeight)*scale));else context.fillText(plan.text, plan.x * scale, (plan.y + plan.height * 0.8) * scale);
+      if(plan.lines)plan.lines.forEach((line,i)=>context.fillText(line,plan.x*scale,(plan.y+plan.size+i*plan.lineHeight)*scale));else context.fillText(plan.text, plan.x * scale, (plan.baseline ?? plan.y + plan.height * 0.8) * scale);
     }
   }
   return sampled;
@@ -161,7 +171,12 @@ export async function openPdfVisual(source, {signal, generated = false} = {}) {
     const doc = await loading.promise;
     abort(signal);
     if (doc.numPages < 1 || doc.numPages > (generated ? 500 : 100)) fail("documents with 1 to 100 pages are supported.");
-    return {pageCount: doc.numPages, rects: pdfBlockRects, dispose,
+    let parsedBlocks;
+    const editFont = createPdfEditFonts(doc, async () => {
+      parsedBlocks ||= import('./pdf-source.mjs').then(({readPdfBytes}) => readPdfBytes(bytes(source))).then(result => result.blocks);
+      return parsedBlocks;
+    });
+    return {pageCount: doc.numPages, rects: pdfBlockRects, dispose, editFont,
       async refineBlocks(blocks) {
         let result=blocks.slice();
         for(const number of new Set(blocks.filter(b=>b.visual?.rasterBoundsVersion!==2).map(b=>b.visual.page))){
@@ -178,7 +193,12 @@ export async function openPdfVisual(source, {signal, generated = false} = {}) {
         if (!Number.isFinite(scale) || scale <= 0 || scale > 4) fail("unsupported page scale.");
         const page = await doc.getPage(pageNumber), viewport = page.getViewport({scale});
         if (viewport.width * viewport.height > MAX_PIXELS) fail("the page is too large to display.");
-        const plans = edits.length ? planPdfEdits(edits, pageNumber, await measureFont(), blocks) : [];
+        const plans = [];
+        for (const edit of edits.filter(edit => edit.block?.visual?.page === pageNumber)) {
+          if (edit.text === edit.block.text && !edit.box) continue;
+          const selected = await editFont(edit.block, edit.text);
+          plans.push(...planPdfEdits([edit], pageNumber, selected?.font || await measureFont(), blocks).map(plan => ({...plan, editFont:selected, baseline:edit.block.visual.rasterBoundsVersion === 2 ? undefined : edit.block.visual.rects[0].baselineY})));
+        }
         canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
         const task = page.render({canvasContext: canvas.getContext('2d'), viewport, background: 'rgb(255,255,255)', annotationMode: 0, recordImages: trackImages || plans.some(p=>p.lines)});
         tasks.add(task);
@@ -190,6 +210,29 @@ export async function openPdfVisual(source, {signal, generated = false} = {}) {
       }
     };
   } catch (error) { await dispose().catch(() => {}); throw error; }
+}
+
+/** Preserve each original run's font in the rebuilt searchable layer as well.
+ * This keeps later edits of untouched text tied to its original typeface.
+ */
+export async function drawPdfOriginalText(page, block, viewer, output, fallback, {height, offsetY = 0} = {}) {
+  const runs = block.visual.textRuns || block.visual.rects;
+  for (const rect of runs) {
+    const text = Number.isInteger(rect.textStart) ? block.text.slice(rect.textStart, rect.textEnd) : block.text;
+    if (!text) continue;
+    let font = fallback;
+    try {
+      const part = Number.isInteger(rect.textItemIndex) ? {...block, visual:{...block.visual, fontItems:[rect.textItemIndex]}} : block;
+      font = (await viewer.editFont(part, text, output))?.font || fallback;
+    } catch (error) {
+      // An unsupported font in untouched raster artwork must not prevent edits
+      // elsewhere. The explicit text-only export remains available for it.
+      if (!error.message?.startsWith('PDF:')) throw error;
+    }
+    page.drawText(text, {x:rect.x, y:height-offsetY-(rect.baselineY ?? rect.y+rect.height*.8),
+      size:rect.fontSize, font, opacity:0, rotate:{type:'degrees',angle:-rect.angle}});
+    if (!Number.isInteger(rect.textStart)) break;
+  }
 }
 
 /** A flattened copy: original pixels plus corrections, never original hidden text. */
@@ -215,7 +258,7 @@ export async function renderPdfRevision(source, edits, {signal, blocks} = {}) {
       abort(signal);
       const canvas = document.createElement('canvas');
       try {
-        const {width, height} = await viewer.renderPage(pageNumber, canvas, {scale: 2, edits, blocks:ordered});
+        const {width, height, painted} = await viewer.renderPage(pageNumber, canvas, {scale: 2, edits, eraseOnly:true, blocks:ordered});
         const blob = await new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("Couldn't save the page.")), 'image/png'));
         imageBytes += blob.size;
         if (imageBytes > 32 * 1024 * 1024) fail("the edited document is too large. Save a text version or split the document.");
@@ -227,10 +270,15 @@ export async function renderPdfRevision(source, edits, {signal, blocks} = {}) {
           const text = replacements.has(block.record) ? replacements.get(block.record) : block.text;
           if (!text) continue;
           const rect = block.visual.rects[0], angle = -rect.angle;
-          const plan = replacements.has(block.record) ? planPdfEdits([{block, text,box:edits.find(e=>e.block.record===block.record)?.box}], pageNumber, font, ordered)[0] : null;
-          if(plan?.lines){for(let i=0;i<plan.lines.length;i++)if(plan.lines[i])page.drawText(plan.lines[i],{x:plan.x,y:height-plan.y-plan.size-i*plan.lineHeight,size:plan.size,font,opacity:0});continue;}
-          page.drawText(text, {x: plan?.x ?? rect.x, y: height - (plan?.y ?? rect.y) - (plan?.height ?? rect.height) * 0.8,
-            size: plan?.size ?? rect.fontSize, font, color: rgb(0, 0, 0), opacity: 0,
+          const changed = replacements.has(block.record) && (text !== block.text || edits.find(e=>e.block.record===block.record)?.box);
+          if (!changed) { await drawPdfOriginalText(page, block, viewer, output, font, {height}); continue; }
+          const selected = await viewer.editFont(block, text, output);
+          const plan = changed ? planPdfEdits([{block, text,box:edits.find(e=>e.block.record===block.record)?.box}], pageNumber, selected?.font || font, ordered)[0] : null;
+          const patch = changed ? painted.find(p => Math.abs(p.x-plan.x)<.01 && Math.abs(p.y-plan.y)<.01) : null;
+          const drawFont = selected?.font || font, color = rgb(...(patch?.foreground || [0,0,0]).map(v=>v/255));
+          if(plan?.lines){for(let i=0;i<plan.lines.length;i++)if(plan.lines[i])page.drawText(plan.lines[i],{x:plan.x,y:height-plan.y-plan.size-i*plan.lineHeight,size:plan.size,font:drawFont,color});continue;}
+          page.drawText(text, {x: plan?.x ?? rect.x, y: height - ((block.visual.rasterBoundsVersion === 2 ? undefined : rect.baselineY) ?? (plan?.y ?? rect.y) + (plan?.height ?? rect.height) * 0.8),
+            size: plan?.size ?? rect.fontSize, font:drawFont, color, opacity: changed ? 1 : 0,
             rotate: {type: 'degrees', angle}});
         }
       } finally { canvas.width = canvas.height = 0; }
