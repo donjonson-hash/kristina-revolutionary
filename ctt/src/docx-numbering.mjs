@@ -107,7 +107,9 @@ export function parseDocxNumbering(docs, sourceParagraphs) {
     for(const item of chain) {const current=numProperties(item.pr,true);properties={...properties,...current};if(current.numId!=null)styleOwner=item.id;}
     const applied=numProperties(direct);properties={...properties,...applied};
     if(properties.numId==='0')return null;
-    if(properties.numId==null){if(properties.level!=null)fail("a list level is specified without a numbering definition.");return null;}
+    // A style may carry a list-level hint without applying any list instance.
+    // Keep rejecting an explicit paragraph level with no effective numId.
+    if(properties.numId==null){if(applied.level!=null)fail("a list level is specified without a numbering definition.");return null;}
     let ind=indent(styleInfo.defaults);for(const item of chain)ind={...ind,...indent(item.pr)};ind={...ind,...indent(direct)};
     const def=definition(properties.numId);let level=applied.level;
     if(level==null&&styleOwner){const linked=def._styleLevel(chain.map(x=>x.id));if(linked!=null&&properties.styleLevel!=null&&linked!==properties.styleLevel)fail("ambiguous numbering level in a Word style.");level=linked??properties.styleLevel;}

@@ -75,8 +75,9 @@ export async function readDocxVisual(source) {
   const px=(node,name,fallback,min,max)=>finite(attr(node,name),min,max)?Number(attr(node,name))/15:fallback;
   const page={width:px(size,'w',794,1440,31680),height:px(size,'h',1123,1440,31680),marginTop:px(margin,'top',72,0,4320),marginRight:px(margin,'right',72,0,4320),marginBottom:px(margin,'bottom',72,0,4320),marginLeft:px(margin,'left',72,0,4320)};
   const pdfUnsupported=[];
+  if(checked.headersFooters.length)pdfUnsupported.push('PDF export for documents with headers or footers is not supported yet. Download Word (.docx) to preserve them.');
   if(all(body).filter(n=>is(n,'sectPr')).length>1||all(body).some(n=>is(n,'cols')&&Number(attr(n,'num')||1)>1||is(n,'br')&&attr(n,'type')==='column'))pdfUnsupported.push('This document uses multiple page layouts or text columns. Download DOCX to preserve them.');
-  return {format:'docx',blocks,page,content:checked.structure.content,hasTables:checked.structure.hasTables,listData:checked.listData,pdfUnsupported,notes:["Headings, tables, lists, text styles, and embedded photos are preserved. Page breaks in the browser may differ from Word."]};
+  return {format:'docx',headersFooters:checked.headersFooters,blocks,page,content:checked.structure.content,hasTables:checked.structure.hasTables,listData:checked.listData,pdfUnsupported,notes:["Headings, tables, lists, text styles, and embedded photos are preserved. Page breaks in the browser may differ from Word."]};
 }
 
 function validateText(text) {
