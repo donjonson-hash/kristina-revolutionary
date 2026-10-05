@@ -149,11 +149,23 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     const undo = button('↶', () => act(side, draft => draft.undo())); undo.setAttribute('aria-label', single ? "Undo edit" : `Undo edit in ${letter(side)}`);
     const save = button(single ? "Download" : `Download ${letter(side)}`, () => saveSide(side), 'button primary'); save.dataset.saveSide = side;
     let outputFormat;
-    if(report.sources[side].format==='docx'){outputFormat=el('select',undefined,'document-download-format');outputFormat.setAttribute('aria-label',single ? "Download format" : `Download format for ${letter(side)}`);outputFormat.dataset.downloadFormat=side;for(const [value,label]of [['docx','Word (.docx)'],['pdf','PDF (.pdf)']]){const option=el('option',label);option.value=value;outputFormat.append(option);}}
+    if(report.sources[side].format==='docx'){outputFormat=el('select',undefined,'document-download-format');outputFormat.setAttribute('aria-label',single ? "Download format" : `Download format for ${letter(side)}`);outputFormat.dataset.downloadFormat=side;for(const [value,label]of [['docx','Word (.docx)'],['pdf','PDF (.pdf)']]){const option=el('option',label);option.value=value;if(value==='pdf'&&models[side]?.headersFooters?.length){option.disabled=true;option.textContent='PDF (headers/footers not supported)';}outputFormat.append(option);}}
     const menu = el('details', undefined, 'visual-more'); menu.append(el('summary', '⋯'));
     if(report.sources[side].format==='pdf'){const textPdf=button('Download text-only PDF',()=>saveSide(side,{textOnly:true}));textPdf.dataset.pdfTextOnly=side;menu.append(textPdf,el('p','Text-only PDF and TXT downloads do not include images or page formatting.','pdf-export-hint'));}
     menu.append(button(`Download ${letter(side)} as TXT`, () => download(drafts[side].exportText(), filename(side, 'txt'), 'text/plain;charset=utf-8')));
     heading.append(el('span', letter(side), 'letter'), name, undo);if(outputFormat)heading.append(outputFormat);heading.append(save, menu); panel.append(heading); if(single){panel.hidden=side==='right';heading.querySelector('.letter').hidden=true;menu.hidden=true;}
+    if (models[side]?.headersFooters?.length) {
+      const note=el('p','Only the main body is compared and edited. Headers and footers are kept unchanged in Word downloads. PDF export is unavailable for this document.','docx-coverage-note');
+      note.dataset.docxPeripheralNote=side;
+      const details=el('details',undefined,'docx-peripheral-parts');details.dataset.docxPeripheral=side;
+      details.append(el('summary','Headers and footers — read-only, not compared'));
+      const counts={header:0,footer:0};
+      for(const part of models[side].headersFooters){
+        details.append(el('strong',`${part.kind==='header'?'Header':'Footer'} ${++counts[part.kind]}`));
+        const text=el('p',part.text || '(Empty)');text.style.whiteSpace='pre-wrap';details.append(text);
+      }
+      panel.append(note,details);
+    }
     let pdfDocument, pdfText, pdfPreview, pdfHint, pdfRecovery, pdfUndo, pdfAdjust;
     const pdfState = el('p', '', 'pdf-export-state'); pdfState.setAttribute('role', 'status'); pdfState.id = `${single ? "single-" : ""}pdf-status-${side}`;
     if (report.sources[side].format === 'pdf') {

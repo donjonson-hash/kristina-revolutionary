@@ -41,7 +41,7 @@ function checkPackage(entries) {
   const docs = new Map();
   for (const [name, bytes] of entries) {
     if (/vba|embeddings|activeX|altChunk|glossary/i.test(name)) fail("The DOCX contains embedded, graphical, or additional data. Only standard text paragraphs are supported.");
-    if (/word\/(?:header|footer|footnotes|endnotes|comments)/i.test(name)) fail("The DOCX contains headers, footers, footnotes, endnotes, or comments. Prepare a copy with their text in the main paragraphs.");
+    if (/word\/(?:footnotes|endnotes|comments)/i.test(name)) fail("The DOCX contains footnotes, endnotes, or comments. Prepare a copy with their text in the main paragraphs.");
     if (/\.xml$|\.rels$/i.test(name)) docs.set(name, parseXml(bytes, name));
     else if (!name.endsWith('/') && !/^docProps\/thumbnail\.(?:jpeg|jpg|png|wmf)$/i.test(name) && !/^word\/media\/[^/]+\.(?:png|jpe?g)$/i.test(name)) fail(`DOCX: unsupported package part ${name}.`);
   }
@@ -50,6 +50,8 @@ function checkPackage(entries) {
   const mainType = elements(contentTypes).find(node => node.getAttribute('PartName') === '/word/document.xml');
   if (!mainType || mainType.getAttribute('ContentType') !== 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml') fail("DOCX: only standard Word documents without macros are supported.");
   const emptyBibliography = validateBibliography(docs);
+  const headersFooters = validateHeadersFooters(docs);
+  const peripheralRelationships = new Map();
   let foundMain = false, links = false;
   for (const [name, doc] of docs) {
     if (!name.endsWith('.rels')) continue;
@@ -60,7 +62,10 @@ function checkPackage(entries) {
       const type = rel.getAttribute('Type').split('/').pop(), target = rel.getAttribute('Target'), id = rel.getAttribute('Id');
       if (!id || ids.has(id)) fail("DOCX: duplicate or empty relationship ID."); ids.add(id);
       if (name === '_rels/.rels' && type === 'officeDocument') { if (target !== 'word/document.xml' || rel.getAttribute('TargetMode') === 'External') fail("DOCX: unsupported main document."); foundMain = true; }
-      else if (['header', 'footer', 'footnotes', 'endnotes', 'comments', 'numbering', 'aFChunk', 'subDocument', 'oleObject'].includes(type)) {
+      else if (['header', 'footer'].includes(type)) {
+        if (name !== 'word/_rels/document.xml.rels' || !new RegExp(`^${type}[0-9]*\\.xml$`).test(target) || !headersFooters.some(part => part.path === `word/${target}` && part.kind === type)) fail('DOCX: invalid header or footer relationship.');
+        peripheralRelationships.set(id, {kind:type, path:`word/${target}`});
+      } else if (['footnotes', 'endnotes', 'comments', 'numbering', 'aFChunk', 'subDocument', 'oleObject'].includes(type)) {
         if (type !== 'numbering') fail("The DOCX contains headers, footers, footnotes, endnotes, comments, images, or embedded documents. These parts are not supported.");
         // Resolve used list templates after bounded XML and package validation.
         if (name !== 'word/_rels/document.xml.rels' || target !== 'numbering.xml' || !entries.has('word/numbering.xml')) fail("DOCX: unsupported automatic numbering relationship.");
@@ -78,9 +83,71 @@ function checkPackage(entries) {
   }
   if (!foundMain) fail("DOCX: the relationship to the main document is missing.");
   // Unknown Word parts could contain user-visible text, so never silently drop.
-  for (const name of entries.keys()) if (name.startsWith('word/') && !name.endsWith('/') && !/^word\/(?:document\.xml|styles\.xml|stylesWithEffects\.xml|settings\.xml|webSettings\.xml|fontTable\.xml|numbering\.xml|theme\/theme\d+\.xml|_rels\/document\.xml\.rels|media\/[^/]+\.(?:png|jpe?g))$/i.test(name)) fail(`DOCX: additional part ${name} is not supported.`);
+  for (const name of entries.keys()) if (name.startsWith('word/') && !name.endsWith('/') && !/^word\/(?:(?:header|footer)[0-9]*\.xml|document\.xml|styles\.xml|stylesWithEffects\.xml|settings\.xml|webSettings\.xml|fontTable\.xml|numbering\.xml|theme\/theme\d+\.xml|_rels\/document\.xml\.rels|media\/[^/]+\.(?:png|jpe?g))$/i.test(name)) fail(`DOCX: additional part ${name} is not supported.`);
   for (const name of entries.keys()) if (!name.startsWith('word/') && !name.startsWith('customXml/') && !name.endsWith('/') && !['[Content_Types].xml', '_rels/.rels', 'docProps/core.xml', 'docProps/app.xml', 'docProps/custom.xml'].includes(name) && !/^docProps\/thumbnail\.(?:jpeg|jpg|png|wmf)$/i.test(name)) fail(`DOCX: additional part ${name} is not supported.`);
-  return {doc: docs.get('word/document.xml'), docs, entries, links, emptyBibliography: emptyBibliography.size > 0};
+  for (const node of walkElements(docs.get('word/document.xml').documentElement)) {
+    if (!w(node,'headerReference') && !w(node,'footerReference')) continue;
+    const id = node.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id') || node.getAttributeNS('http://purl.oclc.org/ooxml/officeDocument/relationships','id');
+    const rel = peripheralRelationships.get(id);
+    if (!w(node.parentNode,'sectPr') || !rel || rel.kind !== node.localName.replace('Reference','') || !['default','first','even'].includes(wordAttribute(node,'type'))) fail('DOCX: invalid header or footer reference.');
+  }
+  return {doc: docs.get('word/document.xml'), docs, entries, links, headersFooters, emptyBibliography: emptyBibliography.size > 0};
+}
+
+// Keep supported peripheral parts intact. They are disclosed separately, never
+// silently included in body-only comparison or dropped from a DOCX download.
+function validateHeadersFooters(docs) {
+  const parts = []; let chars = 0, paragraphs = 0;
+  const unsupported = () => fail('DOCX: this header or footer contains unsupported objects or fields. Only plain text and page-number fields are supported.');
+  function read(node) {
+    if (!W.has(node.namespaceURI)) unsupported();
+    const name = node.localName;
+    if (name === 't') { if (!w(node.parentNode,'r') || elements(node).length) unsupported(); return node.textContent; }
+    if (['pPr','rPr'].includes(name)) {
+      if (node.textContent.trim() || walkElements(node).some(n => !W.has(n.namespaceURI) || /Change$/.test(n.localName) || ['numPr','sectPr','drawing','object','pict','sdt'].includes(n.localName))) unsupported();
+      return '';
+    }
+    if (['tab','br','cr','noBreakHyphen','softHyphen'].includes(name)) {
+      if (!w(node.parentNode,'r') || elements(node).length || node.textContent.trim()) unsupported();
+      return {tab:'\t',br:'\n',cr:'\n',noBreakHyphen:'\u2011',softHyphen:'\u00ad'}[name];
+    }
+    if (['bookmarkStart','bookmarkEnd','proofErr','lastRenderedPageBreak'].includes(name)) {
+      if (elements(node).length || node.textContent.trim()) unsupported(); return '';
+    }
+    if (name === 'fldSimple') {
+      const match = /^\s*(PAGE|NUMPAGES|SECTIONPAGES)(?:\s+\\\*\s+MERGEFORMAT)?\s*$/i.exec(wordAttribute(node,'instr') || '');
+      if (!w(node.parentNode,'p') || !match || elements(node).some(n => !w(n,'r'))) unsupported();
+      // Validate cached field results, but display a marker rather than an old
+      // cached page number. Word recalculates the original field normally.
+      elements(node).forEach(read);
+      return {PAGE:'[Page number]',NUMPAGES:'[Page count]',SECTIONPAGES:'[Section page count]'}[match[1].toUpperCase()];
+    }
+    const allowed = name === 'p' ? ['pPr','r','fldSimple','bookmarkStart','bookmarkEnd','proofErr'] : name === 'r' ? ['rPr','t','tab','br','cr','noBreakHyphen','softHyphen','lastRenderedPageBreak'] : [];
+    if (!allowed.length) unsupported();
+    let text = '';
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === 8 || child.nodeType === 3 && !child.data.trim()) continue;
+      if (child.nodeType !== 1 || !allowed.includes(child.localName)) unsupported();
+      text += read(child);
+    }
+    return text;
+  }
+  for (const [path, doc] of docs) {
+    const kind = /^word\/(header|footer)[0-9]*\.xml$/i.exec(path)?.[1]?.toLowerCase();
+    if (!kind) continue;
+    const root = doc.documentElement;
+    if (!w(root,kind === 'header' ? 'hdr' : 'ftr')) unsupported();
+    const texts = [];
+    for (const node of Array.from(root.childNodes)) {
+      if (node.nodeType === 8 || node.nodeType === 3 && !node.data.trim()) continue;
+      if (node.nodeType !== 1 || !w(node,'p') || ++paragraphs > MAX_TEXT_BLOCKS) unsupported();
+      const text = read(node); chars += text.length;
+      if (chars > MAX_TEXT_CHARS) fail('DOCX: headers and footers exceed the text size limit.');
+      texts.push(text);
+    }
+    parts.push({path,kind,text:texts.join('\n')});
+  }
+  return parts;
 }
 
 function validateBibliography(docs) {
@@ -129,7 +196,7 @@ function docxBlocks(doc, entries, docs, structure) {
     if (w(node, 'drawing')) { validateDocxDrawing(node, entries, docs); continue; }
     if (!W.has(node.namespaceURI)) reject(node);
     if (w(node, 'numPr') && (!w(node.parentNode, 'pPr') || !w(node.parentNode.parentNode, 'p'))) reject(node);
-    if (/^(?:ins|del|moveFrom|moveTo|fldSimple|fldChar|instrText|delText|numberingChange|drawing|pict|object|txbxContent|sdt|dataBinding|altChunk|subDoc|sym|footnoteReference|endnoteReference|commentReference|headerReference|footerReference)$/.test(node.localName) || /Change$/.test(node.localName)) reject(node);
+    if (/^(?:ins|del|moveFrom|moveTo|fldSimple|fldChar|instrText|delText|numberingChange|drawing|pict|object|txbxContent|sdt|dataBinding|altChunk|subDoc|sym|footnoteReference|endnoteReference|commentReference)$/.test(node.localName) || /Change$/.test(node.localName)) reject(node);
     inspect.push(...elements(node));
   }
   function formatting(node) {
@@ -178,7 +245,7 @@ export async function readTextSource(item) {
     const {blocks, notes, page_count, link_count} = await readPdfBytes(raw);
     return {meta: {name: item.name, sha256, format, block_count: blocks.length, page_count, coverage: 'text_layer_only', notes, ...(link_count ? {link_count} : {})}, blocks};
   }
-  let texts, locations, notes = [...standardNotes];
+  let texts, locations, headerFooterCount = 0, notes = [...standardNotes];
   if (format === 'txt') {
     let text;
     try { text = normalizeLines(decode(raw)); } catch { fail(`${item.name}: save the TXT file as UTF-8.`); }
@@ -187,7 +254,8 @@ export async function readTextSource(item) {
     if (text.endsWith('\n')) texts.pop();
     notes.push("Each TXT line is a separate block, including empty lines. One final newline marks the end of the last line and does not create an extra block.");
   } else {
-    const checked = await readDocxPackage(raw); texts = checked.texts; locations = checked.structure.locations;
+    const checked = await readDocxPackage(raw); texts = checked.texts; locations = checked.structure.locations; headerFooterCount = checked.headersFooters.length;
+    if (headerFooterCount) notes.push('DOCX: only the main body is compared and edited. Headers, footers, and page-number fields are shown read-only and preserved in DOCX downloads; they are not compared. PDF export is unavailable for this document.');
     notes.push("Each main DOCX paragraph is a separate block, including empty paragraphs. Soft line breaks and tabs are preserved; displayed page numbers, styles, and formatting settings are not compared.");
     notes.push("Content hidden by formatting in the main paragraphs is included in the extracted text. File properties and the document thumbnail are not compared.");
     if (checked.structure.hasTables) notes.push("Table text is read by row and cell. Merged cells and formatting are preserved in the DOCX; cell content is compared.");
@@ -198,7 +266,7 @@ export async function readTextSource(item) {
   if (texts.length > MAX_TEXT_BLOCKS) fail("The document contains more than 2,000 text blocks. Split it into smaller files.");
   let chars = 0;
   for (const text of texts) { chars += [...text].length; if (chars > MAX_TEXT_CHARS) fail("The extracted text exceeds 500,000 characters. Split the document into smaller files."); }
-  return {meta: {name: item.name, sha256, format, block_count: texts.length, notes}, blocks: texts.map((text, i) => ({record: i + 1, text, ...(locations?.[i] ? {table: locations[i]} : {}), location: locations?.[i] ? `Table ${locations[i].table}, row ${locations[i].row}, column ${locations[i].column}, paragraph ${locations[i].paragraph}` : `${format === 'txt' ? "Line" : "Paragraph"} ${i + 1}`}))};
+  return {meta: {name: item.name, sha256, format, block_count: texts.length, notes, ...(headerFooterCount ? {header_footer_count:headerFooterCount,coverage:'main_body_only'} : {})}, blocks: texts.map((text, i) => ({record: i + 1, text, ...(locations?.[i] ? {table: locations[i]} : {}), location: locations?.[i] ? `Table ${locations[i].table}, row ${locations[i].row}, column ${locations[i].column}, paragraph ${locations[i].paragraph}` : `${format === 'txt' ? "Line" : "Paragraph"} ${i + 1}`}))};
 }
 
 const DRAWING_NS = {

@@ -2,7 +2,7 @@
   "name": "compare-these-texts",
   "private": true,
   "scripts": {
-    "test": "node --experimental-vm-modules --test tests/english.test.mjs tests/session-ui.test.mjs tests/review-queue.test.mjs tests/sheet-document.test.mjs tests/pdf-edit.test.mjs tests/pdf-links.test.mjs tests/pdf-fonts.test.mjs tests/docx-pdf.test.mjs tests/sheet-pdf.test.mjs tests/single-editor.test.mjs tests/single-session.test.mjs tests/find-replace.test.mjs tests/sheet-find-replace.test.mjs tests/sheet-formulas.test.mjs",
+    "test": "node --experimental-vm-modules --test tests/english.test.mjs tests/session-ui.test.mjs tests/review-queue.test.mjs tests/sheet-document.test.mjs tests/pdf-edit.test.mjs tests/pdf-links.test.mjs tests/pdf-fonts.test.mjs tests/docx-pdf.test.mjs tests/sheet-pdf.test.mjs tests/single-editor.test.mjs tests/single-session.test.mjs tests/find-replace.test.mjs tests/sheet-find-replace.test.mjs tests/sheet-formulas.test.mjs tests/docx-headers.test.mjs",
     "check": "python3 scripts/check_static.py",
     "package:extension": "python3 scripts/package_extension.py",
     "build": "python3 scripts/build.py"
