@@ -152,7 +152,11 @@ class SelectionEdit:
                     if replacement:
                         if region.String != replacement:
                             raise RuntimeError("Could not verify the inserted text.")
-                        region.setPropertyValue("CharStyleName", style[STYLE.index("CharStyleName")])
+                        style_name = style[STYLE.index("CharStyleName")]
+                        if style_name:
+                            region.setPropertyValue("CharStyleName", style_name)
+                        else:
+                            region.setPropertyToDefault("CharStyleName")
                         direct = tuple((name, value) for name, value in zip(STYLE, style) if name != "CharStyleName")
                         region.setPropertyValues(tuple(n for n, _ in direct), tuple(v for _, v in direct))
                 expected = self.before[0][:self.paragraph_offset] + edited + self.before[0][self.paragraph_offset + len(self.original):]
