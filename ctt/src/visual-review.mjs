@@ -14,7 +14,7 @@ const button = (label, action, className = 'button secondary') => { const node =
 const categories = ['matched', 'changed', 'only_left', 'only_right', 'moved', 'reflow'];
 const styleKeys = ['fontSize', 'fontFamily', 'fontWeight', 'fontStyle', 'textDecoration', 'color', 'backgroundColor', 'textAlign', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'paddingLeft', 'paddingRight', 'textIndent', 'lineHeight', 'width', 'verticalAlign', 'paddingTop', 'paddingBottom', 'borderTop', 'borderRight', 'borderBottom', 'borderLeft'];
 const style = (node, values = {}) => { for (const key of styleKeys) if (values[key] !== undefined) node.style[key] = values[key]; };
-function download(data, filename, mime) {
+function triggerDownload(data, filename, mime) {
   const url = URL.createObjectURL(new Blob([data], {type: mime})), anchor = el('a');
   anchor.href = url; anchor.download = filename; document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -57,7 +57,26 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   let disposed = false, selected = null, selectionGeneration = 0, blockDialog = null, documentPdfDialog = null;
   let inlineFill = null, fillMode = single && report.sources.left.format === 'pdf', fillOpening = false, fillState = null, fillCache = null;
   const fillAreasCache = new Map();
-  let printJob = null;
+  let printJob = null, downloadOffer = null;
+  const downloadKey = () => JSON.stringify([drafts.left.entries(),fillState?.fields||[]]);
+  function clearDownloadOffer() {
+    if(!downloadOffer)return;
+    URL.revokeObjectURL(downloadOffer.url);downloadOffer.node.remove();downloadOffer=null;
+  }
+  function download(data,name,mime) {
+    if(!single||report.sources.left.format!=='pdf'||mime!=='application/pdf')return triggerDownload(data,name,mime);
+    clearDownloadOffer();
+    const url=URL.createObjectURL(new Blob([data],{type:mime}));
+    const node=el('section',undefined,'pdf-download-ready');node.setAttribute('aria-label','Prepared PDF');
+    const note=el('p','PDF prepared. If the download did not start, use Save PDF to computer. You can also open the PDF and save it from your browser.');
+    const save=el('a','Save PDF to computer','button primary');save.href=url;save.download=name;save.dataset.pdfReadyDownload='';
+    const open=el('a','Open PDF','button secondary');open.href=url;open.target='_blank';open.rel='noopener';open.dataset.pdfReadyOpen='';
+    node.append(note,save,open);status.after(node);
+    downloadOffer={url,node,key:downloadKey()};
+    // Keep a real link alive for a direct user gesture if the embedded browser
+    // declines the asynchronous automatic download. A click is not proof of saving.
+    try { save.click(); } catch { /* The persistent links remain usable. */ }
+  }
   async function flushFill() {
     if (!inlineFill) return true;
     const ok = await inlineFill.flush();
@@ -446,6 +465,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       selected: selected ? {key: selected, different: diffKeys.has(selected), left: texts('left'), right: texts('right')} : null};
   }
   function changed() {
+    if(downloadOffer&&downloadOffer.key!==downloadKey())clearDownloadOffer();
     if (!alive()) return;
     syncGroups(); updateDifferences();
     for (const side of sides) if (report.sources[side].format === 'pdf' && pdfRevision[side] !== drafts[side].revision) { pdfRevision[side] = drafts[side].revision; if (automaticText[side] && viewers[side]) {textViews[side] = false; automaticText[side] = false;} clearPdfPreview(side); generations[side]++; pdfChecking[side] = true; ui[side].save.disabled = true; }
@@ -766,6 +786,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
           inlineFill=mountPdfFillInline({paper,page:pageNumber,width:pageWidth,height:pageHeight,fields:structuredClone(fillState?.fields||[]),areas,current,externalToolbar:true,onHint:message,
             fitText:field=>fitPdfFillText(field,{signal}),
             onEditStart:()=>{
+              clearDownloadOffer();
               for(const timer of Object.values(typingTimers))clearTimeout(timer);
               drafts.left.endEdit();selected=null;inspector.hidden=true;root.classList.remove('is-editing');
             },
@@ -1017,7 +1038,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     entries:()=>drafts.left.entries(),revision:()=>drafts.left.revision,
     choose:async(hit,revision)=>{await select(hit.key);if(!alive()||selected!==hit.key||drafts.left.revision!==revision||input.left.value!==hit.text)throw Error('Text changed. Choose an updated suggestion.');input.left.focus({preventScroll:true});input.left.setSelectionRange(hit.start,hit.end);wording.open();input.left.scrollIntoView?.({block:'center'});}
   });}
-  const dispose = () => { if (disposed) return; disposed = true; styleReview?.dispose(); wordingReview?.dispose(); wording?.dispose(); finder?.dispose(); inlineFill?.dispose(); printJob?.close(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
+  const dispose = () => { if (disposed) return; disposed = true; clearDownloadOffer(); styleReview?.dispose(); wordingReview?.dispose(); wording?.dispose(); finder?.dispose(); inlineFill?.dispose(); printJob?.close(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
   signal?.addEventListener('abort', dispose, {once: true});
   if (alive()) {
     if (!single && Object.values(models).some(model => model.hasTables)) saveNote.textContent += sides.every(side => drafts[side].copyRowFrom) ? " New row: add → fill in → copy to the adjacent version. Undo with ↶." : " New row: add → fill in. Undo with ↶.";
