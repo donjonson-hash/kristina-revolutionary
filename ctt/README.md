@@ -1,9 +1,13 @@
 # Compare These Texts
 
-Current CTT website and offline Chrome/Firefox extension source: **0.33.6**.
+Current CTT website and offline Chrome/Firefox extension source: **0.33.7**.
 The same files in `src/` produce the website and both extension packages.
 Documents are processed locally; extension manifests request no permissions or
 host permissions. Website: https://comparethesetexts.com/.
+
+## Fill printed PDF forms
+
+In **Edit & export**, open a text-based PDF and choose **Fill in PDF**. Add text over blank lines, place it on any page, and adjust its size and area. Apply fields, then use **Download PDF**. Added Cyrillic/Latin text is searchable; the existing page artwork is retained. Fields are saved with the local draft. If underlying text edits change the layout, check and apply the field positions again before downloading. This fills printed blanks; interactive PDF form widgets remain unsupported.
 
 ## Source and release ownership
 
@@ -39,8 +43,8 @@ npm run check
 Outputs:
 
 - `dist/`: static website, including extension downloads.
-- `dist/downloads/ctt-chrome-0.33.6.zip`: load the extracted directory in Chrome.
-- `dist/downloads/ctt-firefox-0.33.6.zip`: temporary Firefox installation.
+- `dist/downloads/ctt-chrome-0.33.7.zip`: load the extracted directory in Chrome.
+- `dist/downloads/ctt-firefox-0.33.7.zip`: temporary Firefox installation.
 - `dist/release/provenance.json`: Git revision, working-tree status, asset hashes
   and ZIP hashes for that build.
 

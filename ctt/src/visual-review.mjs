@@ -54,13 +54,17 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   const sourceBlocks = side => originalGroups.flatMap(group => { const block = row(group, side); return block ? (block.source_blocks || [block]).map(part=>({...part,key:group.key})) : []; }).sort((a, b) => a.record - b.record);
   let finder = null, wording = null, wordingReview = null, styleReview = null;
   let disposed = false, selected = null, selectionGeneration = 0, blockDialog = null, documentPdfDialog = null;
+  let fillDialog = null, fillOpening = false, fillState = null, fillCache = null;
+  const fillSignature = () => JSON.stringify(drafts.left.entries());
+  const hasFill = () => !!fillState?.fields.length;
+  const fillCurrent = () => !hasFill() || fillState.signature === fillSignature();
   const typingTimers = {}; let diffKeys = new Set();
   const alive = () => !disposed && !signal?.aborted;
   const scrollPositions = {left: {top: 0, left: 0}, right: {top: 0, left: 0}};
   let restoring = true;
   function stateChanged() { if (alive() && !restoring) onStateChange(); }
   function readScroll(side) { return {top: ui[side].scroll.scrollTop, left: ui[side].scroll.scrollLeft}; }
-  function snapshot() { return {version: 1, review: reviewQueue.snapshot(reviewStarted), drafts: Object.fromEntries(sides.map(side => [side, drafts[side].snapshot()])), selected, ...(single&&styleReview?{styleKept:styleReview.snapshot()}:{}), ...(single && report.sources.left.format === 'pdf' ? {pdfTextView:textViews.left} : {}), pages: {...pages}, zoom: zoom.value, scroll: Object.fromEntries(sides.map(side => [side, readScroll(side)]))}; }
+  function snapshot() { return {version: 1, ...(fillState ? {pdfFill:structuredClone(fillState)} : {}), review: reviewQueue.snapshot(reviewStarted), drafts: Object.fromEntries(sides.map(side => [side, drafts[side].snapshot()])), selected, ...(single&&styleReview?{styleKept:styleReview.snapshot()}:{}), ...(single && report.sources.left.format === 'pdf' ? {pdfTextView:textViews.left} : {}), pages: {...pages}, zoom: zoom.value, scroll: Object.fromEntries(sides.map(side => [side, readScroll(side)]))}; }
   function validateState(state) {
     const invalid = () => { throw new Error("Couldn't restore saved work: the data is corrupted."); };
     if (!state || state.version !== 1 || !['0', '794', '1191'].includes(state.zoom) || state.selected !== null && typeof state.selected !== 'string') invalid();
@@ -71,6 +75,16 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       if (!position || !Number.isFinite(position.top) || position.top < 0 || position.top > 100000000 || !Number.isFinite(position.left) || position.left < 0 || position.left > 100000000 || !Number.isInteger(page) || page < 1 || page > 500) invalid();
       if (report.sources[side].format !== 'pdf' && page !== 1) invalid();
       drafts[side].restore(state.drafts?.[side]);
+    }
+    if (state.pdfFill !== undefined) {
+      const fill = state.pdfFill;
+      if (!single || report.sources.left.format !== 'pdf' || !fill || typeof fill.signature !== 'string' || fill.signature.length > 4000000 || !Array.isArray(fill.fields) || fill.fields.length > 100) invalid();
+      const ids = new Set();
+      for (const f of fill.fields) {
+        if (!f || typeof f.id !== 'string' || !f.id || f.id.length > 100 || ids.has(f.id) || !Number.isInteger(f.page) || f.page < 1 || f.page > 500 || typeof f.text !== 'string' || f.text.length > 4000 || !['x','y','width','height','fontSize'].every(k => Number.isFinite(f[k])) || f.x < 0 || f.y < 0 || f.width <= 0 || f.height <= 0 || f.fontSize < 6 || f.fontSize > 72) invalid();
+        ids.add(f.id);
+      }
+      fillState = structuredClone(fill);
     }
     syncGroups();
     if (state.selected !== null && !byKey.has(state.selected)) invalid();
@@ -179,6 +193,10 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       pdfText = button('Text', () => changePdfView(side, true)); pdfText.dataset.pdfTextView = side;
       pdfPreview = button('Preview PDF', () => changePdfView(side, false), 'button primary'); pdfPreview.dataset.pdfPreview = side;
       views.append(pdfDocument, pdfText); controls.append(views, pdfPreview);
+      if (single && side === 'left') {
+        const fill = button('Fill in PDF', () => void openFill(), 'button secondary');
+        fill.dataset.pdfFill = side; controls.append(fill);
+      }
       pdfHint = el('p', '', 'pdf-view-hint');
       pdfRecovery = el('div', undefined, 'pdf-recovery'); pdfRecovery.hidden = true;
       pdfUndo = button('Undo last edit', () => act(side, draft => draft.undo())); pdfUndo.dataset.pdfUndo = side;
@@ -257,6 +275,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     controls.pdfPreview.hidden = !textViews[side];
     controls.pdfHint.textContent = textViews[side] ? 'Your images are kept. Preview PDF to see your edits in the document.' : '';
     controls.pageNav.hidden = textViews[side];
+    if (single && side === 'left' && hasFill()) controls.pdfHint.textContent += fillCurrent() ? ` ${fillState.fields.length} added text field(s). Use Fill in PDF to edit or remove them. Added fields are included in PDF downloads.` : ' The document text changed. Open Fill in PDF, check the positions and apply before downloading.';
   }
   function pdfStateChanged(side, error) {
     pdfErrors[side] = error;
@@ -424,7 +443,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     wording?.refresh(); wordingReview?.refresh(); styleReview?.refresh();
     updateReviewProgress();
     if(single){progress.textContent=drafts.left.changed ? "Edited document" : "Your document";inspectorTitle.textContent="Edit selected text";for(const side of sides){ui[side].transfer.hidden=ui[side].replaceRow.hidden=true;if(!ui[side].rowTools.hidden)ui[side].rowHint.textContent=ui[side].rowTools.classList.contains("is-locked") ? "A cell spans multiple rows. You can edit the text; select another row to add a row." : ui[side].remove.disabled ? "Edit the cells or add a blank row. The last row cannot be deleted." : "Edit the cells, add a blank row, or delete this row. Undo restores your last change.";}}
-    onRevision(drafts.left.changed || drafts.right.changed);
+    onRevision(drafts.left.changed || drafts.right.changed || hasFill());
     onSelectionChange(getAssistantContext());
     for (const node of root.querySelectorAll('[data-group]')) {
       node.classList.toggle('has-difference', different(byKey.get(node.dataset.group)));
@@ -680,6 +699,14 @@ export async function mountVisualReview(root, {report, sources, single = false, 
         try { ({painted} = await viewer.renderPage(pageNumber, canvas, {scale: 1.5, edits, blocks:sourceBlocks(side)})); }
         catch (error) { if (!edits.length) throw error; editError = error; await viewer.renderPage(pageNumber, canvas, {scale: 1.5}); }
         if (!alive() || generation !== generations[side]) { canvas.width = canvas.height = 0; return; }
+        if (single && side === 'left' && hasFill() && fillCurrent()) {
+          const filled = await filledPdf();
+          const {openPdfVisual} = await import('./pdf-visual.mjs');
+          const fillViewer = await openPdfVisual({data:filled}, {generated:true, signal});
+          try { await fillViewer.renderPage(pageNumber, canvas, {scale:1.5}); }
+          finally { await fillViewer.dispose(); }
+          if (!alive() || generation !== generations[side]) {canvas.width=canvas.height=0;return;}
+        }
         paper.dataset.pdfRevision = String(drafts[side].revision); paper.dataset.pdfLayout = preview ? 'updated' : 'original';
         paper.append(canvas);
         const layer = el('div', undefined, 'visual-hotspots');
@@ -798,8 +825,68 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       prepare:async signal=>{const {renderDocxPdf}=await import('./docx-pdf.mjs');return renderDocxPdf(projected,{signal});},
       download:data=>download(data,filename(side,'pdf'),'application/pdf'),onClose:()=>{documentPdfDialog=null;}});
   }
+  async function fillBase() {
+    if (!drafts.left.changed) return {data:Uint8Array.from(atob(sources.left.data), c=>c.charCodeAt(0)), name:sources.left.name};
+    const entries = drafts.left.entries(), blocks = sourceBlocks('left');
+    const {renderPdfRevision} = await import('./pdf-visual.mjs');
+    let data;
+    try {data = await renderPdfRevision(sources.left, pdfEdits('left',entries), {blocks,signal});}
+    catch(error) {
+      if (!alive() || error.name === 'AbortError') throw error;
+      const {renderPreservedPdf} = await import('./pdf-layout.mjs');
+      data = await renderPreservedPdf(sources.left, entries, {blocks,signal});
+    }
+    return {data,name:sources.left.name};
+  }
+  async function filledPdf() {
+    const signature = fillSignature(), fields = structuredClone(fillState?.fields || []);
+    if (fields.length && fillState.signature !== signature) throw Error('The document changed. Open Fill in PDF and check the field positions.');
+    const key = JSON.stringify([signature, fields]);
+    if (fillCache?.key === key) return fillCache.data;
+    const base = await fillBase();
+    if (!alive() || signature !== fillSignature()) throw Error('The document changed while preparing the PDF. Please try again.');
+    const {renderFilledPdf} = await import('./pdf-fill.mjs');
+    const data = await renderFilledPdf(base,fields,{signal,generated:true});
+    if (!alive() || !fillCurrent() || JSON.stringify([fillSignature(), fillState?.fields || []]) !== key) throw Error('The document changed while preparing the PDF. Please download again.');
+    fillCache = {key,data};
+    return data;
+  }
+  async function openFill() {
+    if (!alive() || fillOpening || fillDialog || exporting.left) return;
+    fillOpening = true;
+    for (const timer of Object.values(typingTimers)) clearTimeout(timer);
+    drafts.left.endEdit();
+    const signature = fillSignature();
+    try {
+      message('Preparing PDF for filling…');
+      const source = await fillBase();
+      const {openPdfFillDialog} = await import('./pdf-fill-dialog.mjs');
+      if (!alive() || signature !== fillSignature()) return;
+      message();
+      fillDialog = openPdfFillDialog({host:root,source,fields:structuredClone(fillState?.fields || []),
+        current:()=>alive() && signature === fillSignature(),
+        apply:fields=>{
+          if (!alive() || signature !== fillSignature()) throw Error('The document changed. Reopen Fill in PDF.');
+          fillState = fields.length ? {signature,fields:structuredClone(fields)} : null;
+          fillCache = null;
+          clearPdfPreview('left'); textViews.left = false; automaticText.left = false;
+          changed();stateChanged();void renderSide('left');
+          message(fields.length ? 'Fields applied. Download PDF to save your filled document.' : 'Added fields removed.');
+        },onClose:()=>{fillDialog=null;}});
+    } catch(error) {if(alive())message(error.message);}
+    finally {fillOpening=false;}
+  }
   async function saveSide(side, {textOnly=false}={}) {
     if (!alive() || exporting[side] || !textOnly && ui[side].save.disabled) return;
+    if (single && side === 'left' && hasFill()) {
+      if (textOnly) {message('Added fields belong to the page layout. Choose Download PDF to include them.');return;}
+      if (!fillCurrent()) {message('The document changed. Open Fill in PDF, check the positions and apply before downloading.');return;}
+      exporting[side] = true; ui[side].save.disabled = true;
+      try {const data = await filledPdf();if(alive()) {download(data, filename(side,'pdf'), 'application/pdf');message('Your filled PDF is ready to download.');}}
+      catch(error) {if(alive())message(error.message);}
+      finally {if(alive()){exporting[side]=false;pdfStateChanged(side,pdfErrors[side]);}}
+      return;
+    }
     if(ui[side].outputFormat?.value==='pdf'){try{await previewWordPdf(side);}catch(error){message(error.message);}return;}
     exporting[side] = true; ui[side].save.disabled = true; if (side === 'right') reviewDownload.disabled = true; message("Preparing document…");
     const revision = drafts[side].revision;
@@ -864,7 +951,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     entries:()=>drafts.left.entries(),revision:()=>drafts.left.revision,
     choose:async(hit,revision)=>{await select(hit.key);if(!alive()||selected!==hit.key||drafts.left.revision!==revision||input.left.value!==hit.text)throw Error('Text changed. Choose an updated suggestion.');input.left.focus({preventScroll:true});input.left.setSelectionRange(hit.start,hit.end);wording.open();input.left.scrollIntoView?.({block:'center'});}
   });}
-  const dispose = () => { if (disposed) return; disposed = true; styleReview?.dispose(); wordingReview?.dispose(); wording?.dispose(); finder?.dispose(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
+  const dispose = () => { if (disposed) return; disposed = true; styleReview?.dispose(); wordingReview?.dispose(); wording?.dispose(); finder?.dispose(); fillDialog?.close(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
   signal?.addEventListener('abort', dispose, {once: true});
   if (alive()) {
     if (!single && Object.values(models).some(model => model.hasTables)) saveNote.textContent += sides.every(side => drafts[side].copyRowFrom) ? " New row: add → fill in → copy to the adjacent version. Undo with ↶." : " New row: add → fill in. Undo with ↶.";
@@ -889,5 +976,5 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     }
   }
   restoring = false;
-  return {dispose, drafts, select, snapshot, getAssistantContext, get changed() { return drafts.left.changed || drafts.right.changed; }};
+  return {dispose, drafts, select, snapshot, getAssistantContext, get changed() { return drafts.left.changed || drafts.right.changed || hasFill(); }};
 }
