@@ -18,8 +18,8 @@ function setup(t,html='<main></main>'){
  const canvases=new WeakMap(),canvas=el=>{let c=canvases.get(el);if(!c||c.width!==el.width||c.height!==el.height){c=native.createCanvas(el.width,el.height);canvases.set(el,c);}return c;};window.HTMLCanvasElement.prototype.getContext=function(type){const ctx=canvas(this).getContext(type);if(!ctx.wrapped){const draw=ctx.drawImage.bind(ctx);ctx.drawImage=(img,...a)=>draw(img instanceof window.HTMLCanvasElement?canvas(img):img,...a);ctx.wrapped=true;}return ctx;};
  window.HTMLCanvasElement.prototype.toBlob=function(callback,mime){canvas(this).toBlob(callback,mime);};
  globalThis.FontFace=class{constructor(name,bytes){this.name=name;this.bytes=bytes;}async load(){native.GlobalFonts.register(Buffer.from(this.bytes),this.name);return this;}};document.fonts={add(){}};
- const downloads=[],names=[],oldCreate=URL.createObjectURL,oldRevoke=URL.revokeObjectURL;URL.createObjectURL=b=>{downloads.push(b);return 'blob:single';};URL.revokeObjectURL=()=>{};window.HTMLAnchorElement.prototype.click=function(){names.push(this.download);};
- t.after(()=>{dom.window.close();URL.createObjectURL=oldCreate;URL.revokeObjectURL=oldRevoke;for(const k of ['window','document','DOMMatrix','Path2D','ImageData','FontFace'])delete globalThis[k];});return {dom,root:document.querySelector('main'),downloads,names};
+ const downloads=[],names=[],revoked=[],oldCreate=URL.createObjectURL,oldRevoke=URL.revokeObjectURL;URL.createObjectURL=b=>{downloads.push(b);return 'blob:single';};URL.revokeObjectURL=url=>revoked.push(url);window.HTMLAnchorElement.prototype.click=function(){names.push(this.download);};
+ t.after(()=>{dom.window.close();URL.createObjectURL=oldCreate;URL.revokeObjectURL=oldRevoke;for(const k of ['window','document','DOMMatrix','Path2D','ImageData','FontFace'])delete globalThis[k];});return {dom,root:document.querySelector('main'),downloads,names,revoked};
 }
 const findButton=(root,label)=>[...root.querySelectorAll('button')].find(node=>node.textContent===label);
 const input=(root,label,value)=>{const node=root.querySelector(`[aria-label="${label}"]`);assert.ok(node,label);node.value=value;node.dispatchEvent(new window.Event('input'));};
@@ -78,4 +78,17 @@ test('mixed date placeholders open as three independent fields and export withou
  assert.equal(root.querySelectorAll('.pdf-fill-inline-blank').length,0);
  root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);
  const text=await textPdf(downloads[0]);assert.match(text,/Birth date:/);assert.match(text,/15/);assert.match(text,/March/);assert.match(text,/26/);
+});
+
+test('prepared PDF has a persistent direct download link and old copy disappears before new input',async t=>{
+ const {root,downloads,names,revoked}=setup(t),view=await mountSingleEditor(root,{source:await formSource()});t.after(()=>view.dispose());
+ const layer=await openBlank(root);input(layer,'Field text','Saved example');root.querySelector('[data-save-side="left"]').click();
+ await until(()=>root.querySelector('[data-pdf-ready-download]'));
+ const link=root.querySelector('[data-pdf-ready-download]'),url=link.href;
+ assert.equal(link.download,'synthetic-form-edited.pdf');assert.equal(root.querySelector('[data-pdf-ready-open]').href,url);
+ assert.equal(downloads[0].type,'application/pdf');assert.match(await textPdf(downloads[0]),/Saved example/);
+ await delay(1150);assert.ok(!revoked.includes(url),'PDF link survives the old one-second URL timeout');
+ const clicks=names.length;link.click();assert.equal(names.length,clicks+1);assert.equal(downloads.length,1,'direct retry uses the same prepared PDF');
+ root.querySelector('.pdf-fill-inline-existing').click();await until(()=>root.querySelector('[aria-label="Field text"]'));
+ assert.equal(root.querySelector('[data-pdf-ready-download]'),null);assert.ok(revoked.includes(url));
 });

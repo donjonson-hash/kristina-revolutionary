@@ -12,10 +12,11 @@ export function preparePdfPrintWindow() {
   const charset = doc.createElement('meta'); charset.charset = 'utf-8';
   const link = doc.createElement('link'); link.rel = 'stylesheet';
   link.href = new URL('./pdf-print.css', import.meta.url).href;
-  const bar = doc.createElement('header'), status = doc.createElement('p'), retry = doc.createElement('button');
+  const bar = doc.createElement('header'), status = doc.createElement('p'), retry = doc.createElement('button'), download = doc.createElement('a');
   bar.className = 'print-controls'; status.textContent = 'Preparing your document for printing…';
   retry.type = 'button'; retry.textContent = 'Print'; retry.disabled = true;
-  bar.append(status, retry);
+  download.textContent = 'Download PDF'; download.hidden = true;
+  bar.append(status, download, retry);
   const pages = doc.createElement('main'); pages.className = 'print-pages';
   doc.body.replaceChildren(bar, pages);
   const urls = new Set();
@@ -28,7 +29,7 @@ export function preparePdfPrintWindow() {
   target.addEventListener('unload', release, {once: true});
   const requestPrint = () => {
     if (target.closed || closed) return;
-    status.textContent = 'Ready. If the print dialog did not open, click Print. Check paper size and turn off browser headers and footers in the print dialog.';
+    status.textContent = 'Ready. Click Download PDF to save the document to your computer, or Print to print it. Check paper size and turn off browser headers and footers in the print dialog.';
     try { target.focus(); target.print(); }
     catch { status.textContent = 'The browser could not open its print dialog. Click Print to try again.'; }
   };
@@ -57,6 +58,11 @@ export function preparePdfPrintWindow() {
       try {
         check();
         if (!(data instanceof Uint8Array) || !data.length || data.length > 64 * 1024 * 1024) throw new Error('The PDF is not available for printing.');
+        // Keep the final PDF bytes, not the rasterized print preview, available for a real user click.
+        // Blob snapshots the bytes before PDF.js can transfer the input buffer.
+        const pdfUrl = URL.createObjectURL(new Blob([data], {type: 'application/pdf'})); urls.add(pdfUrl);
+        const stem = String(title).replace(/\.pdf$/i, '').replace(/[\x00-\x1f\x7f/\\:*?"<>|]/g, '_').trim().slice(0, 180) || 'Document';
+        download.href = pdfUrl; download.download = `${stem}-filled.pdf`;
         const {openPdfVisual} = await import('./pdf-visual.mjs');
         check();
         viewer = await openPdfVisual({data}, {generated: true, signal: controller.signal});
@@ -90,7 +96,7 @@ export function preparePdfPrintWindow() {
             if (failed) throw new Error('A print page could not be loaded. Try Print again.');
           } finally { canvas.width = canvas.height = 0; }
         }
-        check(); doc.title = String(title).slice(0, 200); retry.disabled = false;
+        check(); doc.title = String(title).slice(0, 200); retry.disabled = false; download.hidden = false;
         requestPrint();
       } catch (error) { close(); throw error; }
       finally { clearInterval(timer); signal?.removeEventListener('abort', cancel); if (viewer) await viewer.dispose(); }

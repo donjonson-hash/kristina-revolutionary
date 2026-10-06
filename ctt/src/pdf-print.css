@@ -2,7 +2,9 @@ html, body { margin: 0; padding: 0; }
 body { background: #e9edf1; font-family: sans-serif; }
 .print-controls { padding: 16px; background: #fff; position: sticky; top: 0; }
 .print-controls p { margin: 0 0 12px; }
-.print-controls button { padding: 10px 24px; font: inherit; cursor: pointer; }
+.print-controls button, .print-controls a { padding: 10px 24px; font: inherit; cursor: pointer; }
+.print-controls a { display: inline-block; margin-right: 12px; background: #155eef; color: #fff; border-radius: 4px; text-decoration: none; }
+.print-controls a[hidden] { display: none; }
 .print-page { background: #fff; margin: 16px auto; break-inside: avoid; overflow: hidden; }
 .print-page img { display: block; width: 100%; height: 100%; object-fit: contain; }
 @page { margin: 0; }

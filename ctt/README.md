@@ -1,13 +1,13 @@
 # Compare These Texts
 
-Current CTT website and offline Chrome/Firefox extension source: **0.34.1**.
+Current CTT website and offline Chrome/Firefox extension source: **0.34.2**.
 The same files in `src/` produce the website and both extension packages.
 Documents are processed locally; extension manifests request no permissions or
 host permissions. Website: https://comparethesetexts.com/.
 
 ## Fill printed PDF forms
 
-In **Edit & export**, open a text-based PDF. Detected printed blanks are immediately highlighted: click and type, then move to the next field, **Print** or **Download PDF**. The app saves the active entry and fits its font size to the available width and line spacing. **Add text** places an entry anywhere; **Format** offers manual controls. Printing renders only final PDF pages, preserving the form artwork. Added Cyrillic/Latin text remains searchable in downloads. Fields are saved with the local draft. After editing underlying source text, check existing field positions before exporting. Line detection is conservative; scans and interactive PDF widgets are not automatically filled. Short date blanks and underscore runs beside printed labels are supported.
+In **Edit & export**, open a text-based PDF. Detected printed blanks are immediately highlighted: click and type, then move to the next field, **Print** or **Download PDF**. The app saves the active entry and fits its font size to the available width and line spacing. **Add text** places an entry anywhere; **Format** offers manual controls. Printing renders only final PDF pages, preserving the form artwork. Prepared PDFs keep a direct Save PDF to computer link in the editor, plus Download PDF in the print window, for browsers that decline automatic downloads. Added Cyrillic/Latin text remains searchable in downloads. Fields are saved with the local draft. After editing underlying source text, check existing field positions before exporting. Line detection is conservative; scans and interactive PDF widgets are not automatically filled. Short date blanks and underscore runs beside printed labels are supported.
 
 ## Source and release ownership
 
@@ -43,8 +43,8 @@ npm run check
 Outputs:
 
 - `dist/`: static website, including extension downloads.
-- `dist/downloads/ctt-chrome-0.34.1.zip`: load the extracted directory in Chrome.
-- `dist/downloads/ctt-firefox-0.34.1.zip`: temporary Firefox installation.
+- `dist/downloads/ctt-chrome-0.34.2.zip`: load the extracted directory in Chrome.
+- `dist/downloads/ctt-firefox-0.34.2.zip`: temporary Firefox installation.
 - `dist/release/provenance.json`: Git revision, working-tree status, asset hashes
   and ZIP hashes for that build.
 
