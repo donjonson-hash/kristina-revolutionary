@@ -46,3 +46,14 @@ test('restored out-of-page fields recover preview and download after position co
  const {root,downloads}=setup(t),src=await formSource();let view=await mountSingleEditor(root,{source:src});t.after(()=>view?.dispose());let dialog=await openFill(root);findButton(dialog,'Add text').click();input(dialog,'Field text','Анна Пример');await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog'));const saved=view.snapshot();saved.pdfFill.fields[0].x=900;
  view.dispose();view=await mountSingleEditor(root,{source:src,restoredState:saved});await until(()=>root.querySelector('[data-save-side="left"]').disabled);assert.equal(downloads.length,0);dialog=await openFill(root);await until(()=>/must stay inside/.test(dialog.querySelector('[role="status"]').textContent));assert.equal(findButton(dialog,'Apply').disabled,true);input(dialog,'Left in points','50');await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog')&&!root.querySelector('[data-save-side="left"]').disabled);root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);assert.match(await textPdf(downloads[0]),/Анна Пример/);assert.equal(view.snapshot().pdfFill.fields[0].x,50);
 });
+
+test('empty form opens at the start and a blank-page click creates a usable field',async t=>{
+ const {root,downloads}=setup(t),src=await formSource(),view=await mountSingleEditor(root,{source:src});t.after(()=>view.dispose());const dialog=await openFill(root);
+ assert.equal(document.activeElement,dialog,'opening must not focus the bottom Cancel button and scroll away from Add text');
+ assert.equal(findButton(dialog,'Apply').disabled,true,'an untouched empty form has nothing to apply');
+ assert.equal(dialog.querySelector('[aria-label="Field text"]').disabled,true);
+ const paper=dialog.querySelector('.pdf-fill-paper');paper.getBoundingClientRect=()=>({left:40,top:60,width:250,height:350,right:290,bottom:410,x:40,y:60,toJSON(){return {};}});
+ paper.dispatchEvent(new window.MouseEvent('click',{bubbles:true,clientX:90,clientY:160}));
+ const fieldText=dialog.querySelector('[aria-label="Field text"]');assert.equal(fieldText.disabled,false);assert.equal(document.activeElement,fieldText);assert.equal(dialog.querySelector('[aria-label="Left in points"]').value,'100');assert.equal(dialog.querySelector('[aria-label="Top in points"]').value,'200');
+ input(dialog,'Field text','Анна Пример');await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog'));const field=view.snapshot().pdfFill.fields[0];assert.equal(field.x,100);assert.equal(field.y,200);root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);assert.match(await textPdf(downloads[0]),/Анна Пример/);
+});
