@@ -1,13 +1,13 @@
 # Compare These Texts
 
-Current CTT website and offline Chrome/Firefox extension source: **0.33.9**.
+Current CTT website and offline Chrome/Firefox extension source: **0.34.0**.
 The same files in `src/` produce the website and both extension packages.
 Documents are processed locally; extension manifests request no permissions or
 host permissions. Website: https://comparethesetexts.com/.
 
 ## Fill printed PDF forms
 
-In **Edit & export**, open a text-based PDF and choose **Fill in PDF**. Drag a rectangle above a blank line directly on the page and type. Open **Format** beside the area to change its font size, width or height. Apply each area, then choose **Done filling** to preview and **Download PDF** to save. Click an added area to edit or delete it. Added Cyrillic/Latin text is searchable; the existing page artwork is retained. Fields are saved with the local draft. If underlying text edits change the layout, check and apply the field positions again before downloading. This fills printed blanks; interactive PDF form widgets remain unsupported.
+In **Edit & export**, open a text-based PDF. Detected printed blanks are immediately highlighted: click and type, then move to the next field, **Print** or **Download PDF**. The app saves the active entry and fits its font size to the available width and line spacing. **Add text** places an entry anywhere; **Format** offers manual controls. Printing renders only final PDF pages, preserving the form artwork. Added Cyrillic/Latin text remains searchable in downloads. Fields are saved with the local draft. After editing underlying source text, check existing field positions before exporting. Line detection is conservative; mixed label/underscore runs, scans and interactive PDF widgets are not automatically filled.
 
 ## Source and release ownership
 
@@ -43,8 +43,8 @@ npm run check
 Outputs:
 
 - `dist/`: static website, including extension downloads.
-- `dist/downloads/ctt-chrome-0.33.9.zip`: load the extracted directory in Chrome.
-- `dist/downloads/ctt-firefox-0.33.9.zip`: temporary Firefox installation.
+- `dist/downloads/ctt-chrome-0.34.0.zip`: load the extracted directory in Chrome.
+- `dist/downloads/ctt-firefox-0.34.0.zip`: temporary Firefox installation.
 - `dist/release/provenance.json`: Git revision, working-tree status, asset hashes
   and ZIP hashes for that build.
 
