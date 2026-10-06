@@ -1,0 +1,31 @@
+name: CTT Writer
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['ctt/libreoffice/**', '.github/workflows/ctt-writer-ci.yml']
+  push:
+    branches: [main]
+    paths: ['ctt/libreoffice/**', '.github/workflows/ctt-writer-ci.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  writer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native Writer test runtime
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-writer libreoffice-script-provider-python python3-uno xvfb xauth
+      - name: Build extension
+        run: /usr/bin/python3 ctt/libreoffice/build.py
+      - name: Native Writer integration
+        run: timeout 150s xvfb-run -a /usr/bin/python3 ctt/libreoffice/tests/smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compare-these-texts-writer-prototype
+          path: ctt/libreoffice/dist/*.oxt
+          if-no-files-found: error
