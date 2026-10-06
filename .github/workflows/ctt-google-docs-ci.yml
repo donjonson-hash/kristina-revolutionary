@@ -1,0 +1,35 @@
+name: CTT Google Docs
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['ctt/google-docs/**', '.github/workflows/ctt-google-docs-ci.yml']
+  push:
+    branches: [main]
+    paths: ['ctt/google-docs/**', '.github/workflows/ctt-google-docs-ci.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ctt/package-lock.json
+      - run: npm ci --prefix ctt
+      - name: Selection safety and sidebar tests
+        run: node --test ctt/google-docs/tests/*.test.mjs
+      - name: Package bound script
+        run: python3 ctt/google-docs/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compare-these-texts-google-docs-prototype
+          path: ctt/google-docs/dist/*.zip
+          if-no-files-found: error

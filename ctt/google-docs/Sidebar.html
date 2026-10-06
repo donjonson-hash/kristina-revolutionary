@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px; font: 14px/1.5 Arial, sans-serif; color: #213047; background: #fafbfc; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    p { margin: 8px 0 12px; }
+    .muted { color: #56647a; font-size: 12px; }
+    label { display: block; font-weight: bold; margin: 16px 0 6px; }
+    textarea { width: 100%; min-height: 180px; resize: vertical; padding: 10px; border: 1px solid #8090a8; border-radius: 6px; font: inherit; background: white; }
+    button { padding: 9px 12px; border: 1px solid #8090a8; border-radius: 6px; background: white; color: #213047; font: inherit; cursor: pointer; }
+    button.primary { color: white; background: #2454bd; border-color: #2454bd; }
+    button:disabled { opacity: .5; cursor: default; }
+    button:focus-visible, textarea:focus-visible { outline: 3px solid #9bbcff; outline-offset: 2px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    #original, #preview { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; padding: 10px; border: 1px solid #d3dbe7; border-radius: 6px; background: white; }
+    #status { padding: 10px 0; }
+    #status[data-error="true"] { color: #a41b1b; }
+    del { background: #ffe0df; color: #871c1c; }
+    ins { background: #d9f4e4; color: #14532d; text-decoration: underline; }
+    summary { cursor: pointer; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>Compare These Texts</h1>
+  <p>Select text in one paragraph, edit it here, then preview and apply your changes.</p>
+  <button id="load" type="button">Load selected text</button>
+  <div id="status" role="status" aria-live="polite">Loading selected text…</div>
+  <section id="editor" hidden>
+    <details><summary>Original text</summary><div id="original"></div></details>
+    <label for="edited">Your edit</label>
+    <textarea id="edited" maxlength="4000" spellcheck="true" aria-describedby="limit"></textarea>
+    <p id="limit" class="muted">One paragraph, up to 4,000 characters. No line breaks.</p>
+    <div class="actions">
+      <button id="review" type="button">Preview changes</button>
+      <button id="apply" class="primary" type="button" disabled>Apply to document</button>
+    </div>
+    <section id="changes" hidden aria-label="Changes">
+      <p class="muted">Removed text is crossed out. Added text is underlined.</p>
+      <div id="preview"></div>
+    </section>
+  </section>
+  <p class="muted">Prototype 0.1.0 · Uses Google Apps Script. No document upload to Compare These Texts.</p>
+  <button id="close" type="button">Close</button>
+  <script>
+    'use strict';
+    const $ = id => document.getElementById(id);
+    let snapshot = null, reviewed = null, busy = false;
+    function status(message, error = false) {
+      $('status').textContent = message;
+      $('status').dataset.error = String(error);
+    }
+    function controls() {
+      $('load').disabled = busy;
+      $('edited').disabled = busy;
+      $('edited').readOnly = !snapshot;
+      $('review').disabled = busy || !snapshot;
+      $('apply').disabled = busy || !snapshot || reviewed === null || reviewed !== $('edited').value || reviewed === snapshot.original;
+      $('close').disabled = busy;
+    }
+    function validEdit() {
+      const value = $('edited').value;
+      if (value.length > 4000 || /[\r\n\u2028\u2029\x00]/.test(value)) {
+        throw new Error('Use one paragraph, up to 4,000 characters, without line breaks.');
+      }
+      return value;
+    }
+    function load() {
+      if (busy) return;
+      if (!$('editor').hidden && $('edited').value !== $('original').textContent && !window.confirm('Discard your unapplied edit and load the current selection?')) return;
+      snapshot = null; reviewed = null; $('changes').hidden = true;
+      busy = true; controls(); status('Loading selected text…');
+      google.script.run.withSuccessHandler(result => {
+        snapshot = result; reviewed = null; busy = false;
+        $('original').textContent = result.original;
+        $('edited').value = result.original;
+        $('editor').hidden = false; $('changes').hidden = true;
+        status('Edit the selected text, then preview your changes.'); controls(); $('edited').focus();
+      }).withFailureHandler(error => {
+        busy = false;
+        status(error.message || String(error), true); controls();
+      }).loadSelection();
+    }
+    function preview() {
+      if (busy || !snapshot) return;
+      reviewed = null;
+      try {
+        const value = validEdit();
+        // Compare code points so emoji are never split in the preview.
+        const a = Array.from(snapshot.original), b = Array.from(value);
+        let start = 0, endA = a.length, endB = b.length;
+        while (start < endA && start < endB && a[start] === b[start]) start++;
+        while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) { endA--; endB--; }
+        const target = $('preview'); target.replaceChildren();
+        target.append(document.createTextNode(a.slice(0, start).join('')));
+        for (const [tag, text] of [['del', a.slice(start, endA).join('')], ['ins', b.slice(start, endB).join('')]]) {
+          if (text) { const node = document.createElement(tag); node.textContent = text; target.append(node); }
+        }
+        target.append(document.createTextNode(a.slice(endA).join('')));
+        reviewed = value; $('changes').hidden = false;
+        status(value === snapshot.original ? 'No changes to apply.' : 'Review the highlighted change, then apply it to the document.');
+      } catch (error) { status(error.message, true); $('changes').hidden = true; }
+      controls();
+    }
+    function apply() {
+      if (busy || !snapshot || reviewed === null || reviewed !== $('edited').value || reviewed === snapshot.original) return;
+      busy = true; controls(); status('Applying changes…');
+      google.script.run.withSuccessHandler(result => {
+        busy = false; snapshot = null; reviewed = null;
+        $('original').textContent = $('edited').value;
+        status(result.message + ' Select another passage and click Load selected text to continue.'); controls();
+      }).withFailureHandler(error => {
+        // Keep the draft visible, but never repeat an uncertain write with the same token.
+        busy = false; snapshot = null; reviewed = null;
+        status((error.message || String(error)) + ' Your draft remains here. Copy it if needed, then select the passage and load it again.', true); controls();
+      }).applyEdit(snapshot.token, reviewed);
+    }
+    $('load').addEventListener('click', load);
+    $('review').addEventListener('click', preview);
+    $('apply').addEventListener('click', apply);
+    $('edited').addEventListener('input', () => { reviewed = null; $('changes').hidden = true; controls(); });
+    $('close').addEventListener('click', () => google.script.host.close());
+    load();
+  </script>
+</body>
+</html>
