@@ -1,6 +1,5 @@
 """Native smoke test; run with system Python/pyuno under xvfb-run."""
 import importlib.util
-import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -114,6 +113,21 @@ def run():
                 assert document.Text.String == original
                 document.close(True)
             print("PASS: Cyrillic, emoji, combining marks, ZWJ, boundary insertions, deletion", flush=True)
+            for original, edited in [("A 😀 stone", "A 😃 stone"), ("A 👩‍💻 stone", "A stone"), ("Cafe\u0301", "Cafe")]:
+                document = doc(original)
+                select(document)
+                edit = extension.SelectionEdit(document)
+                try:
+                    edit.apply(edited)
+                except ValueError:
+                    assert document.Text.String == original
+                else:
+                    assert document.Text.String == edited
+                    document.getUndoManager().undo()
+                    assert document.Text.String == original
+                document.close(True)
+            print("PASS: edits at Unicode boundaries apply correctly or reject without mutation", flush=True)
+
 
             document = doc("Original sentence.")
             select(document)

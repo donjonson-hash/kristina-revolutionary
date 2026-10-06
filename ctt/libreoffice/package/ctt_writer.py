@@ -11,11 +11,12 @@ from com.sun.star.lang import XInitialization, XServiceInfo
 IMPLEMENTATION = "org.comparethesetexts.WriterEditor"
 PROTOCOL = "org.comparethesetexts.writer:"
 LIMIT = 4000
-STYLE = ("CharStyleName", "CharFontName", "CharFontNameAsian", "CharFontNameComplex",
+STYLE = tuple(sorted(("CharStyleName", "CharFontName", "CharFontNameAsian", "CharFontNameComplex",
          "CharHeight", "CharHeightAsian", "CharHeightComplex", "CharWeight",
          "CharWeightAsian", "CharWeightComplex", "CharPosture", "CharPostureAsian",
          "CharPostureComplex", "CharColor", "CharBackColor", "CharUnderline",
-         "CharStrikeout", "CharEscapement", "CharEscapementHeight")
+         "CharStrikeout", "CharEscapement", "CharEscapementHeight", "CharHidden",
+         "CharCaseMap", "CharKerning", "CharScaleWidth", "CharAutoKerning")))
 
 
 def changes(original, edited):
@@ -62,8 +63,10 @@ def paragraph_snapshot(anchor):
     paragraph.gotoStartOfParagraph(False)
     paragraph.gotoEndOfParagraph(True)
     section = paragraph.getPropertyValue("TextSection")
-    if section is not None and section.getPropertyValue("IsProtected"):
-        raise ValueError("This section is protected.")
+    while section is not None:
+        if section.getPropertyValue("IsProtected"):
+            raise ValueError("This section is protected.")
+        section = section.getParentSection()
     records = []
     paragraphs = paragraph.createEnumeration()
     while paragraphs.hasMoreElements():
@@ -97,6 +100,10 @@ class SelectionEdit:
         if self.anchor.Text != document.Text:
             raise ValueError("Select main document text. Tables, frames, headers and footnotes are not supported yet.")
         self.before = paragraph_snapshot(self.anchor)
+        prefix = self.anchor.Text.createTextCursorByRange(self.anchor.Start)
+        prefix.gotoStartOfParagraph(False)
+        prefix.gotoRange(self.anchor.Start, True)
+        self.paragraph_offset = len(prefix.String)
         self.applied = False
 
     def check_document(self):
@@ -145,7 +152,12 @@ class SelectionEdit:
                     if replacement:
                         if region.String != replacement:
                             raise RuntimeError("Could not verify the inserted text.")
-                        region.setPropertyValues(STYLE, style)
+                        region.setPropertyValue("CharStyleName", style[STYLE.index("CharStyleName")])
+                        direct = tuple((name, value) for name, value in zip(STYLE, style) if name != "CharStyleName")
+                        region.setPropertyValues(tuple(n for n, _ in direct), tuple(v for _, v in direct))
+                expected = self.before[0][:self.paragraph_offset] + edited + self.before[0][self.paragraph_offset + len(self.original):]
+                if paragraph_snapshot(self.anchor)[0] != expected:
+                    raise RuntimeError("Could not verify the final paragraph.")
             finally:
                 undo.leaveUndoContext()
         except Exception:
