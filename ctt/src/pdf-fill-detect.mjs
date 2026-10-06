@@ -63,15 +63,39 @@ export async function detectPdfFillAreas(source, {page = 1, signal, generated = 
     const sheet=await reader.getPage(page), viewport=sheet.getViewport({scale:1});
     const [content,ops,font]=await Promise.all([sheet.getTextContent(),sheet.getOperatorList(),measureFont()]);abort(signal);
     const lines=[], obstacles=[];
-    const addLine=(p,q)=>{if(Math.abs(p[1]-q[1])<.65&&Math.abs(p[0]-q[0])>=24)lines.push({x:Math.min(p[0],q[0]),right:Math.max(p[0],q[0]),y:(p[1]+q[1])/2});};
+    const addLine=(p,q)=>{if(Math.abs(p[1]-q[1])<.65&&Math.abs(p[0]-q[0])>=8)lines.push({x:Math.min(p[0],q[0]),right:Math.max(p[0],q[0]),y:(p[1]+q[1])/2});};
+    // Use actual glyph advances and TJ kerning, not character counts: labels and
+    // underscores commonly share one text item and use a proportional font.
+    const runs=[];let runFont;
+    for(let n=0;n<ops.fnArray.length;n++){
+      if(ops.fnArray[n]===37)runFont=ops.argsArray[n]?.[0];
+      if(ops.fnArray[n]!==44)continue;
+      let text='',advance=0;const offsets=[0];
+      for(const glyph of ops.argsArray[n]?.[0]||[]){
+        if(typeof glyph==='number'){advance-=glyph;offsets[text.length]=advance;continue;}
+        const value=glyph.unicode||'',width=glyph.width||0;
+        for(let k=0;k<value.length;k++)offsets.push(advance+width*(k+1)/value.length);
+        text+=value;advance+=width;
+      }
+      if(text&&advance>0)runs.push({font:runFont,text,offsets});
+    }
     for(const item of content.items){
       if(!item.str?.trim())continue;
       const m=multiply(viewport.transform,item.transform), size=Math.hypot(m[2],m[3]);
       if(Math.abs(m[1])>.01||m[0]<=0)continue;
       const width=item.width*Math.hypot(...viewport.transform.slice(0,2));
-      if(/^[_\s]{3,}$/.test(item.str)){addLine([m[4],m[5]+size*.08],[m[4]+width,m[5]+size*.08]);continue;}
       const style=content.styles[item.fontName]||{}, ascent=Number.isFinite(style.ascent)?style.ascent:.85;
-      obstacles.push({x:m[4],right:m[4]+width,top:m[5]-size*ascent,bottom:m[5]+size*.15,size});
+      const run=runs.find(r=>r.font===item.fontName&&r.text.includes(item.str));
+      const start=run?.text.indexOf(item.str), total=run?run.offsets[start+item.str.length]-run.offsets[start]:0;
+      const offset=i=>total>0?(run.offsets[start+i]-run.offsets[start])/total*width:i/item.str.length*width;
+      const obstacle=(a,b)=>{if(item.str.slice(a,b).trim())obstacles.push({x:m[4]+offset(a),right:m[4]+offset(b),top:m[5]-size*ascent,bottom:m[5]+size*.15,size});};
+      let cursor=0;
+      for(const match of item.str.matchAll(/_{2,}/g)){
+        obstacle(cursor,match.index);
+        addLine([m[4]+offset(match.index),m[5]+size*.08],[m[4]+offset(match.index+match[0].length),m[5]+size*.08]);
+        cursor=match.index+match[0].length;
+      }
+      obstacle(cursor,item.str.length);
     }
     // PDF.js 6.3 operator numbers and compact path commands are pinned by the bundled reader.
     let ctm=identity.slice(), lineWidth=1;const stack=[];
@@ -107,24 +131,33 @@ export async function detectPdfFillAreas(source, {page = 1, signal, generated = 
     }
     const areas=[];
     for(const line of lines.sort((a,b)=>a.y-b.y||a.x-b.x)){
-      let left=Math.max(0,line.x+2),right=Math.min(viewport.width,line.right-2);
+      const padding=line.right-line.x<32?1:2;
+      const left=Math.max(0,line.x+padding),right=Math.min(viewport.width,line.right-padding);
       const nearby=obstacles.filter(o=>Math.abs(o.bottom-line.y)<24&&o.right>=left-120&&o.x<=right+40);
       const sizes=nearby.map(o=>o.size).filter(s=>s>=8&&s<=18).sort((a,b)=>a-b);
       const size=sizes.length?sizes[Math.floor(sizes.length/2)]:12;
-      const height=font.heightAtSize(size)+1, y=line.y-height-1;
-      if(y<0||line.y>viewport.height)continue;
-      let spans=[[left,right]];
-      for(const o of obstacles){if(o.bottom<=y||o.top>=line.y-1)continue;
-        spans=spans.flatMap(([a,b])=>o.right<=a||o.x>=b?[[a,b]]:[[a,Math.max(a,o.x-3)],[Math.min(b,o.right+3),b]]);
+      const minimumHeight=font.heightAtSize(8)+1;
+      const previous=lines.filter(l=>l.y<line.y-2&&l.right>left&&l.x<right).reduce((max,l)=>Math.max(max,l.y),0);
+      const previousGap=line.y-previous-minimumHeight-1<2?1:2;
+      let fitAreaY=Math.max(0,line.y-font.heightAtSize(size)-2,previous+previousGap);
+      // A label above a blank limits its height, not its width. Fit vertically
+      // first so the first address/issuer line remains available end to end.
+      for(const o of obstacles){
+        if(o.right<=left||o.x>=right)continue;
+        if(o.bottom+1<=line.y-minimumHeight-1)fitAreaY=Math.max(fitAreaY,o.bottom+1);
       }
-      for(const [x,end] of spans){if(end-x<32)continue;
+      if(line.y>viewport.height)continue;
+      let spans=[[left,right]];
+      for(const o of obstacles){if(o.bottom<=fitAreaY||o.top>=line.y-1)continue;
+        spans=spans.flatMap(([a,b])=>o.right<=a||o.x>=b?[[a,b]]:[[a,Math.max(a,o.x-1)],[Math.min(b,o.right+1),b]]);
+      }
+      for(const [x,end] of spans){if(end-x<6)continue;
         // An underline directly beneath text can leave tiny margins: require a useful blank.
         if(end-x<(right-left)*.2)continue;
         if(areas.some(a=>Math.abs(a.lineY-line.y)<2&&Math.abs(a.x-x)<4&&Math.abs(a.width-(end-x))<6))continue;
-        const previous=lines.filter(l=>l.y<line.y-2&&l.right>x&&l.x<end).reduce((max,l)=>Math.max(max,l.y),0);
-        const fitAreaY=Math.max(y,previous+2),fitAreaHeight=line.y-fitAreaY-1;
+        const fitAreaHeight=line.y-fitAreaY-1;
         const fontSize=Math.min(size,(fitAreaHeight-1)/font.heightAtSize(1));
-        if(fontSize<8)continue;
+        if(fontSize<8-.001)continue;
         const actualHeight=font.heightAtSize(fontSize)+1;
         areas.push({id:`blank-${page}-${areas.length+1}`,page,x,y:line.y-actualHeight-1,width:end-x,height:actualHeight,fontSize,lineY:line.y,fitAreaY,fitAreaHeight,detected:true,text:''});
         if(areas.length>=100)break;

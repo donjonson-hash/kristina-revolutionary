@@ -65,3 +65,17 @@ test('changed source positions require explicit revalidation; invalid restored g
  field(root).querySelector('.pdf-fill-inline-existing').click();await until(()=>root.querySelector('[aria-label="Field text"]'));input(field(root),'Width in points','250');await save(root);
  root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);const text=await textPdf(downloads[0]);assert.match(text,/Application test/);assert.match(text,/Example/);
 });
+
+test('mixed date placeholders open as three independent fields and export without replacing labels',async t=>{
+ const {root,downloads}=setup(t),doc=await PDFDocument.create(),page=doc.addPage([500,700]);
+ page.drawText('Birth date: __ ______ 20__',{x:50,y:600,size:12});
+ const view=await mountSingleEditor(root,{source:source('date-form.pdf',await doc.save())});t.after(()=>view.dispose());
+ await until(()=>root.querySelectorAll('.pdf-fill-inline-blank').length===3);
+ for(const value of ['15','March','26']){
+   const layer=await openBlank(root);input(layer,'Field text',value);await save(root);
+ }
+ assert.equal(view.snapshot().pdfFill.fields.length,3);
+ assert.equal(root.querySelectorAll('.pdf-fill-inline-blank').length,0);
+ root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);
+ const text=await textPdf(downloads[0]);assert.match(text,/Birth date:/);assert.match(text,/15/);assert.match(text,/March/);assert.match(text,/26/);
+});

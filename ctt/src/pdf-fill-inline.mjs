@@ -39,7 +39,7 @@ export function mountPdfFillInline({paper,page,width,height,fields,areas=[],exte
   outlines.replaceChildren();
   for(const [index,area] of areas.entries()){
    if((area.page&&area.page!==page)||occupied(area))continue;
-   const box=button('Type here');box.className='pdf-fill-inline-blank';position(box,area);box.setAttribute('aria-label',`Fill blank line ${index+1}`);
+   const box=button(area.width<50?'…':'Type here');box.className='pdf-fill-inline-blank';position(box,area);box.setAttribute('aria-label',`Fill blank line ${index+1}`);
    box.addEventListener('click',()=>void create(area));outlines.append(box);
   }
   for(const [index,field] of base.entries()){
