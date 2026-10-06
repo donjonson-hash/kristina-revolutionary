@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" oor:name="Addons" oor:package="org.openoffice.Office">
+ <node oor:name="AddonUI">
+  <node oor:name="OfficeMenuBar"><node oor:name="org.comparethesetexts.writer.menu" oor:op="replace">
+   <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Compare These Texts</value><value xml:lang="ru">Compare These Texts</value></prop>
+   <node oor:name="Submenu"><node oor:name="edit" oor:op="replace">
+    <prop oor:name="URL" oor:type="xs:string"><value>org.comparethesetexts.writer:edit</value></prop>
+    <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Edit selected text…</value><value xml:lang="ru">Редактировать выделенный текст…</value></prop>
+    <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+    <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+   </node></node>
+  </node></node>
+  <node oor:name="OfficeToolBar"><node oor:name="org.comparethesetexts.writer.toolbar" oor:op="replace">
+   <node oor:name="edit" oor:op="replace">
+    <prop oor:name="URL" oor:type="xs:string"><value>org.comparethesetexts.writer:edit</value></prop>
+    <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Compare These Texts</value><value xml:lang="ru">Compare These Texts</value></prop>
+    <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+    <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+   </node>
+  </node></node>
+ </node>
+</oor:component-data>
