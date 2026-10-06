@@ -24,36 +24,39 @@ function setup(t,html='<main></main>'){
 const findButton=(root,label)=>[...root.querySelectorAll('button')].find(node=>node.textContent===label);
 const input=(root,label,value)=>{const node=root.querySelector(`[aria-label="${label}"]`);assert.ok(node,label);node.value=value;node.dispatchEvent(new window.Event('input'));};
 async function formSource(){const doc=await PDFDocument.create();doc.registerFontkit(fontkit);const font=await doc.embedFont(Buffer.from(fontBase64,'base64'),{subset:true});for(let i=0;i<2;i++){const page=doc.addPage([500,700]);page.drawText(i?'Second form page':'Application form',{x:50,y:620,size:14,font});page.drawLine({start:{x:50,y:560},end:{x:380,y:560},thickness:.5});}return source('synthetic-form.pdf',await doc.save());}
-async function openFill(root){root.querySelector('[data-pdf-fill="left"]').click();await until(()=>root.querySelector('.pdf-fill-dialog')&&findButton(root.querySelector('.pdf-fill-dialog'),'Add text')?.disabled===false);return root.querySelector('.pdf-fill-dialog');}
-async function ready(dialog){await until(()=>findButton(dialog,'Apply').disabled===false);}
 
-test('printed form filling persists, exports Cyrillic, cancels staged edits and guards stale positions',async t=>{
- const {root,downloads}=setup(t),src=await formSource();let view=await mountSingleEditor(root,{source:src});t.after(()=>view?.dispose());
- let dialog=await openFill(root);findButton(dialog,'Add text').click();input(dialog,'Field text','Анна Пример');input(dialog,'Left in points','50');input(dialog,'Top in points','115');input(dialog,'Width in points','250');
- assert.equal(findButton(dialog,'Apply').disabled,true,'unvalidated changes cannot be applied');await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog'));const saved=view.snapshot();assert.equal(saved.pdfFill.fields[0].text,'Анна Пример');assert.equal(saved.pdfFill.fields[0].x,50);assert.equal(saved.pdfFill.fields[0].y,115);assert.equal(view.changed,true);
- view.dispose();view=await mountSingleEditor(root,{source:src,restoredState:saved});assert.deepEqual(view.snapshot().pdfFill,saved.pdfFill);root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);const exported=await textPdf(downloads[0]);assert.match(exported,/Анна Пример/);assert.match(exported,/Application form/);assert.match(exported,/Second form page/);
- dialog=await openFill(root);input(dialog,'Field text','Discard this change');findButton(dialog,'Cancel').click();assert.deepEqual(view.snapshot().pdfFill,saved.pdfFill);
- const item=view.drafts.left.entries()[0];await view.select(item.key,'left');root.querySelector('[data-pdf-text-view="left"]').click();const edit=root.querySelector('[data-edit-side="left"]');edit.value='Application test';edit.dispatchEvent(new window.Event('input'));await until(()=>view.drafts.left.entries()[0].text==='Application test');await until(()=>!root.querySelector('[data-save-side="left"]').disabled);root.querySelector('[data-save-side="left"]').click();await delay(100);assert.equal(downloads.length,1,'stale field positions cannot be exported');assert.match(root.textContent,/check the positions|check the field positions/);
- dialog=await openFill(root);await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog'));root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===2);const revised=await textPdf(downloads[1]);assert.match(revised,/Application test/);assert.match(revised,/Анна Пример/);
+async function openFill(root){root.querySelector('[data-pdf-fill="left"]').click();await until(()=>root.querySelector('.pdf-fill-inline-layer'));return root.querySelector('.pdf-fill-inline-layer');}
+async function apply(root){const layer=root.querySelector('.pdf-fill-inline-layer');await until(()=>!findButton(layer,'Apply').disabled);findButton(layer,'Apply').click();await until(()=>root.querySelector('.pdf-fill-inline-layer')&&!root.querySelector('[aria-label="Field text"]'));}
+const field=root=>root.querySelector('.pdf-fill-inline-layer');
+test('inline fields persist, preserve source, export Cyrillic and guard unfinished input',async t=>{
+ const {root,downloads}=setup(t),src=await formSource();let view=await mountSingleEditor(root,{source:src});t.after(()=>view.dispose());
+ let layer=await openFill(root);findButton(layer,'Add text').click();input(layer,'Field text','Анна Пример');input(layer,'Left in points','50');input(layer,'Top in points','115');input(layer,'Width in points','250');
+ root.querySelector('[data-save-side="left"]').click();await delay(50);assert.equal(downloads.length,0);assert.match(root.textContent,/Apply or cancel/);
+ await apply(root);const saved=view.snapshot();assert.equal(saved.pdfFill.fields[0].y,115);
+ layer=field(root);layer.querySelector('.pdf-fill-inline-existing').click();input(layer,'Field text','Discard this');findButton(layer,'Cancel').click();assert.deepEqual(view.snapshot().pdfFill,saved.pdfFill);
+ view.dispose();view=await mountSingleEditor(root,{source:src,restoredState:saved});root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);const text=await textPdf(downloads[0]);assert.match(text,/Анна Пример/);assert.match(text,/Application form/);assert.match(text,/Second form page/);
 });
-
-test('field placement rejects out-of-page geometry, supports next page and deletion',async t=>{
- const {root}=setup(t),src=await formSource();const view=await mountSingleEditor(root,{source:src});t.after(()=>view.dispose());const dialog=await openFill(root);findButton(dialog,'Next page').click();await until(()=>dialog.querySelector('.pdf-fill-toolbar span').textContent==='Page 2 of 2'&&!findButton(dialog,'Add text').disabled);findButton(dialog,'Add text').click();input(dialog,'Field text','Example');input(dialog,'Left in points','900');await until(()=>/must stay inside/.test(dialog.querySelector('[role="status"]').textContent));assert.equal(findButton(dialog,'Apply').disabled,true);input(dialog,'Left in points','50');await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog'));assert.equal(view.snapshot().pdfFill.fields[0].page,2);
- const again=await openFill(root);findButton(again,'Delete text').click();await ready(again);findButton(again,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog'));assert.equal(view.snapshot().pdfFill,undefined);assert.equal(view.changed,false);
+test('drag uses page coordinates, formatting repairs overflow, multiple areas and pages work',async t=>{
+ const {root}=setup(t),view=await mountSingleEditor(root,{source:await formSource()});t.after(()=>view.dispose());let layer=await openFill(root);
+ const paper=root.querySelector('.visual-pdf-page');paper.getBoundingClientRect=()=>({left:40,top:60,width:250,height:350});
+ const pointer=(type,x,y)=>layer.dispatchEvent(new window.MouseEvent(type,{bubbles:true,button:0,clientX:x,clientY:y}));
+ pointer('pointerdown',190,130);pointer('pointermove',65,115);pointer('pointerup',65,115);
+ assert.equal(field(root).querySelector('[aria-label="Left in points"]').value,'50');assert.equal(field(root).querySelector('[aria-label="Top in points"]').value,'110');
+ input(layer,'Field text','Example');input(layer,'Width in points','15');
+ await until(()=>/does not fit/.test(layer.textContent));assert.equal(findButton(layer,'Apply').disabled,true);assert.equal(layer.querySelector('textarea').value,'Example');
+ input(layer,'Width in points','250');await apply(root);assert.equal(view.snapshot().pdfFill.fields[0].width,250);
+ layer=field(root);findButton(layer,'Add text').click();input(layer,'Field text','Address');await apply(root);assert.equal(view.snapshot().pdfFill.fields.length,2);
+ root.querySelector('[aria-label="Next page"]').click();await until(()=>root.querySelector('canvas[aria-label="Page 2"]')&&field(root));
+ layer=field(root);findButton(layer,'Add text').click();input(layer,'Field text','Second page');input(layer,'Left in points','900');await until(()=>/must stay inside/.test(layer.textContent));input(layer,'Left in points','50');await apply(root);assert.equal(view.snapshot().pdfFill.fields[2].page,2);
+ field(root).querySelector('.pdf-fill-inline-existing').click();findButton(field(root),'Delete text').click();await until(()=>view.snapshot().pdfFill.fields.length===2);assert.ok(view.snapshot().pdfFill.fields.every(f=>f.page===1));
 });
-
-test('restored out-of-page fields recover preview and download after position correction',async t=>{
- const {root,downloads}=setup(t),src=await formSource();let view=await mountSingleEditor(root,{source:src});t.after(()=>view?.dispose());let dialog=await openFill(root);findButton(dialog,'Add text').click();input(dialog,'Field text','Анна Пример');await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog'));const saved=view.snapshot();saved.pdfFill.fields[0].x=900;
- view.dispose();view=await mountSingleEditor(root,{source:src,restoredState:saved});await until(()=>root.querySelector('[data-save-side="left"]').disabled);assert.equal(downloads.length,0);dialog=await openFill(root);await until(()=>/must stay inside/.test(dialog.querySelector('[role="status"]').textContent));assert.equal(findButton(dialog,'Apply').disabled,true);input(dialog,'Left in points','50');await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog')&&!root.querySelector('[data-save-side="left"]').disabled);root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);assert.match(await textPdf(downloads[0]),/Анна Пример/);assert.equal(view.snapshot().pdfFill.fields[0].x,50);
+test('source edits require field revalidation before downloading',async t=>{
+ const {root,downloads}=setup(t),view=await mountSingleEditor(root,{source:await formSource()});t.after(()=>view.dispose());let layer=await openFill(root);findButton(layer,'Add text').click();input(layer,'Field text','Example');await apply(root);
+ root.querySelector('[data-pdf-fill="left"]').click();await until(()=>!field(root));await view.select(view.drafts.left.entries()[0].key,'left');root.querySelector('[data-pdf-text-view="left"]').click();
+ const edit=root.querySelector('[data-edit-side="left"]');edit.value='Application test';edit.dispatchEvent(new window.Event('input'));await until(()=>view.drafts.left.entries()[0].text==='Application test');await until(()=>!root.querySelector('[data-save-side="left"]').disabled);root.querySelector('[data-save-side="left"]').click();await delay(100);assert.equal(downloads.length,0);assert.match(root.textContent,/check the positions|check the field positions/);
+ layer=await openFill(root);layer.querySelector('.pdf-fill-inline-existing').click();await apply(root);root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);const text=await textPdf(downloads[0]);assert.match(text,/Application test/);assert.match(text,/Example/);
 });
-
-test('empty form opens at the start and a blank-page click creates a usable field',async t=>{
- const {root,downloads}=setup(t),src=await formSource(),view=await mountSingleEditor(root,{source:src});t.after(()=>view.dispose());const dialog=await openFill(root);
- assert.equal(document.activeElement,dialog,'opening must not focus the bottom Cancel button and scroll away from Add text');
- assert.equal(findButton(dialog,'Apply').disabled,true,'an untouched empty form has nothing to apply');
- assert.equal(dialog.querySelector('[aria-label="Field text"]').disabled,true);
- const paper=dialog.querySelector('.pdf-fill-paper');paper.getBoundingClientRect=()=>({left:40,top:60,width:250,height:350,right:290,bottom:410,x:40,y:60,toJSON(){return {};}});
- paper.dispatchEvent(new window.MouseEvent('click',{bubbles:true,clientX:90,clientY:160}));
- const fieldText=dialog.querySelector('[aria-label="Field text"]');assert.equal(fieldText.disabled,false);assert.equal(document.activeElement,fieldText);assert.equal(dialog.querySelector('[aria-label="Left in points"]').value,'100');assert.equal(dialog.querySelector('[aria-label="Top in points"]').value,'200');
- input(dialog,'Field text','Анна Пример');await ready(dialog);findButton(dialog,'Apply').click();await until(()=>!root.querySelector('.pdf-fill-dialog'));const field=view.snapshot().pdfFill.fields[0];assert.equal(field.x,100);assert.equal(field.y,200);root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);assert.match(await textPdf(downloads[0]),/Анна Пример/);
+test('invalid restored positions remain repairable directly on the page',async t=>{
+ const {root,downloads}=setup(t),src=await formSource();let view=await mountSingleEditor(root,{source:src});t.after(()=>view.dispose());let layer=await openFill(root);findButton(layer,'Add text').click();input(layer,'Field text','Example');await apply(root);const saved=view.snapshot();saved.pdfFill.fields[0].width=900;
+ view.dispose();view=await mountSingleEditor(root,{source:src,restoredState:saved});layer=await openFill(root);layer.querySelector('.pdf-fill-inline-existing').click();await until(()=>/must stay inside/.test(layer.textContent));input(layer,'Width in points','250');await apply(root);root.querySelector('[data-save-side="left"]').click();await until(()=>downloads.length===1);assert.match(await textPdf(downloads[0]),/Example/);
 });
