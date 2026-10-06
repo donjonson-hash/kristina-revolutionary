@@ -1,0 +1,14 @@
+html, body { margin: 0; padding: 0; }
+body { background: #e9edf1; font-family: sans-serif; }
+.print-controls { padding: 16px; background: #fff; position: sticky; top: 0; }
+.print-controls p { margin: 0 0 12px; }
+.print-controls button { padding: 10px 24px; font: inherit; cursor: pointer; }
+.print-page { background: #fff; margin: 16px auto; break-inside: avoid; overflow: hidden; }
+.print-page img { display: block; width: 100%; height: 100%; object-fit: contain; }
+@page { margin: 0; }
+@media print {
+  html, body, .print-pages { background: #fff; margin: 0; padding: 0; }
+  .print-controls { display: none !important; }
+  .print-page { margin: 0; break-after: page; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .print-page:last-child { break-after: auto; }
+}

@@ -1,3 +1,4 @@
+import {preparePdfPrintWindow} from './pdf-print.mjs';
 import {validateStyleKept} from './repetition-scan.mjs';
 import {mountStyleReview} from './style-review.mjs';
 import {mountWordingOptions, mountWordingReview} from './wording-options.mjs';
@@ -54,8 +55,16 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   const sourceBlocks = side => originalGroups.flatMap(group => { const block = row(group, side); return block ? (block.source_blocks || [block]).map(part=>({...part,key:group.key})) : []; }).sort((a, b) => a.record - b.record);
   let finder = null, wording = null, wordingReview = null, styleReview = null;
   let disposed = false, selected = null, selectionGeneration = 0, blockDialog = null, documentPdfDialog = null;
-  let inlineFill = null, fillMode = false, fillOpening = false, fillState = null, fillCache = null;
-  function pendingFill() { if (!inlineFill?.dirty) return false; message("Apply or cancel the current text first."); inlineFill.focus(); return true; }
+  let inlineFill = null, fillMode = single && report.sources.left.format === 'pdf', fillOpening = false, fillState = null, fillCache = null;
+  const fillAreasCache = new Map();
+  let printJob = null;
+  async function flushFill() {
+    if (!inlineFill) return true;
+    const ok = await inlineFill.flush();
+    if (!ok) { message('Check the highlighted text before continuing.'); inlineFill?.focus(); }
+    return ok && alive();
+  }
+  function pendingFill() { if (!inlineFill?.dirty) return false; message("Save or cancel the current text first."); inlineFill.focus(); return true; }
   const fillSignature = () => JSON.stringify(drafts.left.entries());
   const hasFill = () => !!fillState?.fields.length;
   const fillCurrent = () => !hasFill() || fillState.signature === fillSignature();
@@ -145,8 +154,8 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   const inspector = el('section', undefined, 'visual-inspector'); inspector.hidden = true; inspector.setAttribute('aria-label', "Edit selected text");
   const inspectorHead = el('div', undefined, 'visual-inspector-head');
   const inspectorTitle = el('strong', "Selected text");
-  const done = button("Done ✓", () => {
-    if (!alive()) return;
+  const done = button("Done ✓", async () => {
+    if (!alive() || (inlineFill?.dirty && !await flushFill())) return;
     for (const timer of Object.values(typingTimers)) clearTimeout(timer);
     for (const side of sides) drafts[side].endEdit();
     if (reviewStarted && selected && reviewQueue.has(selected)) { decideReview('keep'); return; }
@@ -172,7 +181,14 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     const menu = el('details', undefined, 'visual-more'); menu.append(el('summary', '⋯'));
     if(report.sources[side].format==='pdf'){const textPdf=button('Download text-only PDF',()=>saveSide(side,{textOnly:true}));textPdf.dataset.pdfTextOnly=side;menu.append(textPdf,el('p','Text-only PDF and TXT downloads do not include images or page formatting.','pdf-export-hint'));}
     menu.append(button(`Download ${letter(side)} as TXT`, () => download(drafts[side].exportText(), filename(side, 'txt'), 'text/plain;charset=utf-8')));
-    heading.append(el('span', letter(side), 'letter'), name, undo);if(outputFormat)heading.append(outputFormat);heading.append(save, menu); panel.append(heading); if(single){panel.hidden=side==='right';heading.querySelector('.letter').hidden=true;menu.hidden=true;}
+    heading.append(el('span', letter(side), 'letter'), name, undo);if(outputFormat)heading.append(outputFormat);heading.append(save, menu);
+    let print;
+    if(single && side==='left' && report.sources[side].format==='pdf'){
+      save.className='button secondary';
+      print=button('Print',()=>void printPdf(),'button primary');print.dataset.pdfPrint=side;
+      heading.insertBefore(print,save);
+    }
+    panel.append(heading); if(single){panel.hidden=side==='right';heading.querySelector('.letter').hidden=true;menu.hidden=true;}
     if (models[side]?.headersFooters?.length) {
       const note=el('p','Only the main body is compared and edited. Headers and footers are kept unchanged in Word downloads. PDF export is unavailable for this document.','docx-coverage-note');
       note.dataset.docxPeripheralNote=side;
@@ -195,7 +211,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       pdfPreview = button('Preview PDF', () => changePdfView(side, false), 'button primary'); pdfPreview.dataset.pdfPreview = side;
       views.append(pdfDocument, pdfText); controls.append(views, pdfPreview);
       if (single && side === 'left') {
-        const fill = button('Fill in PDF', () => void openFill(), 'button secondary');
+        const fill = button('Add text', () => void openFill(), 'button secondary');
         fill.dataset.pdfFill = side; controls.append(fill);
       }
       pdfHint = el('p', '', 'pdf-view-hint');
@@ -214,13 +230,13 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       }
     }
     const pageNav = el('div', undefined, 'visual-page-nav'), pageLabel = el('span'); pageNav.hidden = report.sources[side].format !== 'pdf';
-    const navigate = offset => { if (!alive() || pendingFill() || !activeViewer(side)) return; const page = Math.max(1, Math.min(activeViewer(side).pageCount, pages[side] + offset)); if (page === pages[side]) return; pages[side] = page; void renderSide(side); stateChanged(); };
+    const navigate = async offset => { if (!alive() || (inlineFill?.dirty && !await flushFill()) || !activeViewer(side)) return; const page = Math.max(1, Math.min(activeViewer(side).pageCount, pages[side] + offset)); if (page === pages[side]) return; pages[side] = page; void renderSide(side); stateChanged(); };
     const previous = button('←', () => navigate(-1)), following = button('→', () => navigate(1));
     previous.disabled = following.disabled = true;
     previous.setAttribute('aria-label', single ? "Previous page" : `Previous page of ${letter(side)}`); following.setAttribute('aria-label', single ? "Next page" : `Next page of ${letter(side)}`);
     pageNav.append(previous, pageLabel, following); panel.append(pageNav);
     const scroll = el('div', undefined, 'visual-scroll'); scroll.setAttribute('aria-label', single ? "Document" : `Document ${letter(side)}`); panel.append(scroll); grid.append(panel);
-    ui[side] = {panel, scroll, pageLabel, previous, following, undo, save, outputFormat, pdfState, pdfDocument, pdfText, pdfPreview, pdfHint, pdfRecovery, pdfUndo, pdfAdjust, pageNav};
+    ui[side] = {panel, scroll, pageLabel, previous, following, undo, save, print, outputFormat, pdfState, pdfDocument, pdfText, pdfPreview, pdfHint, pdfRecovery, pdfUndo, pdfAdjust, pageNav};
     scroll.addEventListener('scroll', () => { if (!alive()) return; const position = readScroll(side), before = scrollPositions[side]; if (position.top !== before.top || position.left !== before.left) { scrollPositions[side] = position; stateChanged(); } });
     const fieldLabel = el('div', undefined, 'visual-edit-label'), field = el('textarea'); field.rows = 3; field.maxLength = 500000;
     field.id = `${single ? "single-" : ""}visual-edit-${side}`;
@@ -256,9 +272,9 @@ export async function mountVisualReview(root, {report, sources, single = false, 
       apply:text=>{if(!alive()||!selected||field.disabled)throw Error('Select text to edit first.');drafts[side].endEdit();drafts[side].edit(selected,text);drafts[side].endEdit();field.value=text;changed();stateChanged();void renderSide(side);}
     });
   }
-  function changePdfView(side, asText) {
-    if (!alive() || pendingFill()) return;
-    if (asText) fillMode = false;
+  async function changePdfView(side, asText) {
+    if (!alive() || (inlineFill?.dirty && !await flushFill())) return;
+    if(single && side==='left') fillMode = !asText;
     clearTimeout(typingTimers[side]); drafts[side].endEdit();
     // An explicit preview retries a failed attempt while keeping all document edits.
     if (!asText && previewFailures[side]) clearPdfPreview(side);
@@ -272,14 +288,14 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   function updatePdfControls(side) {
     const controls = ui[side]; if (!controls.pdfDocument) return;
     const fillButton = root.querySelector('[data-pdf-fill="'+side+'"]');
-    if(fillButton){fillButton.textContent=fillMode?'Done filling':'Fill in PDF';fillButton.setAttribute('aria-pressed',String(fillMode));}
+    if(fillButton){fillButton.textContent='Add text';fillButton.disabled=pdfChecking[side]||exporting[side];}
     controls.pdfAdjust.disabled = !pdfRepairKey(side);
     controls.pdfDocument.setAttribute('aria-pressed', String(!textViews[side]));
     controls.pdfText.setAttribute('aria-pressed', String(textViews[side]));
     controls.pdfPreview.hidden = !textViews[side];
-    controls.pdfHint.textContent = textViews[side] ? 'Your images are kept. Preview PDF to see your edits in the document.' : '';
+    controls.pdfHint.textContent = textViews[side] ? 'Your images are kept. Preview PDF to see your edits in the document.' : single ? 'Click a highlighted blank to fill it, or click existing text to edit. Text size adjusts automatically.' : '';
     controls.pageNav.hidden = textViews[side];
-    if (single && side === 'left' && hasFill()) controls.pdfHint.textContent += fillCurrent() ? ` ${fillState.fields.length} added text field(s). Use Fill in PDF to edit or remove them. Added fields are included in PDF downloads.` : ' The document text changed. Open Fill in PDF, check the positions and apply before downloading.';
+    if (single && side === 'left' && hasFill()) controls.pdfHint.textContent += fillCurrent() ? ` ${fillState.fields.length} added text field(s). Click added text to change it. Your entries are included when you print or download.` : ' The document text changed. Click each added text area to check its position, then Save before printing or downloading.';
   }
   function pdfStateChanged(side, error) {
     pdfErrors[side] = error;
@@ -291,6 +307,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     ui[side].save.textContent = 'Download PDF';
     ui[side].save.dataset.pdfMode = error ? 'reflow' : 'original';
     ui[side].save.disabled = exporting[side] || pdfChecking[side] || !!failure;
+    if(ui[side].print)ui[side].print.disabled=ui[side].save.disabled||!!printJob;
     updatePdfControls(side);
     reviewDownload.textContent = 'Download updated B';
     if (side === 'right') reviewDownload.disabled = ui[side].save.disabled;
@@ -553,8 +570,8 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     for (const side of sides) void renderSide(side);
   }
   async function select(key, focusSide) {
-    if (!alive() || pendingFill()) return;
-    if(fillMode){fillMode=false;inlineFill?.dispose();inlineFill=null;updatePdfControls("left");}
+    if (!alive() || (inlineFill?.dirty && !await flushFill())) return;
+    if(inlineFill&&!inlineFill.dirty)void inlineFill.flush();
     if (!byKey.has(key)) throw new Error("Section not found.");
     reviewingStructure = false;
     for (const timer of Object.values(typingTimers)) clearTimeout(timer); const selection = ++selectionGeneration; selected = key; inspector.hidden = false; root.classList.add('is-editing');
@@ -732,20 +749,37 @@ export async function mountVisualReview(root, {report, sources, single = false, 
         paper.append(layer); scroll.replaceChildren(paper);
         if(single && side==='left' && fillMode){
           const signature=fillSignature(), current=()=>alive()&&generation===generations[side]&&signature===fillSignature();
-          const {mountPdfFillInline}=await import('./pdf-fill-inline.mjs');
+          const {mountPdfFillInline,ensurePdfFillFont}=await import('./pdf-fill-inline.mjs');
+          await ensurePdfFillFont();
+          const {detectPdfFillAreas,fitPdfFillText}=await import('./pdf-fill-detect.mjs');
+          const areaKey=JSON.stringify([signature,pageNumber]);
+          let areas=fillAreasCache.get(areaKey);
+          if(!areas){
+            try {
+              const detected=await detectPdfFillAreas(await fillBase(),{page:pageNumber,signal,generated:true});
+              areas=detected.areas;
+              if(fillAreasCache.size>10)fillAreasCache.clear();
+              fillAreasCache.set(areaKey,areas);
+            } catch(error) { if(error.name==='AbortError')throw error; areas=[]; }
+          }
           if(!current())return;
-          inlineFill=mountPdfFillInline({paper,page:pageNumber,width:pageWidth,height:pageHeight,fields:structuredClone(fillState?.fields||[]),current,
+          inlineFill=mountPdfFillInline({paper,page:pageNumber,width:pageWidth,height:pageHeight,fields:structuredClone(fillState?.fields||[]),areas,current,externalToolbar:true,onHint:message,
+            fitText:field=>fitPdfFillText(field,{signal}),
+            onEditStart:()=>{
+              for(const timer of Object.values(typingTimers))clearTimeout(timer);
+              drafts.left.endEdit();selected=null;inspector.hidden=true;root.classList.remove('is-editing');
+            },
             validate:async fields=>{
               const base=await fillBase();
               const {renderFilledPdf}=await import('./pdf-fill.mjs');
               await renderFilledPdf(base,fields,{signal,generated:true});
-              if(!current())throw Error('The document changed. Reopen Fill in PDF.');
+              if(!current())throw Error('The document changed. Click the added text to review its position.');
             },
             onCommit:fields=>{
-              if(!current())throw Error('The document changed. Reopen Fill in PDF.');
+              if(!current())throw Error('The document changed. Click the added text to review its position.');
               fillState=fields.length?{signature,fields:structuredClone(fields)}:null;fillCache=null;
-              clearPdfPreview('left');changed();stateChanged();void renderSide('left');
-              message('Text applied. Add another area or choose Done filling to preview the PDF.');
+              changed();stateChanged();updatePdfControls('left');
+              message('Saved. Continue filling, print or download your PDF.');
             }});
         }
         pdfStateChanged(side, editError?.message ?? null);
@@ -864,7 +898,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   }
   async function filledPdf() {
     const signature = fillSignature(), fields = structuredClone(fillState?.fields || []);
-    if (fields.length && fillState.signature !== signature) throw Error('The document changed. Open Fill in PDF and check the field positions.');
+    if (fields.length && fillState.signature !== signature) throw Error('The document changed. Click the added text to check its position, then Save.');
     const key = JSON.stringify([signature, fields]);
     if (fillCache?.key === key) return fillCache.data;
     const base = await fillBase();
@@ -876,21 +910,43 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     return data;
   }
   async function openFill() {
-    if (!alive() || fillOpening || exporting.left || pendingFill()) return;
+    if (!alive() || fillOpening || exporting.left || (inlineFill?.dirty && !await flushFill())) return;
     fillOpening=true;
     try {
       for(const timer of Object.values(typingTimers))clearTimeout(timer);
       drafts.left.endEdit();selected=null;inspector.hidden=true;root.classList.remove('is-editing');
-      fillMode=!fillMode;textViews.left=false;automaticText.left=false;
-      clearPdfPreview('left');message(fillMode?'Drag a rectangle above a blank line and type your details.':'');
-      await renderSide('left');
+      if(textViews.left || !inlineFill) {
+        fillMode=true;textViews.left=false;automaticText.left=false;
+        clearPdfPreview('left');await renderSide('left');
+      }
+      inlineFill?.addText();
     } finally {fillOpening=false;}
   }
+  async function printPdf() {
+    if(!alive() || printJob || exporting.left || ui.left.save.disabled)return;
+    let target;
+    try { target=preparePdfPrintWindow(); }
+    catch(error){message(error.message);return;}
+    printJob=target;
+    try {
+      if((inlineFill?.dirty && !await flushFill())){target.close();return;}
+      for(const timer of Object.values(typingTimers))clearTimeout(timer);
+      drafts.left.endEdit();exporting.left=true;pdfStateChanged('left',pdfErrors.left);
+      message('Preparing your document for printing…');
+      const signature=fillSignature();
+      const data=hasFill()?await filledPdf():(await fillBase()).data;
+      if(signature!==fillSignature())throw Error('The document changed. Click Print again to include the latest edits.');
+      if(!alive()){target.close();return;}
+      await target.print(data,{signal,title:sources.left.name});
+      message('Print preview is ready.');
+    } catch(error){target.close();if(alive())message(error.message);}
+    finally {printJob=null;exporting.left=false;if(alive())pdfStateChanged('left',pdfErrors.left);}
+  }
   async function saveSide(side, {textOnly=false}={}) {
-    if (!alive() || pendingFill() || exporting[side] || !textOnly && ui[side].save.disabled) return;
+    if (!alive() || exporting[side] || !textOnly && ui[side].save.disabled || (inlineFill?.dirty && !await flushFill())) return;
     if (single && side === 'left' && hasFill()) {
       if (textOnly) {message('Added fields belong to the page layout. Choose Download PDF to include them.');return;}
-      if (!fillCurrent()) {message('The document changed. Open Fill in PDF, check the positions and apply before downloading.');return;}
+      if (!fillCurrent()) {message('The document changed. Click each added text area to check its position, then Save before printing or downloading.');return;}
       exporting[side] = true; ui[side].save.disabled = true;
       try {const data = await filledPdf();if(alive()) {download(data, filename(side,'pdf'), 'application/pdf');message('Your filled PDF is ready to download.');}}
       catch(error) {if(alive())message(error.message);}
@@ -961,7 +1017,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     entries:()=>drafts.left.entries(),revision:()=>drafts.left.revision,
     choose:async(hit,revision)=>{await select(hit.key);if(!alive()||selected!==hit.key||drafts.left.revision!==revision||input.left.value!==hit.text)throw Error('Text changed. Choose an updated suggestion.');input.left.focus({preventScroll:true});input.left.setSelectionRange(hit.start,hit.end);wording.open();input.left.scrollIntoView?.({block:'center'});}
   });}
-  const dispose = () => { if (disposed) return; disposed = true; styleReview?.dispose(); wordingReview?.dispose(); wording?.dispose(); finder?.dispose(); inlineFill?.dispose(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
+  const dispose = () => { if (disposed) return; disposed = true; styleReview?.dispose(); wordingReview?.dispose(); wording?.dispose(); finder?.dispose(); inlineFill?.dispose(); printJob?.close(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
   signal?.addEventListener('abort', dispose, {once: true});
   if (alive()) {
     if (!single && Object.values(models).some(model => model.hasTables)) saveNote.textContent += sides.every(side => drafts[side].copyRowFrom) ? " New row: add → fill in → copy to the adjacent version. Undo with ↶." : " New row: add → fill in. Undo with ↶.";
