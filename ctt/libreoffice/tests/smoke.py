@@ -1,5 +1,7 @@
 """Native smoke test; run with system Python/pyuno under xvfb-run."""
 import importlib.util
+import faulthandler
+import traceback
 from pathlib import Path
 import subprocess
 import tempfile
@@ -29,6 +31,7 @@ def rejected(action):
 
 
 def run():
+    faulthandler.dump_traceback_later(40, repeat=True)
     with tempfile.TemporaryDirectory(prefix="ctt-writer-") as tmp:
         profile = Path(tmp, "profile").as_uri()
         package = ROOT / "dist/compare-these-texts-writer-0.1.0.oxt"
@@ -88,6 +91,7 @@ def run():
             undo.redo()
             assert document.Text.String == "We use a cold stone."
             undo.undo()
+            print("PASS: minimal edits, formatting and Undo/Redo", flush=True)
             # Test installed protocol and native dialog construction/Cancel.
             select(document)
             url = uno.createUnoStruct("com.sun.star.util.URL")
@@ -165,9 +169,11 @@ def run():
             assert document.Text.String == "Different fonts"
             document.close(True)
             print("PASS: stale selection, multiple paragraphs, fields, tracked changes, mixed-style rejection", flush=True)
+        except Exception:
+            traceback.print_exc()
+            raise
         finally:
-            if desktop:
-                desktop.terminate()
+            process.terminate()
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
