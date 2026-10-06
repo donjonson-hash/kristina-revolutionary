@@ -2,6 +2,7 @@
 import importlib.util
 import faulthandler
 import traceback
+import threading
 from pathlib import Path
 import subprocess
 import tempfile
@@ -99,10 +100,21 @@ def run():
             dispatch = document.CurrentController.Frame.queryDispatch(url, "", 0)
             assert dispatch is not None, "Installed command is unavailable"
             ui = remote.ServiceManager.createInstanceWithContext("com.sun.star.ui.test.UITest", remote)
-            assert ui.executeDialog(url.Complete), "Could not open installed editor"
-            window = ui.getTopFocusWindow()
+            results = []
+            opener = threading.Thread(target=lambda: results.append(ui.executeDialog(url.Complete)), daemon=True)
+            opener.start()
+            for _ in range(100):
+                window = ui.getTopFocusWindow()
+                state = {p.Name: p.Value for p in window.getState()}
+                if "Writer prototype" in state.get("Text", ""):
+                    break
+                time.sleep(.1)
+            else:
+                raise AssertionError("Editor did not open: " + repr(state))
             print("Dialog children:", window.getChildren(), flush=True)
             window.executeAction("TYPE", (prop("KEYCODE", "ESC"),))
+            opener.join(timeout=5)
+            assert not opener.is_alive() and results == [True], "Editor did not close"
             assert document.Text.String == "We utilize a cold stone."
             document.close(True)
             print("PASS: installed command, dialog, minimal edit, formatting, one-step Undo/Redo", flush=True)
