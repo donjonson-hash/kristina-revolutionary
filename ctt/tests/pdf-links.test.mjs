@@ -49,11 +49,24 @@ test('HTTP(S) link PDFs compare visible text only and disclose the omitted desti
   assert.equal((await readTextSource(fixture())).meta.link_count, undefined);
 });
 
+test('email links import as inert text and do not affect comparison', async () => {
+  for (const uri of ['mailto:test@example.com', 'MAILTO:test@example.com', 'mailto:test@example.com?subject=Hello%20there']) {
+    const source = fixture([link(`/Type /Action /S /URI /URI (${uri})`, '/StructParent 1')]);
+    const parsed = await readTextSource(source);
+    assert.deepEqual(parsed.blocks.map(block => block.text), ['Contact support']);
+    assert.equal(parsed.meta.link_count, 1);
+    assert.match(parsed.meta.notes.join(' '), /not compared or opened/);
+    assert.equal((await compareText({left: source, right: fixture()})).summary.changed, 0);
+  }
+});
+
 test('other annotations, unsafe schemes and additional link actions remain unsupported', async () => {
   for (const [name, annotations] of [
     ['comment', ['<< /Type /Annot /Subtype /Text /Rect [50 595 180 615] /Contents (Review) >>']],
     ['mixed link and comment', [link(), '<< /Type /Annot /Subtype /Text /Rect [50 595 180 615] /Contents (Review) >>']],
-    ['mailto', [link('/S /URI /URI (mailto:test@example.com)')]],
+    ['email chained action', [link('/S /URI /URI (mailto:test@example.com) /Next << /S /JavaScript /JS (noop) >>')]],
+    ['email additional action', [link('/S /URI /URI (mailto:test@example.com)', '/AA << /E << /S /JavaScript /JS (noop) >> >>')]],
+    ['email control character', [link('/S /URI /URI (mailto:test@example.com\\n)')]],
     ['javascript URI', [link('/S /URI /URI (javascript:alert%281%29)')]],
     ['relative URI', [link('/S /URI /URI (/reference)')]],
     ['file URI', [link('/S /URI /URI (file:///tmp/example)')]],
@@ -84,7 +97,7 @@ test('PDF editor displays link scope and rebuilt downloads contain no stale link
   const input = await PDFDocument.create(); input.registerFontkit(fontkit);
   const font = await input.embedFont(Buffer.from(fontBase64, 'base64'), {subset: true});
   const page = input.addPage([500, 700]); page.drawText('Contact support', {x: 50, y: 600, size: 14, font});
-  input.setTitle('https://example.com/reference');
+  input.setTitle('mailto:test@example.com');
   const uri = input.context.lookup(input.context.trailerInfo.Info).get(PDFName.of('Title'));
   page.node.set(PDFName.of('Annots'), input.context.obj([{Type: 'Annot', Subtype: 'Link', Rect: [50, 595, 180, 615], Border: [0, 0, 0], A: {S: 'URI', URI: uri}}]));
   const original = fromBytes(await input.save()), parsed = await readTextSource(original);

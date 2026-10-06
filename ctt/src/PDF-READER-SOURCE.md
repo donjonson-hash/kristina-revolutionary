@@ -69,10 +69,14 @@ Import is limited to 2 MiB, 100 pages, 2000 extracted lines, 500000 Unicode code
 points, 100000 text items and 15 seconds per document. The existing application
 Worker timeout is the outer bound for synchronous parser work. Decompression has
 the independent per-stream limit above. The importer rejects encrypted documents,
-forms, annotations (including links), attachments, optional-content layers and every
+forms, annotations other than ordinary HTTP(S)/mailto URI links, attachments, optional-content layers and every
 page with no usable text, even if other pages contain text. Text-bearing pages may
 contain images; those images and any text within them are not compared. This scope
 is stated in the result, office draft and exported reports. It does not perform OCR or render original pages.
+
+Accepted link destinations are not opened or compared. Edited PDF downloads remove
+clickable links; the unchanged original retains them. Chained actions and additional
+annotation actions remain unsupported.
 
 Lines concatenate items in PDF.js source order and split at `hasEOL`. Since Form
 XObjects can end without this marker, the importer also separates items by their
