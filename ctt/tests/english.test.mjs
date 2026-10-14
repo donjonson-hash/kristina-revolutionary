@@ -417,14 +417,17 @@ test('resetting review decisions autosaves even when Keep B left both documents 
  assert.ok(saved.review.items.every(([,decision])=>decision===null));assert.match(root.querySelector('.review-flow-progress').textContent,/Reviewed 0 of 1/);
 });
 
-for (const browser of ['chrome','firefox']) test(`${browser} 0.34.2 archive: Word review, cell repair, Keep B and DOCX download`,async t=>{
+for (const browser of ['chrome','firefox']) test(`${browser} 0.35.0 archive: Word review, cell repair, Keep B and DOCX download`,async t=>{
  const directory=mkdtempSync(path.join(tmpdir(),'ctt-release-'));
  t.after(()=>rmSync(directory,{recursive:true,force:true}));
- const archive=fileURLToPath(new URL(`../dist/downloads/ctt-${browser}-0.34.2.zip`,import.meta.url));
+ const archive=fileURLToPath(new URL(`../dist/downloads/ctt-${browser}-0.35.0.zip`,import.meta.url));
  execFileSync('python3',['-m','zipfile','-e',archive,directory]);
  const p=await page(t,directory,false,true);p.$('demo').click();await p.result();
  const root=p.$('visual-review'),q=s=>root.querySelector(s),action=name=>q(`[data-review-action="${name}"]`);
  assert.equal(root.querySelectorAll('table').length,2);assert.equal(root.querySelectorAll('img').length,2);
+ assert.match(q('.number-review').textContent,/\$35.00 → \$39.00/);
+ q('[data-number-action="show"]').click();await until(()=>q('[data-edit-side="right"]').value==='$39.00');
+ q('[data-number-action="check"]').click();assert.equal(q('[data-number-action="check"]').getAttribute('aria-pressed'),'true');
  action('start').click();await until(()=>q('[data-edit-side="left"]').value.includes('Delivery'));
  action('use-a').click();await until(()=>q('[data-edit-side="left"]').value==='10');
  q('[data-copy-row-text-from="left"]').click();await until(()=>q('[data-edit-side="left"]').value==='Warranty: 24 months.');
