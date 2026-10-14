@@ -5,6 +5,7 @@ import {mountWordingOptions, mountWordingReview} from './wording-options.mjs';
 import {mountFindReplace} from './find-replace.mjs';
 import {createFinalCheck} from './final-check.mjs';
 import {createReviewQueue} from './review-queue.mjs';
+import {mountNumberReview} from './number-review.mjs';
 /* Documents first: original pages, local corrections, and two editable versions. */
 const sides = ['left', 'right'];
 const letter = side => side === 'left' ? 'A' : 'B';
@@ -39,6 +40,8 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   let groups = [...originalGroups];
   const byKey = new Map(groups.map(group => [group.key, group]));
   const reviewQueue = createReviewQueue(originalGroups.filter(group => group.category !== 'matched').map(group => group.key), restoredState?.review);
+  const numberQueue = createReviewQueue([], restoredState?.numberReview);
+  let numberReview = null;
   const STRUCTURE_KEY = '__document_structure__';
   let reviewStarted = restoredState?.review?.started ?? false, reviewingStructure = false;
   let reviewHistory = [], decisionInProgress = false, lastRevisions = null;
@@ -93,7 +96,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   let restoring = true;
   function stateChanged() { if (alive() && !restoring) onStateChange(); }
   function readScroll(side) { return {top: ui[side].scroll.scrollTop, left: ui[side].scroll.scrollLeft}; }
-  function snapshot() { return {version: 1, ...(fillState ? {pdfFill:structuredClone(fillState)} : {}), review: reviewQueue.snapshot(reviewStarted), drafts: Object.fromEntries(sides.map(side => [side, drafts[side].snapshot()])), selected, ...(single&&styleReview?{styleKept:styleReview.snapshot()}:{}), ...(single && report.sources.left.format === 'pdf' ? {pdfTextView:textViews.left} : {}), pages: {...pages}, zoom: zoom.value, scroll: Object.fromEntries(sides.map(side => [side, readScroll(side)]))}; }
+  function snapshot() { return {version: 1, ...(fillState ? {pdfFill:structuredClone(fillState)} : {}), review: reviewQueue.snapshot(reviewStarted), ...(numberReview ? {numberReview: numberReview.snapshot()} : {}), drafts: Object.fromEntries(sides.map(side => [side, drafts[side].snapshot()])), selected, ...(single&&styleReview?{styleKept:styleReview.snapshot()}:{}), ...(single && report.sources.left.format === 'pdf' ? {pdfTextView:textViews.left} : {}), pages: {...pages}, zoom: zoom.value, scroll: Object.fromEntries(sides.map(side => [side, readScroll(side)]))}; }
   function validateState(state) {
     const invalid = () => { throw new Error("Couldn't restore saved work: the data is corrupted."); };
     if (!state || state.version !== 1 || !['0', '794', '1191'].includes(state.zoom) || state.selected !== null && typeof state.selected !== 'string') invalid();
@@ -148,7 +151,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   const all = button("Make B match A", () => act('right', draft => draft.replaceAll(drafts.left.entries(), {rowPlan: drafts.left.rowPlan?.(), content: models.left?.content}))); all.dataset.action = 'copy-all-right';
   const tools = el('details', undefined, 'visual-more'); tools.append(el('summary', "More"));
   tools.append(button("Make A match B", () => act('left', draft => draft.replaceAll(drafts.right.entries(), {rowPlan: drafts.right.rowPlan?.(), content: models.right?.content}))));
-  tools.append(button("Restore original documents", () => { if (!alive()) return; for (const side of sides) drafts[side].reset(); reviewQueue.reset(); reviewHistory = []; refresh(); stateChanged(); }));
+  tools.append(button("Restore original documents", () => { if (!alive()) return; for (const side of sides) drafts[side].reset(); reviewQueue.reset(); numberReview?.reset(); reviewHistory = []; refresh(); stateChanged(); }));
   const saveNote = el('p', "Click any text to edit it. Highlights show text differences.", 'visual-instruction');
   const zoom = el('select'); zoom.setAttribute('aria-label', "Document zoom");
   for (const [value, label] of [['0', "Fit to width"], ['794', '100%'], ['1191', '150%']]) { const option = el('option', label); option.value = value; zoom.append(option); }
@@ -166,6 +169,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
   reviewBar.append(reviewProgress, reviewNext, reviewUndo, reviewHint);
   const finalCheck = createFinalCheck(reviewBar, {beforeCheck: () => {if (!alive()) return false; for (const side of sides) drafts[side].endEdit(); changed(); return true;}, onGo: () => {reviewStarted = true; void advanceReview();}, scope: 'Current text, text order and supported Word table structure are checked. Images, fonts and page appearance are not compared.'});
   reviewBar.append(reviewDownload); root.append(reviewBar); if(single)reviewBar.hidden=true;
+  const numberHost = el('div'); if (!single) root.append(numberHost);
   const structureReview = el('section', undefined, 'review-structure'); structureReview.hidden = true;
   structureReview.append(el('p', 'Review the document order and table layout in both versions.'), button('Keep B layout', () => decideReview('keep', STRUCTURE_KEY)), button('Back to text', () => { reviewingStructure = false; structureReview.hidden = true; }));
   root.append(structureReview);
@@ -483,6 +487,7 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     updateRowTools();
     wording?.refresh(); wordingReview?.refresh(); styleReview?.refresh();
     updateReviewProgress();
+    numberReview?.refresh(sides.map(side => drafts[side].revision).join(':'));
     if(single){progress.textContent=drafts.left.changed ? "Edited document" : "Your document";inspectorTitle.textContent="Edit selected text";for(const side of sides){ui[side].transfer.hidden=ui[side].replaceRow.hidden=true;if(!ui[side].rowTools.hidden)ui[side].rowHint.textContent=ui[side].rowTools.classList.contains("is-locked") ? "A cell spans multiple rows. You can edit the text; select another row to add a row." : ui[side].remove.disabled ? "Edit the cells or add a blank row. The last row cannot be deleted." : "Edit the cells, add a blank row, or delete this row. Undo restores your last change.";}}
     onRevision(drafts.left.changed || drafts.right.changed || hasFill());
     onSelectionChange(getAssistantContext());
@@ -1038,7 +1043,35 @@ export async function mountVisualReview(root, {report, sources, single = false, 
     entries:()=>drafts.left.entries(),revision:()=>drafts.left.revision,
     choose:async(hit,revision)=>{await select(hit.key);if(!alive()||selected!==hit.key||drafts.left.revision!==revision||input.left.value!==hit.text)throw Error('Text changed. Choose an updated suggestion.');input.left.focus({preventScroll:true});input.left.setSelectionRange(hit.start,hit.end);wording.open();input.left.scrollIntoView?.({block:'center'});}
   });}
-  const dispose = () => { if (disposed) return; disposed = true; clearDownloadOffer(); styleReview?.dispose(); wordingReview?.dispose(); wording?.dispose(); finder?.dispose(); inlineFill?.dispose(); printJob?.close(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
+  if (!single) numberReview = mountNumberReview(numberHost, {
+    queue: numberQueue, open: restoredState?.numberReview?.started ?? false, onChange: stateChanged,
+    getBlocks: () => {
+      const values = Object.fromEntries(sides.map(side => {
+        const map = new Map();
+        for (const entry of drafts[side].entries()) { if (!map.has(entry.key)) map.set(entry.key, []); map.get(entry.key).push(entry.text); }
+        return [side, map];
+      }));
+      return groups.map(group => ({key: group.key, ...Object.fromEntries(sides.map(side => [side, values[side].has(group.key) ? values[side].get(group.key).join('\n') : null]))}));
+    },
+    choose: async item => {
+      const current = () => alive() && sides.every(side => value(side, item.key) === item[side]);
+      if (!current()) return;
+      await select(item.key); if (!current() || selected !== item.key) return;
+      const side = item.after.length ? 'right' : 'left';
+      const token = side === 'right' ? item.focusAfter : item.focusBefore;
+      if (token) {
+        let offset = 0;
+        const entry = drafts[side].entries().filter(entry => entry.key === item.key).find(entry => { const contains = token.start < offset + entry.text.length; offset += entry.text.length + 1; return contains; });
+        const block = row(byKey.get(item.key), side), part = (block?.source_blocks || [block]).find(part => part?.record === entry?.record);
+        const layout = pdfPreviews[side]?.layout.filter(rect => rect.key === item.key) || [];
+        const page = layout.find(rect => rect.textStart <= token.start && rect.textEnd > token.start)?.page || part?.page;
+        if (page && pages[side] !== page) { pages[side] = page; await renderSide(side); if (!current() || selected !== item.key) return; stateChanged(); }
+        input[side].setSelectionRange(token.start, token.end);
+      }
+      input[side].focus({preventScroll: true}); inspector.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    },
+  });
+  const dispose = () => { if (disposed) return; disposed = true; clearDownloadOffer(); numberReview?.dispose(); styleReview?.dispose(); wordingReview?.dispose(); wording?.dispose(); finder?.dispose(); inlineFill?.dispose(); printJob?.close(); blockDialog?.close(); documentPdfDialog?.close(); for (const side of sides) clearPdfPreview(side); selectionGeneration++; for (const timer of Object.values(typingTimers)) clearTimeout(timer); for (const viewer of Object.values(viewers)) void viewer.dispose().catch(() => {}); root.replaceChildren(); };
   signal?.addEventListener('abort', dispose, {once: true});
   if (alive()) {
     if (!single && Object.values(models).some(model => model.hasTables)) saveNote.textContent += sides.every(side => drafts[side].copyRowFrom) ? " New row: add → fill in → copy to the adjacent version. Undo with ↶." : " New row: add → fill in. Undo with ↶.";
