@@ -7,3 +7,8 @@
 
 # Vendor-бандлы не диффим
 extension/*-vendor.mjs -diff -merge
+
+# Retain CTT vendor/font attributes for historical diffs and history scanning.
+# Current CTT source lives in donjonson-hash/compare-these-texts.
+ctt/src/*-vendor.mjs -diff -merge
+ctt/src/*font*.mjs -diff -merge
