@@ -4,19 +4,20 @@
 инициативой. Основной приоритет: мозг и личность Кристины в Telegram-боте
 [@krististigai_bot](https://t.me/krististigai_bot).
 
-Репозиторий содержит несколько независимых продуктов. Для разработки и аудита
-Compare These Texts используйте каталог `ctt/`.
+Репозиторий содержит Кристину, Scout и историческую сверку документов.
+Compare These Texts перенесён в отдельный репозиторий
+[donjonson-hash/compare-these-texts](https://github.com/donjonson-hash/compare-these-texts).
 
 | Компонент | Исходники и документация | Статус |
 |---|---|---|
 | Кристина | `bot.py`, `agents/`, [RUNTIME_ARCHITECTURE.md](RUNTIME_ARCHITECTURE.md) | Telegram-бот; развёртывается на Timeweb |
-| Compare These Texts (CTT) | `ctt/src/`, [ctt/README.md](ctt/README.md) | Актуальная линия сайта и расширения, восстановленная из исходников 0.33.6; `ctt/dist/` создаётся сборкой |
+| Compare These Texts (CTT) | [Отдельный репозиторий](https://github.com/donjonson-hash/compare-these-texts), [заметка о переносе](ctt/README.md) | Разработка, сборки и проверки ведутся в новом репозитории |
 | Историческая сверка документов | `extension/`, `static/reconciliation/`, `reconciliation_web.py`, `reconcile_lists.py`, [extension/README.md](extension/README.md) | Сохранённая версия расширения 0.18.1 и локальный Python-интерфейс; отдельные проверки |
 | Scout | `scout/`, [scout/README.md](scout/README.md) | Локальный прототип 0.4.1: расширение и Express backend |
 
-Общая ссылка на Git-репозиторий включает все эти компоненты. При проверке релиза
-CTT фиксируйте также коммит, версию и контрольную сумму собранного ZIP:
-исторический сборщик `scripts/build_reconciliation_extension.py` выпускает 0.18.1.
+При проверке релиза CTT используйте новый репозиторий и фиксируйте коммит,
+версию и контрольную сумму собранного ZIP. Исторический сборщик этого
+репозитория `scripts/build_reconciliation_extension.py` выпускает 0.18.1.
 
 Старые Mobile API, Flutter-приложение, mini-app и веб-панель выведены из
 эксплуатации на уровне исходного кода; границы и ограничения описаны в
@@ -68,7 +69,6 @@ Telegram
 | `self_learning.py` | Самообучение через Perplexity API |
 | `avatar_platform/` | Фабрика цифровых двойников (Big Five, профессии) |
 | `trend_collector.py` + `agents/trend_scout.py` | Разведка трендов с отчётами |
-| `ctt/src/` | Compare These Texts: сайт и расширение |
 | `reconcile_lists.py` + `extension/` | Историческая сверка документов (CSV/PDF/XLSX) |
 
 ## Быстрый старт
@@ -89,15 +89,8 @@ python bot.py          # Telegram-бот
 python -m pytest tests/ -q
 ```
 
-Сборка и проверки актуального CTT:
-
-```bash
-cd ctt
-npm ci --ignore-scripts
-npm run build
-npm test
-npm run check
-```
+Сборка и проверки актуального CTT описаны в
+[README нового репозитория](https://github.com/donjonson-hash/compare-these-texts#readme).
 
 Для Scout и исторического расширения команды приведены в их README выше.
 
