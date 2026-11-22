@@ -63,7 +63,7 @@ if not KRISTINA_TELEGRAM_TOKEN:
     sys.exit(1)
 
 try:
-    from ai_client import get_ai_client
+    from ai_client import close_shared_ai_client, get_ai_client
     from voice_synthesizer import tts
     from agents import router
     from agents.kristina_persona import KristinaPersonaAgent
@@ -737,6 +737,10 @@ async def on_telegram_error(update, context: ContextTypes.DEFAULT_TYPE):
         logger.error("Unhandled Telegram error", exc_info=context.error)
 
 
+async def _post_shutdown(_application) -> None:
+    await close_shared_ai_client()
+
+
 def main():
     init_agents()
     restore_telegram_runtime()
@@ -758,6 +762,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
 
     logger.info("🚀 Kristina Bot started with autonomous proactive messaging!")
+    application.post_shutdown = _post_shutdown
     application.run_polling()
 
 
