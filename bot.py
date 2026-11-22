@@ -63,7 +63,15 @@ if not KRISTINA_TELEGRAM_TOKEN:
     sys.exit(1)
 
 try:
-    from ai_client import get_ai_client
+    from ai_client import close_shared_ai_client, get_ai_client
+    from brain_core_runtime import (
+        enable_wal_on_path,
+        evaluate_v4_proactive_decision,
+        is_v4_physics_enabled,
+        load_proactive_history,
+        run_sqlite_nonblocking,
+        save_proactive_delivery,
+    )
     from voice_synthesizer import tts
     from agents import router
     from agents.kristina_persona import KristinaPersonaAgent
@@ -155,11 +163,17 @@ def restore_telegram_runtime():
     next_proactive_opportunity.clear()
     last_proactive.clear()
     recent_proactive.clear()
+    proactive_hist = load_proactive_history(router.memory)
+    enable_wal_on_path(emotional_core.db_path)
     for chat in saved["chats"]:
         chat_id = chat["chat_id"]
         active_chat_ids.add(chat_id)
         last_user_activity[chat_id] = chat["last_user_at"]
         next_proactive_opportunity[chat_id] = chat["next_opportunity_at"]
+        if chat_id in proactive_hist:
+            if proactive_hist[chat_id]["last_proactive"] is not None:
+                last_proactive[chat_id] = proactive_hist[chat_id]["last_proactive"]
+            recent_proactive[chat_id].extend(proactive_hist[chat_id]["recent"])
     logger.info("Telegram runtime restored: %s known private chats", len(active_chat_ids))
 
 
@@ -583,7 +597,7 @@ async def creative_life_tick(bot, now: datetime, emotional_state: Dict):
 async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
     """Frequent heartbeat; each chat gets independently jittered decision opportunities."""
     now = datetime.now(timezone.utc)
-    emotional_state = emotional_core.evolve()
+    emotional_state = await run_sqlite_nonblocking(emotional_core.evolve)
     await creative_life_tick(context.bot, now, emotional_state)
 
     if not active_chat_ids:
@@ -624,7 +638,18 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                     "organism_projection": organism_projection,
                 }
                 desires = desire_engine.calculate(emotional_state, decision_context)
-                decision = decision_engine.decide(desires, decision_context, now=now)
+                decision = (
+                    evaluate_v4_proactive_decision(
+                        emotional_state,
+                        organism_projection,
+                        decision_context,
+                        threshold=decision_engine.threshold,
+                        cooldown_seconds=decision_engine.cooldown.total_seconds(),
+                        now=now,
+                    )
+                    if is_v4_physics_enabled()
+                    else decision_engine.decide(desires, decision_context, now=now)
+                )
                 shadow_text = "unavailable"
                 try:
                     shadow = compare_shadow_decision(
@@ -690,6 +715,9 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                     continue
                 last_proactive[chat_id] = now
                 recent_proactive[chat_id].append(message)
+                await run_sqlite_nonblocking(
+                    lambda: save_proactive_delivery(router.memory, chat_id, now, recent_proactive[chat_id])
+                )
             logger.info(f"📤 Autonomous proactive sent to {chat_id}: {decision.intention}")
         except Exception as e:
             logger.error(f"Autonomous proactive failed for {chat_id}: {e}")
@@ -737,6 +765,10 @@ async def on_telegram_error(update, context: ContextTypes.DEFAULT_TYPE):
         logger.error("Unhandled Telegram error", exc_info=context.error)
 
 
+async def _post_shutdown(_application) -> None:
+    await close_shared_ai_client()
+
+
 def main():
     init_agents()
     restore_telegram_runtime()
@@ -758,6 +790,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
 
     logger.info("🚀 Kristina Bot started with autonomous proactive messaging!")
+    application.post_shutdown = _post_shutdown
     application.run_polling()
 
 
