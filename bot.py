@@ -733,6 +733,9 @@ async def autonomous_work_tick(context: ContextTypes.DEFAULT_TYPE):
     """Progress saved intentions independently of Telegram delivery and active chats."""
     try:
         await IntentionWorker(router.memory, emotional_core, router.session_lock).tick()
+        from brain_core_runtime import is_v4_physics_enabled, maybe_run_nightly_rem_consolidation
+        if is_v4_physics_enabled():
+            await maybe_run_nightly_rem_consolidation(router.memory, emotional_core)
     except Exception as exc:
         logger.error("Autonomous work failed: %s", type(exc).__name__)
 

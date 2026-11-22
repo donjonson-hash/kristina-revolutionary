@@ -1,265 +1,348 @@
 """
-Self-Learning Module — система самообучения Кристины через Perplexity API
+Self-Learning Module — двухконтурное самообучение Кристины:
+1. Субсимвольное синаптическое обучение (kristina-brain-core v1.1.0, 0 токенов LLM):
+   - Дневные реакции зажигают спайки сенсорных нейронов и след пригодности (eligibility_trace).
+   - Ночная консолидация (SleepConsolidationWorker) обновляет веса синапсов по правилу Хебба,
+     сдвигает baseline 12 мод и формирует семя сна (DreamSeed) для писательского блокнота.
+2. Внешнее любопытство (Perplexity API, опционально при наличии PERPLEXITY_API_KEY):
+   - Фоновые заметки о документальной прозе, эссеистике, культуре и жизни Стокгольма.
 """
+
+from __future__ import annotations
 
 import asyncio
 import logging
 import os
+import random
 import sqlite3
-from dotenv import load_dotenv
-load_dotenv()
-from datetime import datetime
-from typing import Optional, Dict, List
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 import aiohttp
+from dotenv import load_dotenv
+
+from kristina_brain import Appraisal, AsyncSQLiteStateStore, BrainEngine
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+REACTION_STIMULI_MAP: Dict[str, Dict[str, float]] = {
+    "warmth": {"sensor_warmth": 1.0, "sensor_curiosity": 0.35},
+    "curiosity": {"sensor_curiosity": 1.0, "sensor_warmth": 0.25},
+    "concern": {"sensor_tension": 0.65, "sensor_warmth": 0.30},
+    "frustration": {"sensor_tension": 0.95, "sensor_fatigue": 0.45},
+    "neutral": {"sensor_curiosity": 0.25},
+}
+
 
 class PerplexityAPI:
-    """Клиент для Perplexity API"""
-    
+    """Клиент для Perplexity API (опциональный внешний поиск тем)."""
+
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("PERPLEXITY_API_KEY")
         self.base_url = "https://api.perplexity.ai"
-        
         if not self.api_key:
-            logger.warning("⚠️ PERPLEXITY_API_KEY не задан!")
-    
-    async def query(self, question: str, max_tokens: int = 500) -> Dict:
-        """Запрос к Perplexity API"""
+            logger.debug("PERPLEXITY_API_KEY не задан — активен внутренний синаптический контур обучения.")
+
+    async def query(self, question: str, max_tokens: int = 500) -> Dict[str, Any]:
         if not self.api_key:
             return {"error": "No API key", "content": ""}
-        
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
-        
         data = {
             "model": "sonar",
             "messages": [
                 {
                     "role": "system",
-                    "content": "Ты помощник, который даёт краткую полезную информацию."
+                    "content": "Ты помощник писателя-документалиста, даёшь точную фактуру без воды.",
                 },
-                {
-                    "role": "user",
-                    "content": question
-                }
+                {"role": "user", "content": question},
             ],
             "max_tokens": max_tokens,
-            "temperature": 0.7
+            "temperature": 0.7,
         }
-        
+
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     f"{self.base_url}/chat/completions",
                     headers=headers,
                     json=data,
-                    timeout=30
                 ) as response:
-                    
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.error(f"❌ Perplexity API error: {response.status}")
+                        logger.error("Perplexity API error: %s", response.status)
                         return {"error": error_text, "content": ""}
-                    
                     result = await response.json()
                     content = result["choices"][0]["message"]["content"]
-                    
                     return {
                         "content": content,
-                        "timestamp": datetime.now().isoformat(),
-                        "query": question
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "query": question,
                     }
-                    
         except Exception as e:
-            logger.error(f"❌ Perplexity request failed: {e}")
+            logger.error("Perplexity request failed: %s", e)
             return {"error": str(e), "content": ""}
-    
-    def _parse_response(self, data: Dict) -> Dict:
-        """Парсинг ответа Perplexity"""
+
+    def _parse_response(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "content": data.get("content", ""),
-            "timestamp": data.get("timestamp", datetime.now().isoformat()),
-            "sources": data.get("citations", [])
+            "timestamp": data.get("timestamp", datetime.now(timezone.utc).isoformat()),
+            "sources": data.get("citations", []),
         }
 
 
 class SelfLearningAgent:
-    """Агент самообучения Кристины"""
-    
-    def __init__(self, db_path: str = "kristina_knowledge.db"):
+    """Двухконтурный агент самообучения Кристины (синапсы + писательская эрудиция)."""
+
+    WRITER_TOPICS: Dict[str, str] = {
+        "stockholm_weather": "Какая погода в Стокгольме сегодня и как меняется свет в городе?",
+        "stockholm_events": "Независимые книжные события, выставки и камерные концерты в Стокгольме сейчас",
+        "literary_nonfiction": "Современная документальная проза, тревел-эссеистика и путевые дневники — заметные книги и авторы",
+        "travel_essay_craft": "Приёмы художественного репортажа и путевого очерка: работа с деталью, ритмом и диалогом",
+        "sweden_culture": "Повседневная культура Швеции, городские привычки и ирония — свежие наблюдения",
+        "scandinavian_design": "Скандинавская повседневная среда, свет и архитектура общественных пространств",
+        "ai_technology": "Как технологии и ИИ меняют чтение, журналистику и человеческую память",
+        "nordic_cuisine": "Маленькие пекарни, кофейни и локальная гастрономия Стокгольма",
+        "stockholm_nightlife": "Вечерний Сёдермальм: камерные бары, разговоры и ночной транспорт",
+        "swedish_history": "Малоизвестные истории районов Стокгольма и старых маршрутов",
+        "modern_architecture": "Современная городская среда Скандинавии глазами пешехода",
+        "wellness_trends": "Бег в городе, восстановление в северном климате и работа с вниманием",
+        "swedish_nature": "Архипелаг Стокгольма, тропы у воды и смена сезонов в Швеции",
+        "stockholm_food": "Кофейная культура fika и места в Стокгольме, куда ходят местные",
+    }
+
+    def __init__(
+        self,
+        db_path: str = "kristina_knowledge.db",
+        brain_db_path: Optional[str] = None,
+    ):
         self.db_path = db_path
+        self.brain_db_path = brain_db_path or os.getenv("KRISTINA_STATE_DB", "kristina_state.db")
         self.perplexity = PerplexityAPI()
         self.knowledge_cache: Dict[str, str] = {}
         self.last_learning: Optional[datetime] = None
-        
-        # Инициализация БД
+
         self._init_db()
         self._load_cache()
-    
-    def _init_db(self):
-        """Инициализация базы знаний"""
+
+    def _init_db(self) -> None:
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute("""
+            with sqlite3.connect(self.db_path, timeout=5.0) as conn:
+                if self.db_path != ":memory:":
+                    conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS knowledge (
                         topic TEXT PRIMARY KEY,
                         content TEXT,
                         learned_at TIMESTAMP,
                         source TEXT
                     )
-                """)
+                    """
+                )
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS synaptic_reward_ledger (
+                        scope_id TEXT PRIMARY KEY,
+                        reward_sum REAL NOT NULL DEFAULT 0.0,
+                        event_count INTEGER NOT NULL DEFAULT 0,
+                        updated_at TEXT NOT NULL
+                    )
+                    """
+                )
                 conn.commit()
         except Exception as e:
-            logger.error(f"❌ DB init error: {e}")
-    
-    def _load_cache(self):
-        """Загрузка кэша из БД"""
+            logger.error("DB init error: %s", e)
+
+    def _load_cache(self) -> None:
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(self.db_path, timeout=5.0) as conn:
                 cursor = conn.execute(
                     "SELECT topic, content FROM knowledge ORDER BY learned_at DESC LIMIT 20"
                 )
                 for row in cursor:
                     self.knowledge_cache[row[0]] = row[1]
-            logger.info(f"📚 Загружено {len(self.knowledge_cache)} тем из БД")
         except Exception as e:
-            logger.error(f"❌ Cache load error: {e}")
-    
-    async def learn_topic(self, topic_key: str, custom_query: Optional[str] = None) -> Dict:
-        """Изучить конкретную тему"""
-        queries = {
-            "stockholm_weather": "Какая погода в Стокгольме сегодня и на неделю вперед?",
-            "stockholm_events": "Что интересного происходит в Стокгольме сейчас? События, выставки, концерты",
-            "ux_trends": "Новейшие тренды UX/UI дизайна 2024-2025, что в моде",
-            "sweden_culture": "Шведская культура, традиции, менталитет — что нового",
-            "scandinavian_design": "Скандинавский дизайн, интерьеры, минимализм — последние тенденции",
-            "ai_technology": "Новости AI технологий, что изменилось недавно",
-            "sustainable_fashion": "Устойчивая мода, экологичная одежда — тренды",
-            "nordic_cuisine": "Скандинавская кухня, рестораны Стокгольма, новые тенденции",
-            "stockholm_nightlife": "Ночная жизнь Стокгольма, бары, клубы, события",
-            "swedish_history": "Интересные факты о шведской истории, культура",
-            "modern_architecture": "Современная архитектура Стокгольма, новые здания",
-            "digital_art": "Цифровое искусство, NFT, AI-арт — тренды",
-            "wellness_trends": "Велнес тренды, здоровый образ жизни, mindfulness",
-            "swedish_nature": "Природа Швеции, национальные парки, заповедники",
-            "stockholm_food": "Еда в Стокгольме, рестораны, кафе, шведская кухня"
-        }
-        
-        query = custom_query or queries.get(topic_key, f"Расскажи о {topic_key}")
-        
-        logger.info(f"📖 Изучаю тему: {topic_key}")
-        
-        # Получаем знания
-        result = await self.perplexity.query(query)
-        
-        if "error" not in result and result.get("content"):
-            # Сохраняем в БД
-            await self._save_to_db(topic_key, result)
-            # Обновляем кэш
-            self.knowledge_cache[topic_key] = result["content"]
-            logger.info(f"✅ Тема '{topic_key}' изучена ({len(result['content'])} символов)")
-        else:
-            logger.error(f"❌ Не удалось изучить '{topic_key}'")
-        
-        return result
-    
-    async def _save_to_db(self, topic: str, data: Dict):
-        """Сохранить знания в БД"""
+            logger.error("Cache load error: %s", e)
+
+    def _accumulate_reward_sync(self, scope_id: str, reward: float) -> None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with sqlite3.connect(self.db_path, timeout=5.0) as conn:
+            conn.execute(
+                """
+                INSERT INTO synaptic_reward_ledger(scope_id, reward_sum, event_count, updated_at)
+                VALUES (?, ?, 1, ?)
+                ON CONFLICT(scope_id) DO UPDATE SET
+                    reward_sum = synaptic_reward_ledger.reward_sum + excluded.reward_sum,
+                    event_count = synaptic_reward_ledger.event_count + 1,
+                    updated_at = excluded.updated_at
+                """,
+                (scope_id, float(reward), now_iso),
+            )
+            conn.commit()
+
+    def _pop_daily_reward_sync(self, scope_id: str) -> Optional[float]:
+        with sqlite3.connect(self.db_path, timeout=5.0) as conn:
+            row = conn.execute(
+                "SELECT reward_sum, event_count FROM synaptic_reward_ledger WHERE scope_id = ?",
+                (scope_id,),
+            ).fetchone()
+            if not row or int(row[1]) <= 0:
+                return None
+            avg = float(row[0]) / float(row[1])
+            conn.execute(
+                "UPDATE synaptic_reward_ledger SET reward_sum = 0.0, event_count = 0, updated_at = ? WHERE scope_id = ?",
+                (datetime.now(timezone.utc).isoformat(), scope_id),
+            )
+            conn.commit()
+            return max(-1.0, min(1.0, avg))
+
+    async def record_dialogue_feedback(
+        self,
+        scope_id: str = "default",
+        *,
+        reaction: str = "curiosity",
+        intensity: float = 0.6,
+        reward: float = 0.0,
+        user_excerpt: str = "",
+        location: Optional[str] = None,
+        sensory_cue: Optional[str] = None,
+        event_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Не-LLM запись дневного опыта: спайки синапсов + след пригодности + якорь среды."""
+        base_stimuli = REACTION_STIMULI_MAP.get(reaction, REACTION_STIMULI_MAP["neutral"])
+        scale = max(0.15, min(1.0, float(intensity)))
+        stimuli = {k: round(v * scale, 4) for k, v in base_stimuli.items()}
+
+        store = AsyncSQLiteStateStore(self.brain_db_path)
+        engine = BrainEngine(store)
+        await engine.start()
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute("""
+            if user_excerpt or location or sensory_cue:
+                appraisal = Appraisal(
+                    reaction=reaction if reaction in ("curiosity", "warmth", "concern", "frustration", "neutral") else "neutral",
+                    intensity=scale,
+                    source_quote=user_excerpt[:160],
+                    interest_action="keep",
+                    topic="живой диалог",
+                    reflection="",
+                    detected_location=location,
+                    environment_cue=sensory_cue,
+                )
+                await engine.ingest_message(
+                    scope_id=scope_id,
+                    event_id=event_id or f"learn-{datetime.now(timezone.utc).timestamp():.6f}",
+                    user_input=user_excerpt or (sensory_cue or "сигнал диалога"),
+                    explicit_appraisal=appraisal,
+                )
+            pulse = await engine.pulse_synapses(scope_id, stimuli)
+        finally:
+            await engine.shutdown()
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self._accumulate_reward_sync, scope_id, reward)
+        return pulse
+
+    async def consolidate_sleep(
+        self,
+        scope_id: str = "default",
+        *,
+        explicit_reward: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Ночная консолидация: пластичность Хебба, дрейф baseline 12 мод и синтез DreamSeed."""
+        loop = asyncio.get_running_loop()
+        ledger_reward = await loop.run_in_executor(None, self._pop_daily_reward_sync, scope_id)
+        effective_reward = (
+            float(explicit_reward)
+            if explicit_reward is not None
+            else (ledger_reward if ledger_reward is not None else 0.25)
+        )
+        effective_reward = max(-1.0, min(1.0, effective_reward))
+
+        store = AsyncSQLiteStateStore(self.brain_db_path)
+        engine = BrainEngine(store)
+        await engine.start()
+        try:
+            report = await engine.run_sleep_consolidation(scope_id, reward_signal=effective_reward)
+        finally:
+            await engine.shutdown()
+
+        today_key = f"night_reflection:{scope_id}:{datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
+        seed = report.get("dream_seed") or {}
+        summary = (
+            f"Ночная интеграция опыта (reward={effective_reward:+.2f}): "
+            f"обновлено синапсов={(report.get('synapses_adjusted', 0) if isinstance(report.get('synapses_adjusted', 0), int) else len(report.get('synapses_adjusted', {})))}, "
+            f"мотивы={', '.join(seed.get('dominant_themes') or ()) or 'тишина'}."
+        )
+        await self._save_to_db(today_key, {"content": summary, "source": "synaptic_sleep"})
+        self.knowledge_cache[today_key] = summary
+        self.last_learning = datetime.now(timezone.utc)
+        return report
+
+    async def learn_topic(self, topic_key: str, custom_query: Optional[str] = None) -> Dict[str, Any]:
+        query = custom_query or self.WRITER_TOPICS.get(topic_key, f"Наблюдения и фактура по теме: {topic_key}")
+        result = await self.perplexity.query(query)
+        if "error" not in result and result.get("content"):
+            await self._save_to_db(topic_key, result)
+            self.knowledge_cache[topic_key] = result["content"]
+            self.last_learning = datetime.now(timezone.utc)
+        return result
+
+    async def _save_to_db(self, topic: str, data: Dict[str, Any]) -> None:
+        def _write() -> None:
+            with sqlite3.connect(self.db_path, timeout=5.0) as conn:
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO knowledge (topic, content, learned_at, source)
                     VALUES (?, ?, ?, ?)
-                """, (
-                    topic,
-                    data.get("content", ""),
-                    datetime.now().isoformat(),
-                    "perplexity"
-                ))
+                    """,
+                    (
+                        topic,
+                        data.get("content", ""),
+                        datetime.now(timezone.utc).isoformat(),
+                        data.get("source", "perplexity"),
+                    ),
+                )
                 conn.commit()
+
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _write)
         except Exception as e:
-            logger.error(f"❌ DB save error: {e}")
-    
-    async def learn_random_topic(self) -> Dict:
-        """Изучить случайную тему для самообучения"""
-        import random
-        
-        topics = [
-            "stockholm_events", "sweden_culture", "scandinavian_design",
-            "ux_trends", "ai_technology", "sustainable_fashion",
-            "nordic_cuisine", "stockholm_nightlife", "swedish_history",
-            "modern_architecture", "digital_art", "wellness_trends",
-            "swedish_nature", "stockholm_food", "nordic_lifestyle"
-        ]
-        
-        topic = random.choice(topics)
-        logger.info(f"🎲 Случайная тема для изучения: {topic}")
-        
+            logger.error("DB save error: %s", e)
+
+    async def learn_random_topic(self) -> Dict[str, Any]:
+        topic = random.choice(list(self.WRITER_TOPICS.keys()))
         return await self.learn_topic(topic)
-    
-    async def daily_learning_routine(self):
-        """Ежедневная рутина обучения"""
-        logger.info("🌅 Начинаю дневное обучение...")
-        
-        # Утренние новости
+
+    async def daily_learning_routine(self) -> None:
         await self.learn_topic("stockholm_events")
-        
-        # Профессиональное развитие
-        await self.learn_topic("ux_trends")
-        
-        # Культурное просвещение
+        await self.learn_topic("literary_nonfiction")
         await self.learn_topic("sweden_culture")
-        
-        logger.info("✅ Дневное обучение завершено")
-    
+
     def get_context_for_thought(self) -> str:
-        """Получить контекст для генерации мыслей"""
         if not self.knowledge_cache:
             return ""
-        
-        # Берём случайную тему из кэша
-        import random
         topic = random.choice(list(self.knowledge_cache.keys()))
         content = self.knowledge_cache[topic][:150]
         return f"{topic}: {content}"
-    
-    def get_recent_knowledge(self, limit: int = 3) -> List[Dict]:
-        """Получить недавние знания"""
-        result = []
+
+    def get_recent_knowledge(self, limit: int = 3) -> List[Dict[str, str]]:
         topics = list(self.knowledge_cache.keys())[:limit]
-        
-        for topic in topics:
-            result.append({
-                "topic": topic,
-                "preview": self.knowledge_cache[topic][:100]
-            })
-        
-        return result
+        return [{"topic": t, "preview": self.knowledge_cache[t][:100]} for t in topics]
 
 
-# Синглтон
-_learning_agent = None
+_learning_agent: Optional[SelfLearningAgent] = None
+
 
 def get_learning_agent() -> SelfLearningAgent:
     global _learning_agent
     if _learning_agent is None:
         _learning_agent = SelfLearningAgent()
     return _learning_agent
-
-
-# Тест
-if __name__ == "__main__":
-    async def test():
-        agent = get_learning_agent()
-        print("✅ Self-Learning Agent создан")
-        
-        # Тест 1: Случайная тема
-        print("\n=== Тест: Случайная тема ===")
-        result = await agent.learn_random_topic()
-        print(result.get("content", "Error")[:300])
-        
-    asyncio.run(test())

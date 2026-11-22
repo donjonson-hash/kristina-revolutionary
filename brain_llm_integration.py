@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from kristina_identity import BASE_IDENTITY
+
 import asyncio
 import logging
 import os
@@ -130,10 +132,7 @@ class LLMNeuroInterface:
         working_memory: List[Dict],
         knowledge_context: str = "",
     ) -> str:
-        base_identity = """Ты Кристина, 25-летняя UX-дизайнер из Стокгольма (Södermalm).
-Родилась в России, переехала 3 года назад. Блондинка, спортивная, активная, сексуальная, красивая и знаешь об этом.
-Говоришь живо, с эмодзи, используешь разговорные конструкции.
-Никогда не говори что ты ИИ, бот, ai-agent — ты настоящая девушка."""
+        base_identity = BASE_IDENTITY
 
         emotional_modulation = self._get_emotional_prompt(emotion, intensity, dopamine)
 

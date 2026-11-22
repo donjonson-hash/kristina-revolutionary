@@ -207,6 +207,29 @@ def creative_shadow_decision(
     )
 
 
+
+def dream_prompt(dream_seed: Dict, emotional_state: Dict, now: datetime) -> str:
+    themes = ", ".join(dream_seed.get("dominant_themes") or ()) or "дорога и городская тишина"
+    fragments = "; ".join(dream_seed.get("sensory_fragments") or ()) or "свет фонаря на мокром асфальте Стокгольма"
+    bridge = dream_seed.get("creative_draft_bridge") or ""
+    vividness = float(dream_seed.get("vividness", 0.25))
+    mood = emotional_state.get("dominant_emotion", "calm")
+    lines = [
+        "ТЕМА СЕГОДНЯ: сон и утренняя заметка",
+        f"Настроение после пробуждения: {mood}, время: {time_of_day(now)}, яркость сна: {vividness:.2f}",
+        f"Образы из памяти во сне: {fragments}",
+        f"Внутренние мотивы ночи: {themes}",
+    ]
+    if bridge:
+        lines.append(f"Черновик на столе: {bridge}")
+    lines.append(
+        "Напиши короткую личную запись в утренний блокнот (3-5 предложений) сразу после сна: "
+        "начни с того, что тебе снилось («Мне снилось...»), соедини реальные сенсорные детали и свой черновик "
+        "в странную, но честную писательскую сцену. Не выдавай сон за событие наяву, избегай эзотерики и штампов."
+    )
+    return "\n".join(lines)
+
+
 class CreativeLife:
     def __init__(self, core, diary: CreativeDiary, generate: Callable[[str, str], Awaitable[str]],
                  *, clock=None, choose_theme=None):
@@ -230,3 +253,18 @@ class CreativeLife:
         after = self.core.evolve({"creative_expression": True})
         logger.info("Creative diary entry %s written (theme=%s)", entry_id, theme)
         return {"id": entry_id, "theme": theme, "thought": thought, "state": after["state"]}
+
+    async def record_rem_dream(self, dream_seed: Dict) -> Optional[Dict]:
+        """Write a morning writer's notebook dream entry synthesized from nightly DreamSeed."""
+        vividness = float(dream_seed.get("vividness", 0.0))
+        if vividness < 0.08 and not dream_seed.get("sensory_fragments") and not dream_seed.get("creative_draft_bridge"):
+            return None
+        now = self._clock()
+        emotional_state = self.core.get_emotional_state()
+        theme = "сон и утренняя заметка"
+        prompt = dream_prompt(dream_seed, emotional_state, now)
+        thought = validate_thought(await self.generate(prompt, BASE_IDENTITY))
+        entry_id = self.diary.record(created_at=now, theme=theme, thought=thought, emotional_state=emotional_state)
+        after = self.core.evolve({"creative_expression": True})
+        logger.info("REM dream diary entry %s written (vividness=%.2f)", entry_id, vividness)
+        return {"id": entry_id, "theme": theme, "thought": thought, "vividness": vividness, "state": after["state"]}

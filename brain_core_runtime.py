@@ -192,3 +192,107 @@ def is_v4_physics_enabled() -> bool:
     """Включается по умолчанию в продакшене (можно отключить KRISTINA_BRAIN_CORE_V4=0 для pure legacy)."""
     raw = os.getenv("KRISTINA_BRAIN_CORE_V4", "0").strip().lower()
     return raw in ("1", "true", "yes", "on")
+
+
+_COMPLETED_REM_NIGHTS: set[tuple[str, str]] = set()
+
+
+def ensure_nightly_rem_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS nightly_rem_runs (
+            scope_id TEXT NOT NULL,
+            local_date TEXT NOT NULL,
+            consolidated_at TEXT NOT NULL,
+            dream_entry_id INTEGER,
+            report_json TEXT NOT NULL DEFAULT '{}',
+            PRIMARY KEY (scope_id, local_date)
+        )
+        """
+    )
+
+
+async def maybe_run_nightly_rem_consolidation(
+    memory: Any,
+    emotional_core_obj: Any,
+    *,
+    scope_id: str = "default",
+    now: Optional[datetime] = None,
+    force: bool = False,
+    generate_fn: Optional[Callable[[str, str], Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Запускает ночное синаптическое самообучение и запись сна (03:00-04:59 Europe/Stockholm, 1 раз за ночь)."""
+    from zoneinfo import ZoneInfo
+    from ai_client import get_ai_client
+    from creative_life import CreativeDiary, CreativeLife, ai_generate
+    from self_learning import SelfLearningAgent
+
+    ts = now or datetime.now(timezone.utc)
+    st_now = ts.astimezone(ZoneInfo("Europe/Stockholm"))
+    local_date = st_now.strftime("%Y-%m-%d")
+
+    if not force:
+        if st_now.hour not in (3, 4):
+            return None
+        if (scope_id, local_date) in _COMPLETED_REM_NIGHTS:
+            return None
+
+    brain_db = getattr(emotional_core_obj, "db_path", None) or os.getenv("KRISTINA_STATE_DB", "kristina_state.db")
+    if not brain_db or str(brain_db) == ":memory:":
+        return None
+    diary_db = getattr(memory, "db_path", None) or str(brain_db)
+    if str(diary_db) == ":memory:":
+        diary_db = str(brain_db)
+
+    def _already_ran() -> bool:
+        with sqlite3.connect(str(brain_db), timeout=5.0) as conn:
+            ensure_nightly_rem_table(conn)
+            row = conn.execute(
+                "SELECT 1 FROM nightly_rem_runs WHERE scope_id = ? AND local_date = ?",
+                (scope_id, local_date),
+            ).fetchone()
+            return row is not None
+
+    if not force and await run_sqlite_nonblocking(_already_ran):
+        _COMPLETED_REM_NIGHTS.add((scope_id, local_date))
+        return None
+
+    knowledge_db = os.path.join(os.path.dirname(os.path.abspath(str(brain_db))), "kristina_knowledge.db")
+    learner = SelfLearningAgent(db_path=knowledge_db, brain_db_path=str(brain_db))
+    report = await learner.consolidate_sleep(scope_id=scope_id)
+    seed = report.get("dream_seed") or {}
+
+    dream_result: Optional[Dict[str, Any]] = None
+    has_dream_material = bool(
+        float(seed.get("vividness", 0.0)) >= 0.08
+        or seed.get("sensory_fragments")
+        or seed.get("creative_draft_bridge")
+    )
+    if has_dream_material:
+        gen = generate_fn or ai_generate(get_ai_client())
+        diary = CreativeDiary(str(diary_db))
+        life = CreativeLife(emotional_core_obj, diary, gen, clock=lambda: ts)
+        dream_result = await life.record_rem_dream(seed)
+
+    def _mark_done() -> None:
+        with sqlite3.connect(str(brain_db), timeout=5.0) as conn:
+            ensure_nightly_rem_table(conn)
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO nightly_rem_runs(scope_id, local_date, consolidated_at, dream_entry_id, report_json)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    scope_id,
+                    local_date,
+                    ts.astimezone(timezone.utc).isoformat(),
+                    dream_result["id"] if dream_result else None,
+                    json.dumps(report, ensure_ascii=False),
+                ),
+            )
+            conn.commit()
+
+    await run_sqlite_nonblocking(_mark_done)
+    _COMPLETED_REM_NIGHTS.add((scope_id, local_date))
+    return {"consolidation": report, "dream": dream_result, "local_date": local_date}
+

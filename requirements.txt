@@ -19,4 +19,4 @@ asyncpg>=0.29.0
 
 # Reproducible JSON Schema experiments (date/date-time format assertions)
 jsonschema[format-nongpl]==4.26.0
-kristina-brain-core @ git+https://github.com/donjonson-hash/kristina-brain-core.git@v1.0.0
+kristina-brain-core @ git+https://github.com/donjonson-hash/kristina-brain-core.git@v1.1.0
