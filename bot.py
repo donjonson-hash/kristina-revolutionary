@@ -638,16 +638,17 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                     "organism_projection": organism_projection,
                 }
                 desires = desire_engine.calculate(emotional_state, decision_context)
+                use_v4 = is_v4_physics_enabled() and hasattr(decision_engine, "threshold")
                 decision = (
                     evaluate_v4_proactive_decision(
                         emotional_state,
                         organism_projection,
                         decision_context,
-                        threshold=decision_engine.threshold,
-                        cooldown_seconds=decision_engine.cooldown.total_seconds(),
+                        threshold=float(getattr(decision_engine, "threshold", 0.62)),
+                        cooldown_seconds=getattr(decision_engine, "cooldown", timedelta(hours=2)).total_seconds(),
                         now=now,
                     )
-                    if is_v4_physics_enabled()
+                    if use_v4
                     else decision_engine.decide(desires, decision_context, now=now)
                 )
                 shadow_text = "unavailable"

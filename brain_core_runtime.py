@@ -20,6 +20,7 @@ from autonomy_decision import AutonomousDecision, OrganismProjection
 from kristina_brain.autonomy import DecisionEngine as CoreV4DecisionEngine
 from kristina_brain.autonomy import DesireEngine as CoreV4DesireEngine
 from kristina_brain.modes import OrganismProjection as CoreV4Projection
+from kristina_brain.world import is_hour_in_window, resolve_iana_timezone
 
 T = TypeVar("T")
 
@@ -158,10 +159,20 @@ def evaluate_v4_proactive_decision(
     from datetime import timedelta
 
     v4_proj = to_v4_projection(legacy_proj)
+    cp_tz = resolve_iana_timezone(
+        decision_context.get("counterparty_timezone"),
+        decision_context.get("counterparty_location"),
+    )
+    cp_night = False
+    if cp_tz and now is not None:
+        from zoneinfo import ZoneInfo
+        cp_local = now.astimezone(ZoneInfo(cp_tz))
+        cp_night = is_hour_in_window(cp_local.hour, (23, 8))
     ctx = {
         "hours_since_contact": decision_context.get("hours_since_contact", 0.0),
         "last_proactive": decision_context.get("last_proactive"),
         "is_night": bool(emotional_state.get("is_night", False)),
+        "counterparty_is_night": cp_night,
         "organism_projection": v4_proj,
     }
     desires = _core_v4_desire.calculate(emotional_state, ctx)
