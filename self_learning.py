@@ -188,20 +188,36 @@ class SelfLearningAgent:
             conn.commit()
 
     def _pop_daily_reward_sync(self, scope_id: str) -> Optional[float]:
-        with sqlite3.connect(self.db_path, timeout=5.0) as conn:
+        # Атомарный claim дневной награды: BEGIN IMMEDIATE сериализует read+reset в одну
+        # write-транзакцию, поэтому из N конкурентных pop ровно один получает награду,
+        # остальные видят event_count=0 и возвращают None. Раньше SELECT -> UPDATE шли
+        # разными транзакциями и одна и та же награда выдавалась нескольким конкурентам.
+        conn = sqlite3.connect(self.db_path, timeout=5.0, isolation_level=None)
+        try:
+            conn.execute("PRAGMA busy_timeout = 5000")
+            conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
                 "SELECT reward_sum, event_count FROM synaptic_reward_ledger WHERE scope_id = ?",
                 (scope_id,),
             ).fetchone()
             if not row or int(row[1]) <= 0:
+                conn.execute("ROLLBACK")
                 return None
             avg = float(row[0]) / float(row[1])
             conn.execute(
-                "UPDATE synaptic_reward_ledger SET reward_sum = 0.0, event_count = 0, updated_at = ? WHERE scope_id = ?",
+                "UPDATE synaptic_reward_ledger SET reward_sum = 0.0, event_count = 0, updated_at = ? WHERE scope_id = ? AND event_count > 0",
                 (datetime.now(timezone.utc).isoformat(), scope_id),
             )
-            conn.commit()
+            conn.execute("COMMIT")
             return max(-1.0, min(1.0, avg))
+        except BaseException:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+        finally:
+            conn.close()
 
     async def record_dialogue_feedback(
         self,
