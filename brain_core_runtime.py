@@ -191,8 +191,8 @@ def evaluate_v4_proactive_decision(
 
 
 def is_v4_physics_enabled() -> bool:
-    """Включается по умолчанию в продакшене (можно отключить KRISTINA_BRAIN_CORE_V4=0 для pure legacy)."""
-    raw = os.getenv("KRISTINA_BRAIN_CORE_V4", "0").strip().lower()
+    """Включено по умолчанию (прод). Отключить: KRISTINA_BRAIN_CORE_V4=0 для pure legacy."""
+    raw = os.getenv("KRISTINA_BRAIN_CORE_V4", "1").strip().lower()
     return raw in ("1", "true", "yes", "on")
 
 
