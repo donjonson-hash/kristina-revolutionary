@@ -1,0 +1,18 @@
+[Unit]
+Description=Kristina Brain Core v1.2.0 Online Synaptic Observatory
+After=network.target kristina-bot.service
+
+[Service]
+Type=simple
+User=kristina
+Group=kristina
+WorkingDirectory=/opt/kristina-revolutionary
+EnvironmentFile=/opt/kristina-revolutionary/.observatory.env
+ExecStart=/opt/kristina-revolutionary/venv/bin/brain-core-cloud
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

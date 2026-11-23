@@ -368,6 +368,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response_text = "Извини, ошибка. Попробуй ещё раз."
 
     await update.message.reply_text(response_text)
+    from live_synaptic_bridge import pulse_live_telegram_turn
+    await pulse_live_telegram_turn(message_text, response_text)
 
     if user_tts_enabled.get(user_id, False):
         try:
