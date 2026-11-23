@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import sqlite3
 from collections import deque
@@ -26,6 +27,7 @@ T = TypeVar("T")
 
 _SQLITE_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="kristina-sqlite-async")
 _core_v4_desire = CoreV4DesireEngine()
+logger = logging.getLogger(__name__)
 
 
 async def run_sqlite_nonblocking(fn: Callable[[], T]) -> T:
@@ -220,8 +222,15 @@ async def maybe_run_nightly_rem_consolidation(
     now: Optional[datetime] = None,
     force: bool = False,
     generate_fn: Optional[Callable[[str, str], Any]] = None,
+    overwrite: bool = False,
 ) -> Optional[Dict[str, Any]]:
-    """Запускает ночное синаптическое самообучение и запись сна (03:00-04:59 Europe/Stockholm, 1 раз за ночь)."""
+    """Запускает ночное синаптическое самообучение и запись сна (03:00-04:59 Europe/Stockholm, 1 раз за ночь).
+
+    Семантика (вариант 1):
+      - force=True обходит ТОЛЬКО ночное окно 03:00-04:59; DB-claim уважается всегда.
+      - Строго один сон на (scope_id, local_date): захват через INSERT OR IGNORE.
+      - overwrite=True = явный пересчёт: перезаписывает claim и запускается заново.
+    """
     from zoneinfo import ZoneInfo
     from ai_client import get_ai_client
     from creative_life import CreativeDiary, CreativeLife, ai_generate
@@ -230,12 +239,15 @@ async def maybe_run_nightly_rem_consolidation(
     ts = now or datetime.now(timezone.utc)
     st_now = ts.astimezone(ZoneInfo("Europe/Stockholm"))
     local_date = st_now.strftime("%Y-%m-%d")
+    ts_utc_iso = ts.astimezone(timezone.utc).isoformat()
 
-    if not force:
-        if st_now.hour not in (3, 4):
-            return None
-        if (scope_id, local_date) in _COMPLETED_REM_NIGHTS:
-            return None
+    # force=True обходит ТОЛЬКО ночное окно; DB-claim уважается всегда (кроме overwrite).
+    if not force and st_now.hour not in (3, 4):
+        return None
+
+    # Быстрый путь in-memory: повтор той же ночи в рамках процесса (кроме overwrite).
+    if not overwrite and (scope_id, local_date) in _COMPLETED_REM_NIGHTS:
+        return None
 
     brain_db = getattr(emotional_core_obj, "db_path", None) or os.getenv("KRISTINA_STATE_DB", "kristina_state.db")
     if not brain_db or str(brain_db) == ":memory:":
@@ -244,55 +256,85 @@ async def maybe_run_nightly_rem_consolidation(
     if str(diary_db) == ":memory:":
         diary_db = str(brain_db)
 
-    def _already_ran() -> bool:
+    def _claim() -> bool:
+        # INSERT OR IGNORE = атомарный захват ночи: ровно один победитель на
+        # (scope_id, local_date). У проигравшего rowcount == 0 -> он выходит с None.
+        # overwrite=True = явный пересчёт: INSERT OR REPLACE перезаписывает claim.
+        op = "REPLACE" if overwrite else "IGNORE"
         with sqlite3.connect(str(brain_db), timeout=5.0) as conn:
+            conn.execute("PRAGMA busy_timeout = 5000")
             ensure_nightly_rem_table(conn)
-            row = conn.execute(
-                "SELECT 1 FROM nightly_rem_runs WHERE scope_id = ? AND local_date = ?",
-                (scope_id, local_date),
-            ).fetchone()
-            return row is not None
+            cur = conn.execute(
+                f"INSERT OR {op} INTO nightly_rem_runs(scope_id, local_date, consolidated_at, dream_entry_id, report_json) VALUES (?, ?, ?, NULL, ?)",
+                (scope_id, local_date, ts_utc_iso, "{}"),
+            )
+            conn.commit()
+            return bool(overwrite) or cur.rowcount == 1
 
-    if not force and await run_sqlite_nonblocking(_already_ran):
+    if not await run_sqlite_nonblocking(_claim):
+        # Ночь уже захвачена другим прогоном/процессом — строго один сон на ночь.
         _COMPLETED_REM_NIGHTS.add((scope_id, local_date))
         return None
 
     knowledge_db = os.path.join(os.path.dirname(os.path.abspath(str(brain_db))), "kristina_knowledge.db")
-    learner = SelfLearningAgent(db_path=knowledge_db, brain_db_path=str(brain_db))
-    report = await learner.consolidate_sleep(scope_id=scope_id)
-    seed = report.get("dream_seed") or {}
+    try:
+        learner = SelfLearningAgent(db_path=knowledge_db, brain_db_path=str(brain_db))
+        report = await learner.consolidate_sleep(scope_id=scope_id)
+        seed = report.get("dream_seed") or {}
 
-    dream_result: Optional[Dict[str, Any]] = None
-    has_dream_material = bool(
-        float(seed.get("vividness", 0.0)) >= 0.08
-        or seed.get("sensory_fragments")
-        or seed.get("creative_draft_bridge")
-    )
-    if has_dream_material:
-        gen = generate_fn or ai_generate(get_ai_client())
-        diary = CreativeDiary(str(diary_db))
-        life = CreativeLife(emotional_core_obj, diary, gen, clock=lambda: ts)
-        dream_result = await life.record_rem_dream(seed)
+        dream_result: Optional[Dict[str, Any]] = None
+        has_dream_material = bool(
+            float(seed.get("vividness", 0.0)) >= 0.08
+            or seed.get("sensory_fragments")
+            or seed.get("creative_draft_bridge")
+        )
+        if has_dream_material:
+            gen = generate_fn or ai_generate(get_ai_client())
+            diary = CreativeDiary(str(diary_db))
+            life = CreativeLife(emotional_core_obj, diary, gen, clock=lambda: ts)
+            dream_result = await life.record_rem_dream(seed)
+    except BaseException:
+        # Откатываем незавершённый claim (dream_entry_id IS NULL), чтобы не блокировать
+        # повторную попытку за эту ночь.
+        def _rollback() -> None:
+            with sqlite3.connect(str(brain_db), timeout=5.0) as conn:
+                conn.execute("PRAGMA busy_timeout = 5000")
+                ensure_nightly_rem_table(conn)
+                conn.execute(
+                    "DELETE FROM nightly_rem_runs WHERE scope_id = ? AND local_date = ? AND dream_entry_id IS NULL",
+                    (scope_id, local_date),
+                )
+                conn.commit()
 
-    def _mark_done() -> None:
+        try:
+            await run_sqlite_nonblocking(_rollback)
+        except Exception:
+            logger.exception("nightly REM claim rollback failed")
+        finally:
+            _COMPLETED_REM_NIGHTS.discard((scope_id, local_date))
+        raise
+
+    def _finalize() -> None:
         with sqlite3.connect(str(brain_db), timeout=5.0) as conn:
+            conn.execute("PRAGMA busy_timeout = 5000")
             ensure_nightly_rem_table(conn)
             conn.execute(
                 """
-                INSERT OR REPLACE INTO nightly_rem_runs(scope_id, local_date, consolidated_at, dream_entry_id, report_json)
-                VALUES (?, ?, ?, ?, ?)
+                UPDATE nightly_rem_runs
+                SET consolidated_at = ?, dream_entry_id = ?, report_json = ?
+                WHERE scope_id = ? AND local_date = ?
                 """,
                 (
-                    scope_id,
-                    local_date,
-                    ts.astimezone(timezone.utc).isoformat(),
+                    ts_utc_iso,
                     dream_result["id"] if dream_result else None,
                     json.dumps(report, ensure_ascii=False),
+                    scope_id,
+                    local_date,
                 ),
             )
             conn.commit()
 
-    await run_sqlite_nonblocking(_mark_done)
+    await run_sqlite_nonblocking(_finalize)
     _COMPLETED_REM_NIGHTS.add((scope_id, local_date))
     return {"consolidation": report, "dream": dream_result, "local_date": local_date}
 
