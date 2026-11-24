@@ -61,6 +61,27 @@ fi
 venv/bin/pip install --upgrade pip -q
 venv/bin/pip install -r requirements.txt -q
 
+# VCS-пин brain-core переустанавливаем ПРИНУДИТЕЛЬНО: если установленный
+# дистрибутив не несёт direct_url.json, pip считает требование вида
+# "kristina-brain-core @ git+...@tag" уже удовлетворённым и тихо НЕ обновляет
+# код (замер 2026-11-24: пины v1.2.1 и v1.2.2 не долетали до venv — в проде
+# оставался brain-core v1.2.0 со сломанным /openapi.json). Печатаем реф,
+# чтобы расхождение было видно в логе деплоя, а не по curl-пробам.
+BRAIN_CORE_PIN="$(grep -E '^kristina-brain-core\s*@' requirements.txt || true)"
+if [ -z "$BRAIN_CORE_PIN" ]; then
+    echo "!!! В requirements.txt нет строки 'kristina-brain-core @ ...' — проверьте пин."
+    exit 1
+fi
+venv/bin/pip install --force-reinstall --no-deps -q "$BRAIN_CORE_PIN"
+venv/bin/python - <<'PY'
+import glob
+import json
+
+files = sorted(glob.glob("venv/lib/*/site-packages/kristina_brain_core-*.dist-info/direct_url.json"))
+info = json.load(open(files[-1])) if files else {}
+print("brain-core installed ref:", info.get("vcs_info", {}).get("requested_revision", "UNKNOWN (no direct_url.json)"))
+PY
+
 # --- 6. Конфигурация и права на БД/секреты ---
 if [ ! -f .env ]; then
     cp .env.example .env
@@ -109,7 +130,29 @@ if [ "$NEED_ENV" = "0" ]; then
     systemctl --no-pager --lines=5 status kristina-bot || true
 fi
 
+# --- 8. systemd-сервис онлайн-обсерватории (brain-core-cloud) ---
+cp deploy/kristina-observatory.service /etc/systemd/system/
+chmod 644 /etc/systemd/system/kristina-observatory.service
+systemctl daemon-reload
+systemctl enable kristina-observatory
+if [ -f .observatory.env ]; then
+    chown root:root .observatory.env
+    chmod 600 .observatory.env
+    systemctl restart kristina-observatory
+    sleep 2
+    if ! systemctl is-active --quiet kristina-observatory; then
+        echo "!!! kristina-observatory не поднялся:"
+        systemctl --no-pager --lines=20 status kristina-observatory || true
+        exit 1
+    fi
+    systemctl --no-pager --lines=5 status kristina-observatory || true
+else
+    echo "!!! Нет $APP_DIR/.observatory.env — обсерватория не запущена."
+    echo "!!! Создайте (BRAIN_CONTROL_API_KEY, BRAIN_CORE_DB, BRAIN_CONTROL_HOST/PORT):"
+    echo "!!!   nano $APP_DIR/.observatory.env && systemctl start kristina-observatory"
+fi
+
 echo ""
 echo "=== Готово ==="
-echo "Статус:  systemctl status kristina-bot"
+echo "Статус:  systemctl status kristina-bot kristina-observatory"
 echo "Логи:    journalctl -u kristina-bot -f"

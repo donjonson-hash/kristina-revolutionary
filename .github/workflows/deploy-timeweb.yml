@@ -77,7 +77,7 @@ jobs:
              bash deploy/deploy.sh
              systemctl is-active --quiet kristina-bot
              echo "Deployed commit: $(git rev-parse HEAD)"
-             systemctl --no-pager --lines=20 status kristina-bot'
+             systemctl --no-pager --lines=20 status kristina-bot kristina-observatory'
 
       - name: Deployment summary
         if: steps.config.outputs.ready == 'true' && success()
