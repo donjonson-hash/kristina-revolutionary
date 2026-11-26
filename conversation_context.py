@@ -26,6 +26,48 @@ def telegram_conversation(update) -> Dict:
     return context
 
 
+def _chat_label(session_id) -> str:
+    """Human-readable chat label from a stored session id (never a full dump)."""
+    if not session_id:
+        return "?"
+    try:
+        parts = json.loads(session_id)
+        if isinstance(parts, list) and len(parts) > 1:
+            return str(parts[1])
+    except (ValueError, TypeError):
+        pass
+    return str(session_id)
+
+
+def format_shared_memory(shared: Optional[Dict], max_chars: int = 3500) -> str:
+    """One person, one memory: bounded digest of OTHER conversations.
+
+    Oldest lines are dropped first so the freshest cross-chat experience
+    survives the budget. Empty shared context yields an empty string.
+    """
+    if not shared:
+        return ""
+    lines = []
+    for message in shared.get("messages", []):
+        ts = (message.get("timestamp") or "")[:16]
+        who = "Кристина" if message.get("role") == "assistant" else "собеседник"
+        lines.append(
+            f"[{ts}] (чат {_chat_label(message.get('session_id'))}) "
+            f"{who}: {message.get('content', '')}"
+        )
+    for interest in shared.get("interests", []):
+        ts = (interest.get("updated_at") or "")[:16]
+        lines.append(
+            f"[{ts}] (интерес, чат {_chat_label(interest.get('session_id'))}) "
+            f"{interest.get('topic')}: {interest.get('reflection')}"
+        )
+    total = sum(len(line) + 1 for line in lines)
+    while lines and total > max_chars:
+        total -= len(lines[0]) + 1
+        lines.pop(0)
+    return "\n".join(lines)
+
+
 def format_conversation_history(messages: list, max_chars: int = 12000) -> str:
     """Keep recent turns within a character budget, without 100-character excerpts."""
     selected = []

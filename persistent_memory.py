@@ -228,6 +228,35 @@ class PersistentMemory:
         messages = self.get_recent_messages(session_id, limit)
         return [(m["role"], m["content"]) for m in messages]
 
+    def get_shared_context(self, exclude_session_id: Optional[str],
+                           message_limit: int = 12,
+                           interest_limit: int = 5) -> Dict:
+        """Cross-chat memory: recent messages and interests from OTHER conversations.
+
+        One person, one memory: what happened in other chats is the same
+        character's real experience here. Bounded by caller-side formatting.
+        Anonymous callers (no session) get nothing. Legacy user_* sessions
+        carry ambiguous identity and stay out (see
+        test_legacy_unscoped_history_is_preserved_but_not_injected).
+        """
+        if not exclude_session_id:
+            return {"messages": [], "interests": []}
+        conn = self._get_connection()
+        rows = conn.execute(
+            """SELECT session_id, role, content, timestamp FROM messages
+               WHERE session_id != ? AND session_id LIKE '[%'
+               ORDER BY id DESC LIMIT ?""",
+            (exclude_session_id, message_limit),
+        ).fetchall()
+        messages = [dict(row) for row in reversed(rows)]
+        irows = conn.execute(
+            """SELECT session_id, topic, reflection, updated_at FROM cognitive_interests
+               WHERE session_id != ? AND session_id LIKE '[%'
+               ORDER BY updated_at DESC LIMIT ?""",
+            (exclude_session_id, interest_limit),
+        ).fetchall()
+        return {"messages": messages, "interests": [dict(row) for row in irows]}
+
     def search_messages(self, keyword: str) -> List[Dict]:
         """Поиск по тексту среди всех сессий"""
         conn = self._get_connection()

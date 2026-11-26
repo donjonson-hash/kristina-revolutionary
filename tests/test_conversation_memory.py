@@ -102,20 +102,27 @@ async def test_full_turn_survives_restart_and_reaches_persona(persona_router, me
 
 @pytest.mark.parametrize("other", [conversation(2), conversation(1, -100), conversation(2, -100),
                                        conversation(1, channel="web")])
-async def test_private_history_never_enters_other_sessions(persona_router, other):
+async def test_private_history_enters_other_sessions_only_as_shared_memory(persona_router, other):
     router, generate, _ = persona_router
     await router.process("PRIVATE-MARKER-ONE", conversation(1))
     await router.process("Другой разговор", other)
-    assert "PRIVATE-MARKER-ONE" not in generate.call_args.kwargs["prompt"]
+    prompt = generate.call_args.kwargs["prompt"]
+    # Shared-memory policy: other chats are the character's real memory...
+    assert "PRIVATE-MARKER-ONE" in prompt
+    # ...but never as this conversation's own ИСТОРИЯ.
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    assert "PRIVATE-MARKER-ONE" not in history
     assert router.default_agent.conversation_history == []
 
 
-async def test_group_members_and_other_groups_are_isolated(persona_router):
+async def test_group_members_and_other_groups_share_memory_but_not_history(persona_router):
     router, generate, _ = persona_router
     await router.process("GROUP-MARKER-ONE", conversation(1, -100))
     for other in (conversation(2, -100), conversation(1, -200), conversation(1)):
         await router.process("Новая тема", other)
-        assert "GROUP-MARKER-ONE" not in generate.call_args.kwargs["prompt"]
+        prompt = generate.call_args.kwargs["prompt"]
+        history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+        assert "GROUP-MARKER-ONE" not in history
 
 
 async def test_anonymous_request_cannot_reuse_history(persona_router, memory):
@@ -135,7 +142,9 @@ async def test_mode_switch_preserves_only_own_conversation(persona_router):
     assert advisor.agent_name == "Kristina-Advisor"
     other = await router.process("Привет", conversation(2))
     assert other.agent_name == "Kristina"
-    assert "FEATURE-ALPHA" not in generate.call_args.kwargs["prompt"]
+    prompt = generate.call_args.kwargs["prompt"]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    assert "FEATURE-ALPHA" not in history
     await router.process("Продолжим", conversation())
     assert "FEATURE-ALPHA" in generate.call_args.kwargs["prompt"]
     assert advisor.content in generate.call_args.kwargs["prompt"]
@@ -217,7 +226,9 @@ async def test_clear_removes_own_history_and_document_context_only(telegram_bot,
     assert not bot.recent_proactive[1] and bot.recent_proactive[2]
     update.message.reply_text.assert_awaited_once_with("🧹 История очищена!")
     await router.process("Продолжим", conversation())
-    assert "SAVED-MARKER" not in generate.call_args.kwargs["prompt"]
+    prompt = generate.call_args.kwargs["prompt"]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    assert "SAVED-MARKER" not in history
 
 
 async def test_clear_failure_does_not_claim_success(telegram_bot, memory, monkeypatch):
