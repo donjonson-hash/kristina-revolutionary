@@ -100,6 +100,19 @@ def test_anonymous_callers_get_no_shared_memory(memory):
     assert memory.get_shared_context(None) == {"messages": [], "interests": []}
 
 
+def test_shared_context_keeps_intro_anchor_beyond_recent_window(memory):
+    """Regression (2026-11-26): the name in the first message must survive a
+    sliding recent window — newer chatter evicted «Иван из Томска на связи»
+    and the contact was denied."""
+    memory.save_exchange(session_for(2), "Иван из Томска на связи", "Иван, добрый день")
+    for i in range(20):
+        memory.save_exchange(session_for(2), f"еда-{i}", f"ответ-{i}")
+    shared = memory.get_shared_context(session_for(1), message_limit=12)
+    anchors = [m for m in shared["messages"] if m["anchor"]]
+    assert any("Иван из Томска на связи" in m["content"] for m in anchors)
+    assert len([m for m in shared["messages"] if not m["anchor"]]) == 12
+
+
 # ─── format_shared_memory ────────────────────────────────────────
 
 def test_format_shared_memory_keeps_newest_within_budget():
@@ -136,6 +149,25 @@ def test_format_shared_memory_empty():
     assert format_shared_memory({"messages": [], "interests": []}) == ""
 
 
+def test_format_shared_memory_pins_anchor_and_drops_old_recent():
+    shared = {"messages": [
+        {"session_id": '["telegram","777","777"]', "role": "user",
+         "content": "Иван из Томска на связи", "timestamp": "2026-11-25T16:28:48",
+         "anchor": True},
+        {"session_id": '["telegram","777","777"]', "role": "user",
+         "content": "СТАРОЕ-" + "x" * 400, "timestamp": "2026-11-25T19:50:03",
+         "anchor": False},
+        {"session_id": '["telegram","777","777"]', "role": "assistant",
+         "content": "НОВОЕ-сообщение", "timestamp": "2026-11-26T14:34:50",
+         "anchor": False},
+    ], "interests": []}
+    text = format_shared_memory(shared, max_chars=200)
+    assert "Иван из Томска на связи" in text
+    assert "начало переписки" in text
+    assert "НОВОЕ-сообщение" in text
+    assert "СТАРОЕ-" not in text
+
+
 # ─── Prompt wiring (router → persona) ────────────────────────────
 
 async def test_other_chat_enters_prompt_as_shared_block_not_history(persona_router):
@@ -147,6 +179,20 @@ async def test_other_chat_enters_prompt_as_shared_block_not_history(persona_rout
     assert "Иван из Томска на связи" in prompt
     assert "Иван из Томска на связи" not in history_section(prompt)
     assert "одна память на все переписки" in prompt
+
+
+async def test_intro_anchor_reaches_prompt_even_after_newer_chatter(persona_router, memory):
+    """The 2026-11-26 incident end-to-end: intro «Иван из Томска на связи»,
+    then 20 newer food-talk messages, then «Как пообщалась с Иваном?» —
+    the name must still be in the prompt."""
+    router, generate = persona_router
+    memory.save_exchange(session_for(2), "Иван из Томска на связи", "Иван, добрый день")
+    for i in range(20):
+        memory.save_exchange(session_for(2), f"еда-{i}", f"ответ-{i}")
+    await router.process("Как пообщалась с Иваном?", conversation(3))
+    prompt = generate.call_args.kwargs["prompt"]
+    assert "Иван из Томска на связи" in prompt
+    assert "начало переписки" in prompt
 
 
 async def test_current_chat_history_stays_session_local(persona_router):
