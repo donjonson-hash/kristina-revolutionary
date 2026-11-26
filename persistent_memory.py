@@ -230,25 +230,51 @@ class PersistentMemory:
 
     def get_shared_context(self, exclude_session_id: Optional[str],
                            message_limit: int = 12,
-                           interest_limit: int = 5) -> Dict:
+                           interest_limit: int = 5,
+                           chat_limit: int = 4,
+                           anchor_limit: int = 2) -> Dict:
         """Cross-chat memory: recent messages and interests from OTHER conversations.
 
         One person, one memory: what happened in other chats is the same
-        character's real experience here. Bounded by caller-side formatting.
-        Anonymous callers (no session) get nothing. Legacy user_* sessions
-        carry ambiguous identity and stay out (see
+        character's real experience here. Each other chat also contributes its
+        FIRST exchange as a pinned anchor — that is where people introduce
+        themselves ("Иван из Томска на связи"), and the name must survive the
+        sliding recent window (measured failure 2026-11-26: the introduction
+        evicted by newer food talk, the contact denied). Anchors carry
+        ``anchor: True`` and are formatted separately. Anonymous callers (no
+        session) get nothing. Legacy user_* sessions carry ambiguous identity
+        and stay out (see
         test_legacy_unscoped_history_is_preserved_but_not_injected).
         """
         if not exclude_session_id:
             return {"messages": [], "interests": []}
         conn = self._get_connection()
-        rows = conn.execute(
-            """SELECT session_id, role, content, timestamp FROM messages
+        sessions = [row[0] for row in conn.execute(
+            """SELECT session_id FROM messages
+               WHERE session_id != ? AND session_id LIKE '[%'
+               GROUP BY session_id ORDER BY MAX(id) DESC LIMIT ?""",
+            (exclude_session_id, chat_limit),
+        ).fetchall()]
+        by_id = {}
+        for session in sessions:
+            for row in conn.execute(
+                """SELECT id, session_id, role, content, timestamp FROM messages
+                   WHERE session_id = ? ORDER BY id ASC LIMIT ?""",
+                (session, anchor_limit),
+            ).fetchall():
+                item = dict(row)
+                item["anchor"] = True
+                by_id[row[0]] = item
+        for row in conn.execute(
+            """SELECT id, session_id, role, content, timestamp FROM messages
                WHERE session_id != ? AND session_id LIKE '[%'
                ORDER BY id DESC LIMIT ?""",
             (exclude_session_id, message_limit),
-        ).fetchall()
-        messages = [dict(row) for row in reversed(rows)]
+        ).fetchall():
+            item = dict(row)
+            item["anchor"] = by_id.get(row[0], {}).get("anchor", False)
+            by_id[row[0]] = item
+        messages = [by_id[key] for key in sorted(by_id)]
         irows = conn.execute(
             """SELECT session_id, topic, reflection, updated_at FROM cognitive_interests
                WHERE session_id != ? AND session_id LIKE '[%'

@@ -42,30 +42,41 @@ def _chat_label(session_id) -> str:
 def format_shared_memory(shared: Optional[Dict], max_chars: int = 3500) -> str:
     """One person, one memory: bounded digest of OTHER conversations.
 
-    Oldest lines are dropped first so the freshest cross-chat experience
-    survives the budget. Empty shared context yields an empty string.
+    Intro anchors (first exchange of each chat — who is who) are pinned at the
+    top and survive the budget; only recent lines are dropped when it shrinks,
+    oldest first. Empty shared context yields an empty string.
     """
     if not shared:
         return ""
-    lines = []
+    anchor_lines = []
+    recent_lines = []
     for message in shared.get("messages", []):
         ts = (message.get("timestamp") or "")[:16]
         who = "Кристина" if message.get("role") == "assistant" else "собеседник"
-        lines.append(
-            f"[{ts}] (чат {_chat_label(message.get('session_id'))}) "
-            f"{who}: {message.get('content', '')}"
-        )
+        content = message.get("content", "")
+        if message.get("anchor"):
+            if len(content) > 240:
+                content = content[:240] + "…"
+            anchor_lines.append(
+                f"[{ts}] (чат {_chat_label(message.get('session_id'))}, начало переписки) "
+                f"{who}: {content}"
+            )
+        else:
+            recent_lines.append(
+                f"[{ts}] (чат {_chat_label(message.get('session_id'))}) "
+                f"{who}: {content}"
+            )
     for interest in shared.get("interests", []):
         ts = (interest.get("updated_at") or "")[:16]
-        lines.append(
+        recent_lines.append(
             f"[{ts}] (интерес, чат {_chat_label(interest.get('session_id'))}) "
             f"{interest.get('topic')}: {interest.get('reflection')}"
         )
-    total = sum(len(line) + 1 for line in lines)
-    while lines and total > max_chars:
-        total -= len(lines[0]) + 1
-        lines.pop(0)
-    return "\n".join(lines)
+    total = sum(len(line) + 1 for line in anchor_lines + recent_lines)
+    while recent_lines and total > max_chars:
+        total -= len(recent_lines[0]) + 1
+        recent_lines.pop(0)
+    return "\n".join(anchor_lines + recent_lines)
 
 
 def format_conversation_history(messages: list, max_chars: int = 12000) -> str:
