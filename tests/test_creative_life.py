@@ -193,6 +193,21 @@ async def test_heartbeat_writes_and_publishes_once_then_holds(heartbeat, monkeyp
     assert len(telemetry.recent(kind="creative")) == 1
 
 
+async def test_heartbeat_publishes_through_the_notes_bot_when_configured(heartbeat, monkeypatch):
+    from unittest.mock import AsyncMock
+    bot, core, telegram = heartbeat
+    monkeypatch.setenv("KRISTINA_CHANNEL_ID", "-100123")
+    monkeypatch.setenv("KRISTINA_NOTES_BOT_TOKEN", "7795832979:test-not-a-real-token")
+    notes_send = AsyncMock()
+    monkeypatch.setattr(bot, "send_notes_message", notes_send)
+    await bot.creative_life_tick(telegram, NOON, core.evolve())
+    notes_send.assert_awaited_once_with(
+        "7795832979:test-not-a-real-token", "-100123", THOUGHT)
+    telegram.send_message.assert_not_awaited()
+    entry = bot.get_creative_life().diary.recent()[0]
+    assert entry["publish_target"] == "telegram_channel" and entry["published_at"] is not None
+
+
 async def test_heartbeat_keeps_diary_private_without_channel(heartbeat, monkeypatch):
     bot, core, telegram = heartbeat
     monkeypatch.delenv("KRISTINA_CHANNEL_ID", raising=False)

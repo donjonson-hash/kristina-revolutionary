@@ -11,6 +11,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable
 from dotenv import load_dotenv
+import aiohttp
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -520,6 +521,21 @@ async def generate_autonomous_message(
     return message
 
 
+async def send_notes_message(token: str, chat_id: str, text: str) -> None:
+    """Deliver a creative note through the dedicated notes bot.
+
+    KRISTINA_NOTES_BOT_TOKEN routes the travel-blogger notes through a
+    separate bot identity (e.g. @Krististog_bot) instead of the chat bot.
+    """
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        async with session.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": chat_id, "text": text}) as response:
+            payload = await response.json()
+            if response.status != 200 or not payload.get("ok"):
+                raise RuntimeError(f"notes bot delivery failed: HTTP {response.status}")
+
+
 async def creative_life_tick(bot, now: datetime, emotional_state: Dict):
     """Kristina's own life: a diary entry when creative pressure is high, posted if a channel is set.
 
@@ -587,7 +603,11 @@ async def creative_life_tick(bot, now: datetime, emotional_state: Dict):
         if not channel_id:
             logger.info("Creative diary entry %s kept private: KRISTINA_CHANNEL_ID not set", entry["id"])
             return
-        await bot.send_message(chat_id=channel_id, text=entry["thought"])
+        notes_token = os.getenv("KRISTINA_NOTES_BOT_TOKEN")
+        if notes_token:
+            await send_notes_message(notes_token, channel_id, entry["thought"])
+        else:
+            await bot.send_message(chat_id=channel_id, text=entry["thought"])
         life.diary.mark_published(entry["id"], at=datetime.now(timezone.utc), target="telegram_channel")
         logger.info("Creative diary entry %s published to channel", entry["id"])
     except Exception as exc:
