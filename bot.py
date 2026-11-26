@@ -80,6 +80,7 @@ try:
     from agents.trend_scout import TrendScoutAgent
     from emotional_core import get_emotional_core
     from autonomy_decision import (
+        PROACTIVE_THRESHOLD,
         DesireEngine,
         DecisionEngine,
         compare_shadow_decision,
@@ -640,13 +641,17 @@ async def autonomous_proactive_tick(context: ContextTypes.DEFAULT_TYPE):
                     "organism_projection": organism_projection,
                 }
                 desires = desire_engine.calculate(emotional_state, decision_context)
+                # The proactive gate is tuned separately from the creative one:
+                # measured 0.59 windows died as impulse_too_weak under 0.62
+                # (production, 2026-11). The creative diary keeps its own
+                # calibration; decision_engine stays the delivery seam.
                 use_v4 = is_v4_physics_enabled() and hasattr(decision_engine, "threshold")
                 decision = (
                     evaluate_v4_proactive_decision(
                         emotional_state,
                         organism_projection,
                         decision_context,
-                        threshold=float(getattr(decision_engine, "threshold", 0.62)),
+                        threshold=float(PROACTIVE_THRESHOLD),
                         cooldown_seconds=getattr(decision_engine, "cooldown", timedelta(hours=2)).total_seconds(),
                         now=now,
                     )
@@ -738,6 +743,10 @@ async def autonomous_work_tick(context: ContextTypes.DEFAULT_TYPE):
         from brain_core_runtime import is_v4_physics_enabled, maybe_run_nightly_rem_consolidation
         if is_v4_physics_enabled():
             await maybe_run_nightly_rem_consolidation(router.memory, emotional_core)
+        # The writer's web-learning routine (Perplexity) is a durable daily
+        # job; it claims its day first, so it is safe to call every tick.
+        from self_learning import get_learning_agent
+        await get_learning_agent().maybe_run_daily_learning()
     except Exception as exc:
         logger.error("Autonomous work failed: %s", type(exc).__name__)
 

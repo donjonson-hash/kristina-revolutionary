@@ -342,6 +342,40 @@ class SelfLearningAgent:
         await self.learn_topic("literary_nonfiction")
         await self.learn_topic("sweden_culture")
 
+    async def maybe_run_daily_learning(self, now: Optional[datetime] = None) -> bool:
+        """Run the writer's web-learning routine at most once per UTC day.
+
+        Without PERPLEXITY_API_KEY there is no web learning at all, so the day
+        is NOT claimed: setting the key later starts learning the same day. The
+        claim is written BEFORE the queries -- a failing provider must not
+        retrigger the routine every minute for the rest of the day.
+        """
+        if not self.perplexity.api_key:
+            return False
+        timestamp = now or datetime.now(timezone.utc)
+        claim = f"daily_learning_routine:{timestamp.strftime('%Y-%m-%d')}"
+        if not await self._claim_once(claim, timestamp):
+            return False
+        await self.daily_learning_routine()
+        return True
+
+    async def _claim_once(self, topic: str, timestamp: datetime) -> bool:
+        def _write() -> bool:
+            with sqlite3.connect(self.db_path, timeout=5.0) as conn:
+                cursor = conn.execute(
+                    "INSERT OR IGNORE INTO knowledge (topic, content, learned_at, source)"
+                    " VALUES (?, ?, ?, ?)",
+                    (topic, "", timestamp.isoformat(), "claim"))
+                conn.commit()
+                return cursor.rowcount == 1
+
+        try:
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, _write)
+        except Exception as e:
+            logger.error("DB claim error: %s", e)
+            return False
+
     def get_context_for_thought(self) -> str:
         if not self.knowledge_cache:
             return ""
