@@ -110,7 +110,7 @@ async def test_private_history_enters_other_sessions_only_as_shared_memory(perso
     # Shared-memory policy: other chats are the character's real memory...
     assert "PRIVATE-MARKER-ONE" in prompt
     # ...but never as this conversation's own ИСТОРИЯ.
-    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("КОНЕЦ ИСТОРИИ")]
     assert "PRIVATE-MARKER-ONE" not in history
     assert router.default_agent.conversation_history == []
 
@@ -121,7 +121,7 @@ async def test_group_members_and_other_groups_share_memory_but_not_history(perso
     for other in (conversation(2, -100), conversation(1, -200), conversation(1)):
         await router.process("Новая тема", other)
         prompt = generate.call_args.kwargs["prompt"]
-        history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+        history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("КОНЕЦ ИСТОРИИ")]
         assert "GROUP-MARKER-ONE" not in history
 
 
@@ -143,7 +143,7 @@ async def test_mode_switch_preserves_only_own_conversation(persona_router):
     other = await router.process("Привет", conversation(2))
     assert other.agent_name == "Kristina"
     prompt = generate.call_args.kwargs["prompt"]
-    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("КОНЕЦ ИСТОРИИ")]
     assert "FEATURE-ALPHA" not in history
     await router.process("Продолжим", conversation())
     assert "FEATURE-ALPHA" in generate.call_args.kwargs["prompt"]
@@ -227,7 +227,7 @@ async def test_clear_removes_own_history_and_document_context_only(telegram_bot,
     update.message.reply_text.assert_awaited_once_with("🧹 История очищена!")
     await router.process("Продолжим", conversation())
     prompt = generate.call_args.kwargs["prompt"]
-    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("КОНЕЦ ИСТОРИИ")]
     assert "SAVED-MARKER" not in history
 
 

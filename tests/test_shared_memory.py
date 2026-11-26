@@ -52,7 +52,7 @@ def persona_router(memory, monkeypatch):
 
 
 def history_section(prompt: str) -> str:
-    return prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    return prompt[prompt.index("ИСТОРИЯ:"):prompt.index("КОНЕЦ ИСТОРИИ")]
 
 
 # ─── PersistentMemory.get_shared_context ─────────────────────────
@@ -175,10 +175,10 @@ async def test_other_chat_enters_prompt_as_shared_block_not_history(persona_rout
     await router.process("Иван из Томска на связи", conversation(2))
     await router.process("Как дела?", conversation(3))
     prompt = generate.call_args.kwargs["prompt"]
-    assert "ОБЩАЯ ПАМЯТЬ (твои переписки" in prompt
+    assert "ОБЩАЯ ПАМЯТЬ (записанные" in prompt
     assert "Иван из Томска на связи" in prompt
     assert "Иван из Томска на связи" not in history_section(prompt)
-    assert "одна память на все переписки" in prompt
+    assert "верна ОБЩАЯ ПАМЯТЬ" in prompt
 
 
 async def test_intro_anchor_reaches_prompt_even_after_newer_chatter(persona_router, memory):
@@ -210,7 +210,7 @@ async def test_single_chat_has_no_shared_block(persona_router):
     await router.process("Привет", conversation(1))
     await router.process("Привет ещё раз", conversation(1))
     prompt = generate.call_args.kwargs["prompt"]
-    assert "ОБЩАЯ ПАМЯТЬ (твои переписки" not in prompt
+    assert "ОБЩАЯ ПАМЯТЬ (записанные" not in prompt
 
 
 # ─── Proactive generation ────────────────────────────────────────

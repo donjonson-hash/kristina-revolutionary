@@ -87,7 +87,7 @@ async def test_interest_enters_another_conversation_only_as_shared_memory(pipeli
     p.appraisal.return_value = None
     await p.router.process("Привет", other)
     prompt = p.generate.call_args.kwargs["prompt"]
-    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("КОНЕЦ ИСТОРИИ")]
     # Shared-memory policy: the interpretation is the character's real memory...
     assert INTEREST.reflection in prompt
     # ...but the conversation's own ИСТОРИЯ and appraisal interest stay per-session.
