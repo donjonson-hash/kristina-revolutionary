@@ -193,7 +193,7 @@ async def test_cafe_explanation_closes_question_in_current_reply_and_after_resta
 
 @pytest.mark.parametrize("other", [conversation(2, 2), conversation(1, -100),
                                    conversation(1, 1, "web")])
-async def test_scene_never_enters_another_conversation(dialogue_pipeline, other):
+async def test_scene_state_never_enters_another_conversation(dialogue_pipeline, other):
     p = dialogue_pipeline
     marker = "PRIVATE-SCENE-MARKER"
     text = f"Представим {marker}."
@@ -202,7 +202,11 @@ async def test_scene_never_enters_another_conversation(dialogue_pipeline, other)
     await p.router.process(text, conversation())
     p.assess.return_value = appraisal()
     await p.router.process("Привет", other)
-    assert marker not in p.generate.call_args.kwargs["prompt"]
+    prompt = p.generate.call_args.kwargs["prompt"]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    # The scene words are shared memory (one person remembers what was said)...
+    assert marker not in history
+    # ...but the imagined scene STATE belongs to its own conversation only.
     assert p.store.get(conversation_session_id(other))["scene"] is None
 
 

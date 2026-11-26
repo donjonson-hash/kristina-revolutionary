@@ -81,12 +81,17 @@ async def test_followup_after_restart_uses_interest_outside_recent_history(pipel
 
 
 @pytest.mark.parametrize("other", [conversation(2, 2), conversation(1, -100), conversation(1, 1, "web")])
-async def test_interest_never_enters_another_conversation(pipeline, other):
+async def test_interest_enters_another_conversation_only_as_shared_memory(pipeline, other):
     p = pipeline
     await p.router.process(SOURCE, conversation())
     p.appraisal.return_value = None
     await p.router.process("Привет", other)
-    assert INTEREST.reflection not in p.generate.call_args.kwargs["prompt"]
+    prompt = p.generate.call_args.kwargs["prompt"]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    # Shared-memory policy: the interpretation is the character's real memory...
+    assert INTEREST.reflection in prompt
+    # ...but the conversation's own ИСТОРИЯ and appraisal interest stay per-session.
+    assert INTEREST.reflection not in history
     assert p.appraisal.call_args.args[2] is None
 
 

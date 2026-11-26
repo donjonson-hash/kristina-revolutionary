@@ -144,6 +144,13 @@ class KristinaPersonaAgent(BaseAgent):
         await asyncio.sleep(delay)
 
         history_block = format_conversation_history(context.get("history", []))
+        shared_memory = context.get("shared_memory") or ""
+        shared_block = ""
+        if shared_memory:
+            shared_block = (
+                "\n\nОБЩАЯ ПАМЯТЬ (твои переписки с другими собеседниками — "
+                "твой реальный опыт, а не чужие слова):\n" + shared_memory
+            )
 
         full_prompt = (
             f"{self.system_prompt}"
@@ -161,6 +168,7 @@ class KristinaPersonaAgent(BaseAgent):
                 full_prompt += "\n# мозг рекомендует: " + ", ".join(rec_text)
 
         full_prompt += (
+            f"{shared_block}"
             f"\n\nИСТОРИЯ:\n{history_block}"
             f'\n\nСООБЩЕНИЕ СОБЕСЕДНИКА: "{user_input}"'
             f"\n\nПРАВИЛА ОТВЕТА:"
@@ -171,6 +179,9 @@ class KristinaPersonaAgent(BaseAgent):
             f"\n5. Если не знаешь или не уверена — так и скажи; не выдумывай технические факты"
             f"\n6. Если есть GitHub evidence — основывай технические утверждения только на нём"
             f"\n7. Никакой эзотерики и искусственной философской глубины"
+            f"\n8. У тебя одна память на все переписки: ОБЩАЯ ПАМЯТЬ — твой реальный опыт "
+            f"в других чатах. На вопросы вроде «тебе кто-то писал?» отвечай по ней "
+            f"и не отрицай категорично то, чего просто не помнишь"
             f"\n\nПИШИ:"
         )
 

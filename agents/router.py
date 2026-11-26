@@ -5,7 +5,7 @@ Agent Router - исправленная версия с set_active_agent
 from typing import Dict, List, Optional, NamedTuple
 from .base_agent import BaseAgent, AgentResponse
 from github_readonly import GitHubReadOnlyTool, extract_github_repo_url
-from conversation_context import conversation_session_id
+from conversation_context import conversation_session_id, format_shared_memory
 from intention_cycle import IntentionStore, research_target
 from repository_research import extract_research_target
 from repository_dialogue import inspect_followup
@@ -179,6 +179,8 @@ class AgentRouter:
                     return self._replayed_response(saved)
             context["dialogue"] = store.get(session_id)
             context["history"] = self.memory.get_context_for_llm(session_id, limit=20)
+            context["shared_memory"] = format_shared_memory(
+                self.memory.get_shared_context(session_id))
             context["interest"] = self.memory.get_interest(session_id)
             context["intention"] = IntentionStore(self.memory).get_current(session_id)
             context['research_availability'] = IntentionStore(self.memory).availability(session_id)
