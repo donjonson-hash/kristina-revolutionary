@@ -203,7 +203,7 @@ async def test_scene_state_never_enters_another_conversation(dialogue_pipeline, 
     p.assess.return_value = appraisal()
     await p.router.process("Привет", other)
     prompt = p.generate.call_args.kwargs["prompt"]
-    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("СООБЩЕНИЕ СОБЕСЕДНИКА")]
+    history = prompt[prompt.index("ИСТОРИЯ:"):prompt.index("КОНЕЦ ИСТОРИИ")]
     # The scene words are shared memory (one person remembers what was said)...
     assert marker not in history
     # ...but the imagined scene STATE belongs to its own conversation only.
