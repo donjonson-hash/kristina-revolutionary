@@ -12,7 +12,10 @@ from unittest.mock import AsyncMock
 import pytest
 
 from agents.router import AgentRouter
-from conversation_context import conversation_session_id, format_shared_memory
+from conversation_context import (
+    conversation_session_id, format_shared_memory,
+    extract_name_candidates, format_memory_lookup,
+)
 from persistent_memory import PersistentMemory
 
 
@@ -125,7 +128,7 @@ def test_format_shared_memory_keeps_newest_within_budget():
     text = format_shared_memory(shared, max_chars=120)
     assert "НОВОЕ-сообщение" in text
     assert "СТАРОЕ-" not in text
-    assert "(чат 777)" in text
+    assert "переписка 777" in text
 
 
 def test_format_shared_memory_labels_roles_and_interests():
@@ -141,7 +144,7 @@ def test_format_shared_memory_labels_roles_and_interests():
     text = format_shared_memory(shared)
     assert "собеседник: Махачкала" in text
     assert "Кристина: Каспий, рынок" in text
-    assert "(интерес, чат 777) Дагестан" in text
+    assert "(интерес) Дагестан" in text
 
 
 def test_format_shared_memory_empty():
@@ -163,7 +166,7 @@ def test_format_shared_memory_pins_anchor_and_drops_old_recent():
     ], "interests": []}
     text = format_shared_memory(shared, max_chars=200)
     assert "Иван из Томска на связи" in text
-    assert "начало переписки" in text
+    assert "собеседник представился" in text
     assert "НОВОЕ-сообщение" in text
     assert "СТАРОЕ-" not in text
 
@@ -192,7 +195,7 @@ async def test_intro_anchor_reaches_prompt_even_after_newer_chatter(persona_rout
     await router.process("Как пообщалась с Иваном?", conversation(3))
     prompt = generate.call_args.kwargs["prompt"]
     assert "Иван из Томска на связи" in prompt
-    assert "начало переписки" in prompt
+    assert "собеседник представился" in prompt
 
 
 async def test_current_chat_history_stays_session_local(persona_router):
@@ -211,6 +214,56 @@ async def test_single_chat_has_no_shared_block(persona_router):
     await router.process("Привет ещё раз", conversation(1))
     prompt = generate.call_args.kwargs["prompt"]
     assert "ОБЩАЯ ПАМЯТЬ (записанные" not in prompt
+
+
+# ─── Deterministic memory lookup («тебе X писал?») ───────────────
+
+def test_extract_name_candidates_filters_sentence_starters():
+    assert extract_name_candidates("Ну как, Иван так и не написал?") == ["Иван"]
+    assert extract_name_candidates("Смотри, привет, пожалуйста") == []
+    assert extract_name_candidates("Как пообщалась с Иваном и Петром?") == ["Иваном", "Петром"]
+    assert extract_name_candidates("") == []
+
+
+def test_format_memory_lookup_shows_records_and_claims_facts():
+    hits = [("Иван", [
+        {"session_id": '["telegram","777","777"]', "role": "user",
+         "content": "Кристина, добрый день. Иван из Томска на связи",
+         "timestamp": "2026-11-25T16:28:48"},
+    ])]
+    text = format_memory_lookup(hits)
+    assert "СПРАВКА ПАМЯТИ" in text
+    assert "Иван из Томска на связи" in text
+    assert "он писал" in text
+
+
+def test_search_cross_chat_speakers_is_inflection_safe(memory):
+    memory.save_exchange(session_for(2), "Иван из Томска на связи", "Добрый день")
+    hits = memory.search_cross_chat_speakers("Иваном", session_for(1))
+    assert any("Иван из Томска" in h["content"] for h in hits)
+    assert memory.search_cross_chat_speakers("Пётр", session_for(1)) == []
+
+
+def test_format_memory_lookup_empty_without_hits():
+    assert format_memory_lookup([("Пётр", [])]) == ""
+    assert format_memory_lookup([]) == ""
+
+
+async def test_lookup_block_reaches_prompt_for_name_question(persona_router, memory):
+    router, generate = persona_router
+    memory.save_exchange(session_for(2), "Иван из Томска на связи", "Иван, добрый день")
+    await router.process("Ну как, Иван так и не написал?", conversation(1))
+    prompt = generate.call_args.kwargs["prompt"]
+    assert "СПРАВКА ПАМЯТИ" in prompt
+    assert "Иван из Томска на связи" in prompt
+
+
+async def test_no_lookup_block_for_unknown_name(persona_router, memory):
+    router, generate = persona_router
+    memory.save_exchange(session_for(2), "Иван из Томска на связи", "Иван, добрый день")
+    await router.process("Ну как, Пётр так и не написал?", conversation(1))
+    prompt = generate.call_args.kwargs["prompt"]
+    assert "СПРАВКА ПАМЯТИ" not in prompt
 
 
 # ─── Proactive generation ────────────────────────────────────────
