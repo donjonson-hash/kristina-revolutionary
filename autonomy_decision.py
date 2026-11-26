@@ -232,6 +232,9 @@ class DesireEngine:
         return max(0.0, min(1.0, value))
 
 
+PROACTIVE_THRESHOLD = 0.57
+
+
 class DecisionEngine:
     """Chooses whether Kristina acts at all. Silence is a first-class decision."""
 

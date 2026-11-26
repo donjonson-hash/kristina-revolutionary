@@ -168,6 +168,9 @@ def repeated_question(text, state):
     return False
 
 
+PROACTIVE_SILENCE_LIMIT = timedelta(hours=24)
+
+
 def proactive_block_reason(state, now=None):
     state = state or empty_state()
     timestamp = _now(now)
@@ -180,9 +183,17 @@ def proactive_block_reason(state, now=None):
     pending = state["pending_question"]
     if pending and (state["last_user_id"] is None
                     or pending["source_message_id"] > state["last_user_id"]):
-        return "awaiting_answer"
+        # A question holds initiative for one silence limit, not forever: an
+        # ignored question must not permanently disable proactive messages.
+        if timestamp - _time(pending["asked_at"]) < PROACTIVE_SILENCE_LIMIT:
+            return "awaiting_answer"
     if state["proactive_since_user"] >= 1:
-        return "awaiting_user_turn"
+        # One proactive per user turn; while the user stays silent, pace to
+        # one proactive per silence limit instead of waiting forever.
+        recent = [_time(state[key]) for key in ("last_user_at", "last_proactive_at")
+                  if state.get(key)]
+        if not recent or timestamp - max(recent) < PROACTIVE_SILENCE_LIMIT:
+            return "awaiting_user_turn"
     if (state["last_proactive_at"]
             and timestamp - _time(state["last_proactive_at"]) < timedelta(hours=2)):
         return "proactive_cooldown"
