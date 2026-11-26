@@ -283,6 +283,30 @@ class PersistentMemory:
         ).fetchall()
         return {"messages": messages, "interests": [dict(row) for row in irows]}
 
+    def search_cross_chat_speakers(self, name: str, exclude_session_id: Optional[str],
+                                   limit: int = 4) -> List[Dict]:
+        """Message records from OTHER chats mentioning `name` — identity evidence
+        for deterministic «тебе X писал?» lookups (bounded).
+
+        Russian inflection-safe: ё/е is normalized and the search matches the
+        full word OR its 4-char stem («Иваном» finds «Иван из Томска»).
+        """
+        if not exclude_session_id or not name:
+            return []
+        norm = name.replace("ё", "е").replace("Ё", "Е")
+        expr = "REPLACE(REPLACE(content,'ё','е'),'Ё','Е')"
+        patterns = [f"%{norm}%"]
+        if len(norm) > 4:
+            patterns.append(f"%{norm[:4]}%")
+        clauses = " OR ".join(f"{expr} LIKE ?" for _ in patterns)
+        rows = self._get_connection().execute(
+            f"""SELECT session_id, role, content, timestamp FROM messages
+                WHERE session_id != ? AND session_id LIKE '[%' AND ({clauses})
+                ORDER BY id DESC LIMIT ?""",
+            (exclude_session_id, *patterns, limit),
+        ).fetchall()
+        return [dict(row) for row in reversed(rows)]
+
     def search_messages(self, keyword: str) -> List[Dict]:
         """Поиск по тексту среди всех сессий"""
         conn = self._get_connection()
